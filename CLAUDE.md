@@ -91,7 +91,7 @@ Order: optics → reactive → plates → frenzy → rapid → surplus → vangu
 adjusted mission object during play so every timer read sees the modified `reinforceAt/evacAt/deadline`; `openBriefing`
 clears `MADJ` and previews the adjusted numbers with "(was N)". Clean Act III run = 2 adaptations; doom 6–8 = 4; doom 9 = 6.
 
-Phase 8 still open: campaign epilogue after Last Light, mid-mission resume.
+Phase 8 still open: mid-mission resume (the epilogue shipped 2026-09-27).
 
 **Fixed 2026-09-27 — the real "mission report won't close" bug.** Every `.overlay`/`.modal` element (result screen,
 all 6 modals) was marked `hidden` in markup but its CSS class sets `display:grid`; the bare `hidden` *attribute* relies
@@ -253,6 +253,21 @@ ignores drums when listing relays. Bot never uses drums, so it undercounts their
   drop anims. Convergence is frame-rate based, so in swiftshader tests wait ~20 s before judging it.
 - Perf (swiftshader 1240×900, M2 with drums): direct 473 ms/frame, RT 545, RT+glow 541 — the RT/MSAA is the cost, the glow is
   free. On a GPU all of it is negligible.
+
+## Enemy action cam & campaign epilogue (2026-09-27)
+- **Action cam.** `G.actcam={x,y,zoom,pull}` is a persistent framing goal for the ortho camera; `AC` in `placeCamera()` eases
+  `camTarget`/zoom toward `CENTER.lerp(point,pull)` (dt-scaled, 0.085/frame in, 0.11 back out), and kill cam / contact focus
+  layer on top (their zoom now multiplies `AC.z`). Set by the enemy phase: each activation frames the unit (with a 220/420 ms
+  lead so the camera arrives first), `doMove`/Husk blink keep it on the mover, `shoot()` frames the shooter–target midpoint
+  (zoom by distance), the Surgeon graft and each reinforcement get a beat, and `endTurn` clears it before the player turn.
+  Cleared in `startMission`; off under `prefers-reduced-motion` (`AC.still`). `R3._camState()` exposes zoom/offset for tests
+  (`test21.mjs`).
+- **Epilogue.** `#screen-epilogue` ("Daylight"): Control's closing transmission (five paragraphs, with the fallen named, the
+  final Index, and Last Light's survivors), campaign stats, the living roster by missions served, and the wall. `finish()`
+  stores `CAMP.finale={survivors,turn,doom,when}` on a Last Light win and relabels Continue as **Epilogue** → `showEpilogue()`;
+  the hub shows an Epilogue link next to the progress count once all ten are cleared. `showScreen` knows `'epilogue'`
+  (menu music, act 2). Buttons: Return to base, New campaign (reuses the menu's confirm). `test22.mjs` drives the whole flow.
+  Phase 8's remaining open item is mid-mission resume.
 
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries

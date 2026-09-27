@@ -162,6 +162,18 @@ h1,h2,h3{margin:0;font-family:var(--font-display);text-wrap:balance;letter-spaci
 .intel .row.unknown .n{color:var(--aug)}
 .intel .row.unknown .sw{background:repeating-linear-gradient(45deg,var(--aug) 0 2px,transparent 2px 5px);opacity:.6}
 
+/* ---------- Epilogue ---------- */
+.epi{max-width:880px;margin:0 auto;padding:8px 0 24px}
+.ep-title{font-family:var(--font-display);font-weight:700;font-size:clamp(40px,7vw,64px);line-height:.95;letter-spacing:.08em;text-transform:uppercase;margin:6px 0 14px;background:linear-gradient(180deg,#FFE7A3,var(--gold-hot) 30%,var(--accent) 60%,#D9761A);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 18px rgba(244,181,63,.45))}
+.ep-comms p{margin:0 0 10px;font-family:var(--font-mono);font-size:13.5px;line-height:1.6;color:var(--ink)} .ep-comms p:last-child{margin-bottom:0} .ep-comms b{color:var(--gold-hot);font-weight:600}
+.ep-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px;align-items:start}
+@media (max-width:700px){.ep-grid{grid-template-columns:minmax(0,1fr)}}
+.ep-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.ep-stats>div{background:rgba(10,6,18,.6);border:1px solid rgba(138,77,255,.25);padding:8px 10px}
+.ep-stats .v{font-family:var(--font-display);font-weight:700;font-size:22px;color:var(--ink)} .ep-stats .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+#ep-roster{margin-top:8px} #ep-roster .mem b{color:var(--ink)} #ep-roster .mem .lv{font-size:10px;letter-spacing:.08em;color:var(--accent);border:1px solid var(--accent);padding:0 5px;margin-left:6px}
+.ep-comms{margin:14px 0 0}
+
 /* ---------- In-game intro & banner ---------- */
 .intro{position:absolute;inset:8px 8px 40px 8px;background:rgba(13,19,25,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;z-index:3;animation:introFade 2.4s forwards}
 .intro .i-name{font-family:var(--font-display);font-weight:700;font-size:34px;text-transform:uppercase;letter-spacing:.08em}
@@ -603,6 +615,21 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
       </aside>
     </div>
     <div class="deploy-bar"><span class="db-squad" id="db-squad"></span><div class="db-btns"><button class="btn" id="b-back">Back</button><button class="btn primary big" id="btn-deploy">Deploy</button></div></div>
+  </section>
+
+  <!-- ============ EPILOGUE ============ -->
+  <section id="screen-epilogue" class="screen" hidden>
+    <div class="epi">
+      <div class="eyebrow">After Last Light · Campaign complete</div>
+      <h1 class="ep-title">Daylight</h1>
+      <div class="comms ep-comms"><div class="comms-h"><span class="dot"></span>Control · open channel</div><div id="ep-text"></div></div>
+      <div class="ep-grid">
+        <div class="bcard"><div class="eyebrow">The campaign</div><div class="ep-stats" id="ep-stats"></div></div>
+        <div class="bcard"><div class="eyebrow">The squad</div><div class="memorial" id="ep-roster"></div></div>
+      </div>
+      <div class="bcard" id="ep-fallen-wrap" style="margin-top:12px"><div class="eyebrow">The wall</div><div class="memorial" id="ep-fallen" style="margin-top:8px"></div></div>
+      <div class="row" style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn primary big" id="ep-hub">Return to base</button><button class="btn big" id="ep-new">New campaign</button></div>
+    </div>
   </section>
 
   <!-- ============ GAME ============ -->
@@ -1527,7 +1554,7 @@ function makeCaptive(x,y,name){ const u=makeUnit(VIP,'captive',x,y,name||NAMES.v
 function startMission(idx,op){
   const base=idx<0?SIDE:MISSIONS[idx]; G.perks=equippedPerks(); G.adapt=adaptFor(CAMP.doom,base.act); MADJ=adjustMission(base,idx,G.perks,G.adapt); G.perkUsed=new Set(); G.medevacUsed=false; G.smoke=null; G.boost=false;
   const m=MX(idx); G.missionIdx=idx; G.grid=[]; G.units=[]; G.turn=1; G.phase='player'; G.sel=null; G.mode='move'; G.fx=[]; G.over=false; G.busy=false;
-  G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.stats={shots:0,hits:0,dmg:0}; G.campApplied=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
+  G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.actcam=null; G.stats={shots:0,hits:0,dmg:0}; G.campApplied=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
   G.objState={relays:0,relaysTotal:0,freed:0,captivesTotal:0,shipped:false,holdCount:0,summons:0,evacOpen:!(m.evacAt||m.evacAfterHold)};
   const spawns=[]; let relayN=0, capN=0;
   const drums=drumSet(m);
@@ -1560,7 +1587,7 @@ async function scamper(members){ if(!members.length) return; Audio.contact(); Au
   introduceNew(members); renderSide(); }
 async function checkContact(){ const woke=alertEnemies(); if(G.pendingScamper&&G.pendingScamper.length){ woke.push(...G.pendingScamper.filter(e=>e.alive)); G.pendingScamper=null; } if(woke.length){ const wasBusy=G.busy; G.busy=true; renderSide(); await scamper(woke); G.busy=wasBusy; renderSide(); } }
 function introduceNew(list){ let announced=false; for(const e of list){ if(e.side!=='enemy'||G.seen.has(e.def.id)) continue; G.seen.add(e.def.id); saveProg(); log(`Threat file — ${e.def.name}${e.def.aug?' ['+e.def.aug+' augment]':''}: ${e.def.desc}`,'aug'); if(!announced&&e.def.aug){ banner(`New hostile: ${e.def.name}`,'aug'); say('newAug'); announced=true; } } }
-function showScreen(s){ G.screen=s; document.body.dataset.screen=s; for(const k of ['menu','select','brief','game']) $('screen-'+k).hidden=s!==k; $('crumb').textContent=s==='game'?(G.missionIdx<0?`Side op · ${MX(G.missionIdx).sector}`:`${ACTS[MX(G.missionIdx).act]} · Mission ${G.missionIdx+1}`):s==='brief'?'Briefing':s==='select'?'Campaign':''; if(s==='menu'||s==='select'||s==='brief'){ Audio.music.set('menu',{act:s==='brief'?MX(G.missionIdx).act:Math.min(2,Math.floor(nextMissionIdx()/5)*1+(nextMissionIdx()>=8?1:0))}); } if(s==='menu') renderMenu(); }
+function showScreen(s){ G.screen=s; document.body.dataset.screen=s; for(const k of ['menu','select','brief','game','epilogue']) $('screen-'+k).hidden=s!==k; $('crumb').textContent=s==='game'?(G.missionIdx<0?`Side op · ${MX(G.missionIdx).sector}`:`${ACTS[MX(G.missionIdx).act]} · Mission ${G.missionIdx+1}`):s==='brief'?'Briefing':s==='select'?'Campaign':s==='epilogue'?'Epilogue':''; if(s==='epilogue') Audio.music.set('menu',{act:2}); if(s==='menu'||s==='select'||s==='brief'){ Audio.music.set('menu',{act:s==='brief'?MX(G.missionIdx).act:Math.min(2,Math.floor(nextMissionIdx()/5)*1+(nextMissionIdx()>=8?1:0))}); } if(s==='menu') renderMenu(); }
 
 /* ---------- UI: menu / select / briefing / modals ---------- */
 function renderMenu(){
@@ -1593,6 +1620,28 @@ function renderHub(){
   const me=$('memorial'); me.innerHTML=''; if(!CAMP.fallen.length){ me.innerHTML='<div class="note">No one yet. Keep it that way.</div>'; } else for(const f of CAMP.fallen){ const kit=MUT[f.kit]; const d2=document.createElement('div'); d2.className='mem'; d2.innerHTML=`<span><b>${f.name}</b> · ${famName(kit)} · ${kit.ability.name}</span><span>${f.missions} missions · ${f.kills} kills · fell at ${f.mission}</span>`; me.appendChild(d2); }
   $('memorial-note').textContent=CAMP.fallen.length?`${CAMP.fallen.length} lost`:'';
 }
+/* Campaign epilogue: shown after Last Light (and from the hub once every campaign mission is cleared). All of it reads CAMP. */
+function showEpilogue(){
+  const fin=CAMP.finale||{survivors:[],doom:CAMP.doom}; const fallen=CAMP.fallen; const aliveR=CAMP.roster.filter(r=>r.alive);
+  const list=a=>a.length<=1?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
+  const kills=CAMP.roster.reduce((n,r)=>n+r.kills,0)+fallen.reduce((n,f)=>n+f.kills,0);
+  const missions=CAMP.roster.reduce((n,r)=>Math.max(n,r.missions),0);
+  const ps=[
+    `It aired for six hours before anyone could pull it, and by then it did not matter. Every screen in the Coalition had seen the vats. Every family with a soldier in Program Graft had seen the yield lists. The command that hunted us for supply is answering questions it does not have answers to.`,
+    `Voss is in the ground. The Husks stopped the moment she did — and then, one by one, they started asking where they were. We are bringing them in. They were ours before they were hers.`,
+    fallen.length?`We lost ${fallen.length===1?'one':fallen.length} to get here: <b>${list(fallen.map(f=>f.name))}</b>. ${fallen.length===1?'The name goes':'The names go'} on the wall, next to the people ${fallen.length===1?'they':'they'} went in for.`:`Everyone who walked into this walked out of it. Do not expect that to be true twice.`,
+    `The Index stands at <b>${fin.doom??CAMP.doom}</b>. It is not zero. It never will be. But for the first time since this started, they are the ones counting.`,
+    fin.survivors&&fin.survivors.length?`<b>${list(fin.survivors)}</b> walked out of Last Light. Stand down. It is daylight.`:`Stand down. It is daylight.`,
+  ];
+  $('ep-text').innerHTML=ps.map(t=>`<p>${t}</p>`).join('');
+  $('ep-stats').innerHTML=[[PROG.cleared.length,'missions cleared'],[kills,'confirmed kills'],[fallen.length,'lost'],[`${fin.doom??CAMP.doom}/10`,'final Graft Index']].map(([v,l])=>`<div><div class="v num">${v}</div><div class="l">${l}</div></div>`).join('');
+  const ro=$('ep-roster'); ro.innerHTML=''; for(const r of [...aliveR].sort((a,b)=>(b.missions-a.missions)||(b.kills-a.kills)||(b.level-a.level))){ const kit=MUT[r.kit]; const d=document.createElement('div'); d.className='mem'; d.innerHTML=`<span><b>${r.name}</b><span class="lv">L${r.level}</span> · ${famName(kit)}</span><span>${r.missions} mission${r.missions===1?'':'s'} · ${r.kills} kill${r.kills===1?'':'s'}</span>`; ro.appendChild(d); }
+  const fw=$('ep-fallen-wrap'), fl=$('ep-fallen'); fl.innerHTML=''; fw.hidden=!fallen.length; for(const f of fallen){ const kit=MUT[f.kit]; const d=document.createElement('div'); d.className='mem'; d.innerHTML=`<span><b>${f.name}</b> · ${famName(kit)} · ${kit.ability.name}</span><span>fell at ${f.mission} · ${f.kills} kill${f.kills===1?'':'s'}</span>`; fl.appendChild(d); }
+  VO.stop(); setTimeout(()=>VO.control('It is out. All of it. Stand down. It is daylight.',3),500);
+  showScreen('epilogue'); window.scrollTo(0,0);
+}
+$('ep-hub').onclick=()=>{ Audio.select(); renderSelect(); showScreen('select'); };
+$('ep-new').onclick=()=>{ Audio.select(); $('m-new').onclick(); };
 function openMutant(cid){ const r=rosterEntry(cid); const kit=MUT[r.kit]; const c=r.custom||{};
   $('mu-title').textContent=`${r.name} · ${famName(kit)}`; $('mu-sub').textContent=`Level ${r.level} · ${r.kills} kills · ${r.missions} missions${r.wounded>0?' · wounded, sits out the next mission':''}`;
   const SK=['#E3CDB6','#D2A67C','#B9825A','#8C5A3C','#6B4226','#F0DACA'], HR=['#2A1B12','#4A2E1B','#8A5A2B','#C9A063','#1A1A1A','#5A5A5A','#B0332E'], AC=[kit.color,'#F2B33D','#FF7A45','#E0524B','#5CD68A','#3FC1E3','#B58CF0','#FF5FA2','#E4ECF2'];
@@ -1632,7 +1681,7 @@ function renderSelect(){ renderHub(); renderSideOps();
     const st=cleared?'<span class="st done">Cleared</span>':(i===next&&unlocked?'<span class="st next">Next</span>':(unlocked?'':'<span class="st">Locked</span>'));
     b.innerHTML=`<div class="m-name">${i+1}. ${m.name}${st}</div><div class="m-desc">${unlocked?m.desc:'Clear the previous mission to unlock.'}</div>`+(unlocked?`<div class="m-obj"><em>${m.objective.toUpperCase()}</em> — ${m.brief}</div>`:'');
     b.onclick=()=>{ Audio.select(); openBriefing(i); }; mc.appendChild(b); });
-  $('sel-progress').textContent=`${PROG.cleared.length}/${MISSIONS.length} cleared`;
+  $('sel-progress').innerHTML=`${PROG.cleared.length}/${MISSIONS.length} cleared`+(PROG.cleared.length>=MISSIONS.length?` · <button class="linkbtn" id="sel-epilogue">Epilogue</button>`:''); const se=$('sel-epilogue'); if(se) se.onclick=()=>{ Audio.select(); showEpilogue(); };
 }
 
 function enemyCodesFor(m){ const set=new Set(); for(const row of m.map) for(const ch of row) if(ENEMY[ch]) set.add(ch); for(const c of (m.reinforce||[])) if(m.reinforceAt<50) set.add(c); return [...set]; }
@@ -1975,6 +2024,7 @@ const anim=(u,k,extra)=>{ if(u) u.anim=Object.assign({k,t0:now()},extra||{}); };
 async function shoot(a,d,opt={}){
   const h=hitChance(a,d,opt); const roll=rnd(1,100); const hit=roll<=h.chance;
   anim(a,a.melee?'lunge':'fire',{tx:d.x,ty:d.y}); if(a.blinkAim&&!opt.reaction) a.blinkAim=0;
+  if(a.side==='enemy'&&G.actcam&&!opt.reaction){ const dd=dist(a,d); G.actcam={x:(a.x+d.x)/2,y:(a.y+d.y)/2,zoom:dd>6?1.12:dd>3?1.24:1.36,pull:0.7}; }
   if(a.side==='player'){ G.stats.shots++; if(hit) G.stats.hits++; }
   const kind=a.def.id==='marksman'?'marksman':(a.def.id==='juggernaut'||a.def.boss||a.def.id==='bulwark')?'heavy':(a.def.id==='spotter'||a.def.id==='jammer'||a.def.id==='siphon')?'pistol':'rifle';
   if(opt.reaction) Audio.reaction(a.x);
@@ -1994,7 +2044,7 @@ async function shoot(a,d,opt={}){
 }
 async function doMove(u,path){
   let i=0;
-  for(const p of path){ u.x=p.x; u.y=p.y; if(u.carrying){ u.carrying.x=p.x; u.carrying.y=p.y; } Audio.step(u.x,u.side,i++); fxPuff(u.x,u.y,'#6f7f90',0.28,320); await wait(u.side==='player'?85:60);
+  for(const p of path){ u.x=p.x; u.y=p.y; if(u.carrying){ u.carrying.x=p.x; u.carrying.y=p.y; } if(u.side==='enemy'&&G.actcam) G.actcam={x:u.x,y:u.y,zoom:1.28}; Audio.step(u.x,u.side,i++); fxPuff(u.x,u.y,'#6f7f90',0.28,320); await wait(u.side==='player'?85:60);
     const foes=G.units.filter(w=>w.alive&&w.side!==u.side&&w.side!=='obj'&&w.side!=='captive'&&w.ow&&!w.melee&&w.alert!==false&&!w.suppressed);
     for(const w of foes){ if(!u.alive) break; if(inRange(w,u)){ w.ow=false; fxRing(w.x,w.y,'#F2B33D',0.8); log(`${w.name} reaction fire!`,'sys'); await shoot(w,u,{reaction:true}); renderSide(); } }
     if(!u.alive) break;
@@ -2073,9 +2123,15 @@ const R3 = (()=>{
     let pp=POV.pos, pl=POV.look, pf=POV.fov; if(push>0&&kc){ const tp=W(kc.x,kc.y,0.5); pl=POV.look.clone().lerp(tp,0.6*push); pp=POV.pos.clone().lerp(tp,(kc.boss?0.34:0.24)*push); pf=POV.fov-(kc.boss?7:5)*push; }
     pcam.position.lerpVectors(farPos,pp,e); const lk=camTarget.clone().lerp(pl,e); pcam.fov=farFov+(pf-farFov)*e; pcam.lookAt(lk); pcam.updateProjectionMatrix(); active=pcam;
     if(scene.fog){ scene.fog.near=220; scene.fog.far=420; } }
-  function placeCamera(){ camTarget.copy(CENTER); let zoom=1;
-    if(G.killcam){ const dur=G.killcam.boss?1600:950; const k=(now()-G.killcam.t0)/dur; if(k>=1){ G.killcam=null; } else { const e=Math.sin(Math.PI*Math.min(1,k))**0.6; const p=W(G.killcam.x,G.killcam.y,0.4); camTarget.lerp(p,0.55*e); zoom=1+(G.killcam.boss?0.75:0.5)*e; } }
-    else if(G.focus){ const k=(now()-G.focus.t0)/G.focus.dur; if(k>=1){ G.focus=null; } else { const e=Math.sin(Math.PI*Math.min(1,k))**0.7; const p=W(G.focus.x,G.focus.y,0.4); camTarget.lerp(p,0.4*e); zoom=1+G.focus.zoom*e; } }
+  /* Action cam (Coalition turn): G.actcam={x,y,zoom} is a persistent framing goal set by the enemy phase — the acting unit, then
+     the midpoint of shooter and target on a shot. AC smooths toward it (and back to CENTER when it clears), so the camera glides
+     between activations instead of cutting; kill cam and contact focus still layer on top. Off under prefers-reduced-motion. */
+  const AC={t:CENTER.clone(),z:1,still:matchMedia('(prefers-reduced-motion: reduce)').matches};
+  function placeCamera(){ let zoom=1;
+    { const tn=now(); const dt=Math.min(3,(tn-(AC.last||tn))/16.7); AC.last=tn; const a=(!AC.still&&G.actcam)?G.actcam:null; const gt=a?CENTER.clone().lerp(W(a.x,a.y,0.4),a.pull??0.6):CENTER; const gz=a?(a.zoom??1.3):1; const k=1-Math.pow(1-(a?0.085:0.11),dt); AC.t.lerp(gt,k); AC.z+=(gz-AC.z)*k; if(!a&&AC.t.distanceTo(CENTER)<0.002){ AC.t.copy(CENTER); AC.z=1; } }
+    camTarget.copy(AC.t); zoom=AC.z;
+    if(G.killcam){ const dur=G.killcam.boss?1600:950; const k=(now()-G.killcam.t0)/dur; if(k>=1){ G.killcam=null; } else { const e=Math.sin(Math.PI*Math.min(1,k))**0.6; const p=W(G.killcam.x,G.killcam.y,0.4); camTarget.lerp(p,0.55*e); zoom=AC.z*(1+(G.killcam.boss?0.75:0.5)*e); } }
+    else if(G.focus){ const k=(now()-G.focus.t0)/G.focus.dur; if(k>=1){ G.focus=null; } else { const e=Math.sin(Math.PI*Math.min(1,k))**0.7; const p=W(G.focus.x,G.focus.y,0.4); camTarget.lerp(p,0.4*e); zoom=AC.z*(1+G.focus.zoom*e); } }
     camera.zoom+= (zoom-camera.zoom)*0.35; camera.position.copy(camTarget).addScaledVector(camDir,camDist); camera.lookAt(camTarget); camera.updateProjectionMatrix(); }
   placeCamera();
   // ---- light rig (retuned per theme in buildStatics) ----
@@ -2523,7 +2579,7 @@ const R3 = (()=>{
     if(BLOOM&&BLOOM.on) BLOOM.render(scene,active); else { renderer.setRenderTarget(null); renderer.render(scene,active); }
   }
   gl.hidden=false; $('board').hidden=true;
-  return { render, pick, canvas:gl, floatText, _scene:scene, _units:units, bloom:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.glow=v; return BLOOM.glow; }, rtPath:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.on=v; return BLOOM.on; }, bloomTune:(o)=>BLOOM&&BLOOM.tune(o), povState:()=>({blend:POV.blend,cam:active===pcam?'pov':'map',pos:pcam.position.toArray().map(v=>+v.toFixed(2))}) };
+  return { render, pick, canvas:gl, floatText, _scene:scene, _units:units, _camState:()=>({zoom:camera.zoom,off:camTarget.distanceTo(CENTER)}), bloom:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.glow=v; return BLOOM.glow; }, rtPath:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.on=v; return BLOOM.on; }, bloomTune:(o)=>BLOOM&&BLOOM.tune(o), povState:()=>({blend:POV.blend,cam:active===pcam?'pov':'map',pos:pcam.position.toArray().map(v=>+v.toFixed(2))}) };
 })();
 
 /* ---------- Player input ---------- */
@@ -2674,12 +2730,17 @@ async function endTurn(){
   for(const e of alive('enemy')) e.ow=false;
   await checkContact();
   const order=alive('enemy').filter(e=>e.alert).sort((a,b)=>aiPriority(a)-aiPriority(b));
-  for(const e of order){ if(G.over||!e.alive) continue; if(e.stunned){ e.stunned=false; fxText(e.x,e.y-0.6,'STUNNED','#FF7A45'); log(`${e.name} is stunned and does nothing.`,'sys'); await wait(250); continue; } await enemyAct(e); if(checkEnd()) return; }
+  let lastCam=null;
+  for(const e of order){ if(G.over||!e.alive) continue;
+    // action cam: glide to the unit before it acts (longer when the jump is far), then let it act
+    { const far=!lastCam||Math.hypot(e.x-lastCam.x,e.y-lastCam.y)>4; G.actcam={x:e.x,y:e.y,zoom:1.28}; lastCam={x:e.x,y:e.y}; await wait(far?420:220); }
+    if(e.stunned){ e.stunned=false; fxText(e.x,e.y-0.6,'STUNNED','#FF7A45'); log(`${e.name} is stunned and does nothing.`,'sys'); await wait(250); continue; } await enemyAct(e); if(checkEnd()){ G.actcam=null; return; } }
+  G.actcam=null;
   // the Surgeon grafts a Husk every turn from turn 2
   for(const boss of alive('enemy').filter(e=>e.def.verb==='command'&&e.alert)){ if(G.turn<boss.alertTurn+2||G.objState.summons>=3) break; const spots=[]; for(const d of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1},{x:1,y:1},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1}]){ const x=boss.x+d.x,y=boss.y+d.y; if(inb(x,y)&&!solid(x,y)&&!unitAt(x,y)) spots.push({x,y}); }
-    if(spots.length){ const sp=spots[rnd(0,spots.length-1)]; anim(boss,'cast',{tx:sp.x,ty:sp.y}); const nu=makeUnit(ENEMY.h,'enemy',sp.x,sp.y); nu.ap=0; nu.alert=true; nu.pod=boss.pod; anim(nu,'blinkIn'); light(sp.x,sp.y,'#9BE7FF',6,500); G.units.push(nu); G.objState.summons++; Audio.summon(boss.x); VO.surgeon('summon'); fxRing(sp.x,sp.y,'#9BE7FF',1.2); fxRing(boss.x,boss.y,'#FF5FA2',1); banner('The Surgeon grafts a Husk','aug'); log(`${boss.name} grafts a Husk onto the field.`,'aug'); if(G.objState.summons===1) say('summon'); introduceNew([nu]); await wait(600); } }
-  { const m=MX(G.missionIdx); if(G.turn>=m.reinforceAt&&!G.over){ const spot=reinforceSpot(); if(spot){ const code=(G.reinforced===0&&(G.adapt||[]).includes('vanguard')&&ENEMY.h)?'h':m.reinforce[G.reinforced%m.reinforce.length]; const nu=makeUnit(ENEMY[code],'enemy',spot.x,spot.y); nu.ap=0; nu.alert=true; nu.pod=99; G.units.push(nu); anim(nu,'drop'); setTimeout(()=>{ fxPuff(nu.x,nu.y,'#8a6a5a',0.7,500); Audio.thud(nu.x); shake(5); },420); G.reinforced++; fxRing(spot.x,spot.y,'#E0524B',1.2); Audio.alarm(); Audio.music.spike(0.2); VO.coalition('reinforce',2,1); banner('Reinforcements','enemy'); log(`Coalition reinforcement: ${nu.name} arrives.`,'kill'); if(G.reinforced===1) say('reinforce'); introduceNew([nu]); await wait(600); } } }
-  G.turn++; G.phase='player'; G.busy=false;
+    if(spots.length){ const sp=spots[rnd(0,spots.length-1)]; G.actcam={x:boss.x,y:boss.y,zoom:1.38,pull:0.7}; await wait(320); anim(boss,'cast',{tx:sp.x,ty:sp.y}); const nu=makeUnit(ENEMY.h,'enemy',sp.x,sp.y); nu.ap=0; nu.alert=true; nu.pod=boss.pod; anim(nu,'blinkIn'); light(sp.x,sp.y,'#9BE7FF',6,500); G.units.push(nu); G.objState.summons++; Audio.summon(boss.x); VO.surgeon('summon'); fxRing(sp.x,sp.y,'#9BE7FF',1.2); fxRing(boss.x,boss.y,'#FF5FA2',1); banner('The Surgeon grafts a Husk','aug'); log(`${boss.name} grafts a Husk onto the field.`,'aug'); if(G.objState.summons===1) say('summon'); introduceNew([nu]); await wait(600); } }
+  { const m=MX(G.missionIdx); if(G.turn>=m.reinforceAt&&!G.over){ const spot=reinforceSpot(); if(spot){ G.actcam={x:spot.x,y:spot.y,zoom:1.22}; await wait(380); const code=(G.reinforced===0&&(G.adapt||[]).includes('vanguard')&&ENEMY.h)?'h':m.reinforce[G.reinforced%m.reinforce.length]; const nu=makeUnit(ENEMY[code],'enemy',spot.x,spot.y); nu.ap=0; nu.alert=true; nu.pod=99; G.units.push(nu); anim(nu,'drop'); setTimeout(()=>{ fxPuff(nu.x,nu.y,'#8a6a5a',0.7,500); Audio.thud(nu.x); shake(5); },420); G.reinforced++; fxRing(spot.x,spot.y,'#E0524B',1.2); Audio.alarm(); Audio.music.spike(0.2); VO.coalition('reinforce',2,1); banner('Reinforcements','enemy'); log(`Coalition reinforcement: ${nu.name} arrives.`,'kill'); if(G.reinforced===1) say('reinforce'); introduceNew([nu]); await wait(600); } } }
+  G.actcam=null; G.turn++; G.phase='player'; G.busy=false;
   for(const u of alive('player').filter(p=>p.downed)){ if(u.stabilized) continue; u.bleed--; if(u.bleed<=0){ log(`${u.name} bled out.`,'kill'); say('bledOut',u.name); killUnit(u,null); } else { fxText(u.x,u.y,`BLEEDING ${u.bleed}`,'#FF6B62'); log(`${u.name} is bleeding out — ${u.bleed} turn${u.bleed===1?'':'s'} left.`,'kill'); } }
   for(const u of alive('player')){ if(u.downed){ u.ap=0; continue; } u.ap=u.drained?1:2; u.drainedNow=u.drained; u.drained=false; u.ow=false; u.marked=false; u.brace=false; if(u.cd>0){ u.cd--; if(u.cd===0){ u.readyPing=true; u.readyFlash=now(); } }
     if(u.def.passiveKey==='regen'&&u.hp<u.maxHp){ u.hp++; fxText(u.x,u.y,'+1','#5CD68A'); }
@@ -2727,7 +2788,7 @@ async function enemyAct(e){
     if(c.c>0) score-=2;
     if(!best||score>best.score) best={c,pos,tgt,score};
   }
-  if(best.c.c>0){ if(phase){ fxRing(e.x,e.y,'#9BE7FF',0.9); e.x=best.pos.x; e.y=best.pos.y; anim(e,'blinkIn'); fxRing(e.x,e.y,'#9BE7FF',0.9); Audio.huskBlink(e.x); VO.husk(); await wait(260); } else { await doMove(e,pathTo(reach,best.pos.x,best.pos.y)); } e.ap-=1; await wait(120); if(!e.alive) return; }
+  if(best.c.c>0){ if(phase){ fxRing(e.x,e.y,'#9BE7FF',0.9); e.x=best.pos.x; e.y=best.pos.y; if(G.actcam) G.actcam={x:e.x,y:e.y,zoom:1.28}; anim(e,'blinkIn'); fxRing(e.x,e.y,'#9BE7FF',0.9); Audio.huskBlink(e.x); VO.husk(); await wait(260); } else { await doMove(e,pathTo(reach,best.pos.x,best.pos.y)); } e.ap-=1; await wait(120); if(!e.alive) return; }
   if(e.def.verb==='mark'){ const vis=players.filter(p=>hasLOS(e,p)&&dist(e,p)<=8&&!p.marked).sort((a,b)=>(a.hp-b.hp))[0]; if(vis){ vis.marked=true; anim(e,'fire',{tx:vis.x,ty:vis.y}); Audio.mark(e.x); VO.coalition('mark',1,0.5); setTimeout(()=>VO.event(vis,'marked'),900); fxTracer(e,vis,'#FF9A6B'); fxRing(vis.x,vis.y,'#FF6B62',0.9); fxText(vis.x,vis.y,'MARKED','#FF6B62'); log(`${e.name} marks ${vis.name} — hostiles +20 to hit.`,'aug'); e.ap=0; await wait(450); renderSide(); return; } }
   if(e.def.verb==='jam'&&playersWithin(e,3)>0){ Audio.jam(e.x); fxRing(e.x,e.y,'#C77DFF',1.2); flash('#C77DFF',0.3,140); light(e.x,e.y,'#C77DFF',5,400); VO.coalition('jam',1,0.4); const j=alive('player').find(p=>jammed(p)&&!p.def.noAttack); if(j&&!j.voJam){ j.voJam=true; setTimeout(()=>VO.event(j,'jammed'),700); } }
   const tgt=bestTargetFrom(e,{x:e.x,y:e.y});
@@ -2781,11 +2842,12 @@ function finish(win,reason){
     if(win){ lost.length?say('winLoss',lost.join(' and ')):say('win'); } else say('lose');
     VO.stop(); setTimeout(()=>{ if(win&&m.debrief) VO.control(m.debrief,3); else VO.control(reason||'Mission failed. We regroup.',3); },700);
     { const acc=G.stats.shots?Math.round(100*G.stats.hits/G.stats.shots):0; const targets=[['rs-turns',G.turn,''],['rs-acc',acc,'%'],['rs-dmg',G.stats.dmg,'']]; const t0=performance.now(); const tick=()=>{ const k=Math.min(1,(performance.now()-t0)/900); const e=1-Math.pow(1-k,3); for(const [id,v,suf] of targets) $(id).textContent=Math.round(v*e)+suf; if(k<1) requestAnimationFrame(tick); }; setTimeout(tick,250); }
-    $('btn-next').hidden=!(win&&G.missionIdx>=0&&G.missionIdx<MISSIONS.length-1)||CAMP.lost; if(G.missionIdx>=0) $('btn-next').textContent=`Continue · ${MISSIONS[Math.min(G.missionIdx+1,MISSIONS.length-1)].name}`; $('overlay').hidden=false; Audio.music.duck(2600);
+    if(win&&last&&!m.generated){ CAMP.finale={survivors:G.units.filter(u=>u.cid&&u.alive).map(u=>u.name),turn:G.turn,doom:CAMP.doom,when:Date.now()}; saveCamp(); }
+    $('btn-next').hidden=!(win&&G.missionIdx>=0)||CAMP.lost; if(G.missionIdx>=0) $('btn-next').textContent=(win&&last)?'Epilogue':`Continue · ${MISSIONS[Math.min(G.missionIdx+1,MISSIONS.length-1)].name}`; $('overlay').hidden=false; Audio.music.duck(2600);
     win?(last?Audio.campaign():Audio.win()):Audio.lose();
   },900);
 }
-$('btn-next').onclick=()=>{ $('overlay').hidden=true; if(G.missionIdx<0){ renderSelect(); showScreen('select'); } else openBriefing(G.missionIdx+1); };
+$('btn-next').onclick=()=>{ $('overlay').hidden=true; if(G.missionIdx<0){ renderSelect(); showScreen('select'); } else if(G.missionIdx>=MISSIONS.length-1) showEpilogue(); else openBriefing(G.missionIdx+1); };
 $('btn-retry').onclick=()=>{ $('overlay').hidden=true; VO.stop(); startMission(G.missionIdx); };
 $('btn-menu').onclick=()=>{ $('overlay').hidden=true; VO.stop(); if(G.missionIdx<0){ renderSelect(); showScreen('select'); } else showScreen('menu'); };
 

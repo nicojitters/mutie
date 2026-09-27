@@ -207,6 +207,12 @@ capture FX by freezing game time (`G.freezeUntil=now()+1e7; G.freezeT=<fx.t0>+of
   armor or the no-shot reason; allies: HP/status), primary `#pov-go`. `body[data-view]` lets phone CSS drop the sky crop in POV and hide
   the redundant Fire button/turnline. `test17.mjs` (desktop flow), `test18.mjs` (touch: tap→POV, swipe, fire), `shotpov.mjs` (shots).
 
+## Share card & head tags
+`og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
+description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with
+`node ogcard.mjs` (in the test dir: renders a POV frame of mission 1 with the real fonts from `@fontsource`, composes the card,
+writes `og.png` into the repo). Social scrapers cache aggressively — after changing it, bump the filename or re-scrape.
+
 ## Audio
 Everything is procedural WebAudio in the `Audio` module: master → sfx / ambient buses; every event sound takes a map
 x and is stereo-placed via `pan(x)`; pitches get ±6% variance. Voices: UI, deploy swell, turn stings, footsteps

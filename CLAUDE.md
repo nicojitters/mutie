@@ -202,7 +202,7 @@ capture FX by freezing game time (`G.freezeUntil=now()+1e7; G.freezeT=<fx.t0>+of
 - Renderer: `pcam` (PerspectiveCamera) + `updateCameras()`; `povGoal()` puts the camera 3.1–4.4 back, 2.35–3.65 up, 1.0 to the right
   of the unit, looking at the target (fov 40–46). Entering/leaving blends `POV.blend` between a far pose (170 units out along `camDir`,
   fov from the ortho half-height — matches the map frame exactly) and the OTS pose; fog is pushed out while `pcam` draws. `active` is
-  the drawing camera for pick/project/shake. The unit faces its POV target. `R3.povState()` exposes blend/cam for tests.
+  the drawing camera for pick/project/shake. The unit faces its POV target. Kill beat in POV: `POV.kc` copies `G.killcam` and, for 1.35 s (boss 2.3 s), freezes the framing, pushes the camera ~a quarter of the way toward the fallen target with a slight fov tighten, holds, then releases — the swing to the next mutant waits for it. `R3.povState()` exposes blend/cam for tests.
 - HUD: `#pov-panel` (`renderPov()`): title, ‹ n/m ›, Map button, `.tstrip` of `.tcard`s (name, hp bar, %, cover/FLANKED/marked/unaware/
   armor or the no-shot reason; allies: HP/status), primary `#pov-go`. `body[data-view]` lets phone CSS drop the sky crop in POV and hide
   the redundant Fire button/turnline. `test17.mjs` (desktop flow), `test18.mjs` (touch: tap→POV, swipe, fire), `shotpov.mjs` (shots).

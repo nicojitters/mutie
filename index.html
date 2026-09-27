@@ -1981,12 +1981,17 @@ const R3 = (()=>{
     const dt=Math.min(3,(tReal-(POV.last||tReal))/16.7); POV.last=tReal; const k=x=>1-Math.pow(1-x,dt);
     const goal=(G.screen==='game'&&G.povView==='pov'&&G.pov&&G.pov.unit&&G.pov.unit.alive)?povGoal():null; const want=goal?1:0;
     if(POV.blend===0&&!want){ active=camera; if(scene.fog){ scene.fog.near=FOG0.near; scene.fog.far=FOG0.far; } return; }
-    if(goal){ if(!POV.init){ POV.pos.copy(goal.pos); POV.look.copy(goal.look); POV.fov=goal.fov; POV.init=true; } else { POV.pos.lerp(goal.pos,k(0.14)); POV.look.lerp(goal.look,k(0.14)); POV.fov+=(goal.fov-POV.fov)*k(0.14); } }
+    // kill beat in POV: freeze the framing, push in toward the fallen target and hold; the swing to the next mutant waits for it
+    if(G.killcam&&POV.blend>0.5) POV.kc=G.killcam; let kc=POV.kc, push=0;
+    if(kc){ const dur=kc.boss?2300:1350; const kk=(tReal-kc.t0)/dur; if(kk>=1||POV.blend<0.5){ POV.kc=null; kc=null; } else push=kk<0.2?Math.sin(kk/0.2*Math.PI/2):kk>0.8?Math.cos((kk-0.8)/0.2*Math.PI/2):1; }
+    if(goal&&!kc){ if(!POV.init){ POV.pos.copy(goal.pos); POV.look.copy(goal.look); POV.fov=goal.fov; POV.init=true; } else { POV.pos.lerp(goal.pos,k(0.14)); POV.look.lerp(goal.look,k(0.14)); POV.fov+=(goal.fov-POV.fov)*k(0.14); } }
+    if(!POV.init&&goal){ POV.pos.copy(goal.pos); POV.look.copy(goal.look); POV.fov=goal.fov; POV.init=true; }
     POV.blend+=(want-POV.blend)*k(0.15); if(Math.abs(POV.blend-want)<0.004) POV.blend=want;
     if(POV.blend===0){ active=camera; POV.init=false; if(scene.fog){ scene.fog.near=FOG0.near; scene.fog.far=FOG0.far; } return; }
     const farPos=camTarget.clone().addScaledVector(camDir,POV.farD); const farFov=2*Math.atan((HH/camera.zoom)/POV.farD)*180/Math.PI;
     const b=POV.blend, e=b<0.5?2*b*b:1-Math.pow(-2*b+2,2)/2;
-    pcam.position.lerpVectors(farPos,POV.pos,e); const lk=camTarget.clone().lerp(POV.look,e); pcam.fov=farFov+(POV.fov-farFov)*e; pcam.lookAt(lk); pcam.updateProjectionMatrix(); active=pcam;
+    let pp=POV.pos, pl=POV.look, pf=POV.fov; if(push>0&&kc){ const tp=W(kc.x,kc.y,0.5); pl=POV.look.clone().lerp(tp,0.6*push); pp=POV.pos.clone().lerp(tp,(kc.boss?0.34:0.24)*push); pf=POV.fov-(kc.boss?7:5)*push; }
+    pcam.position.lerpVectors(farPos,pp,e); const lk=camTarget.clone().lerp(pl,e); pcam.fov=farFov+(pf-farFov)*e; pcam.lookAt(lk); pcam.updateProjectionMatrix(); active=pcam;
     if(scene.fog){ scene.fog.near=220; scene.fog.far=420; } }
   function placeCamera(){ camTarget.copy(CENTER); let zoom=1;
     if(G.killcam){ const dur=G.killcam.boss?1600:950; const k=(now()-G.killcam.t0)/dur; if(k>=1){ G.killcam=null; } else { const e=Math.sin(Math.PI*Math.min(1,k))**0.6; const p=W(G.killcam.x,G.killcam.y,0.4); camTarget.lerp(p,0.55*e); zoom=1+(G.killcam.boss?0.75:0.5)*e; } }

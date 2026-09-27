@@ -47,6 +47,8 @@ the first mender arrives before M2. Guarded by `CAMP.joined` (mission ids, like 
 never add anyone; skipped if that mutant is already on the roster (old 12-member saves just never trigger it). Separate
 from death recruits (`makeRecruit`, random name, same family). `renderArchCards` hides family headers with no members.
 `window.MUTIE.unlockAll()` adds every missing mutant; **test harnesses that deploy non-starter kits must call it** after load.
+Small rosters can't dead-end: `squadNeed()` = min(3, alive); when fewer than three are fit, `deployPool()` lets wounded mutants
+fill the empty slots (ready first, flagged on the deploy bar). Deploying wounded doesn't tick their bench counter down.
 
 `CAMP` in localStorage `mutie.campaign` (per browser): `roster[]` entries `{cid, kit, name, level, xp, kills, missions,
 wounded, alive, upgrade, pendingUpgrade, custom}`, `fallen[]` (memorial), `doom` (Graft Index 0–10), `lost`.

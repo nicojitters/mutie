@@ -187,6 +187,26 @@ capture FX by freezing game time (`G.freezeUntil=now()+1e7; G.freezeT=<fx.t0>+of
   Synthetic `mouseleave` after a touch is ignored (it would wipe the preview). `test16.mjs` drives this with Playwright touch emulation
   (iPhone 13); `shotmobile.mjs` screenshots every screen at iPhone 13 portrait/landscape and SE and reports viewport blow-outs.
 
+## POV targeting (2026-09-27, Cameron's call — default everywhere)
+- Selecting a mutant (`select()`, squad card, tap on the board, Tab) calls `enterPOV(u,{view:'pov'})`: `G.pov={unit,kind,list,idx,target}`
+  with `list` from `povTargets()` — enemy strip: shootable (`povEnemyOk` = inRange, or the power's own reach for concuss/phasestrike/smash)
+  first sorted by `hitChance`, then the rest by distance greyed "out of range / no line of sight"; ally strip (mend/ward/stim): valid
+  first, then by distance. Relays are targets too (100%). `G.povView` is `'pov'|'map'`; `G.povReturn` remembers that Move or a tile power
+  (`TILE_MODES`, smoke) pulled the camera out so `afterAction` returns to POV. Anything that ends the activation chains to the next
+  mutant's POV if the player was in POV (`wantPov`), otherwise stays on the map. Turn start and the Coalition phase are always map
+  (`G.pov=null`). `toggleView()` = V key / "Map" / "POV" buttons. In POV, `ANYWHERE` powers (suppress/brace/rally) fire on selection.
+- Input: `povGo()` is the primary button (`#pov-go`) and Space; `povCycle(±1)` = ‹ › buttons, ←/→ or Q/E, and a horizontal swipe on the
+  board (pointerdown/up on `viewEl`; `G.swiped` suppresses the click that follows). Clicking a unit of the strip's family in POV just
+  targets it (`povSet`) and arms the tile, so the next click/tap acts; own units select immediately. `performAt(p,{confirmed})` is the
+  old board-click body; `confirmed` skips the touch two-tap gate. Fire/power `.abtn`s act on the current target when valid in POV.
+- Renderer: `pcam` (PerspectiveCamera) + `updateCameras()`; `povGoal()` puts the camera 3.1–4.4 back, 2.35–3.65 up, 1.0 to the right
+  of the unit, looking at the target (fov 40–46). Entering/leaving blends `POV.blend` between a far pose (170 units out along `camDir`,
+  fov from the ortho half-height — matches the map frame exactly) and the OTS pose; fog is pushed out while `pcam` draws. `active` is
+  the drawing camera for pick/project/shake. The unit faces its POV target. `R3.povState()` exposes blend/cam for tests.
+- HUD: `#pov-panel` (`renderPov()`): title, ‹ n/m ›, Map button, `.tstrip` of `.tcard`s (name, hp bar, %, cover/FLANKED/marked/unaware/
+  armor or the no-shot reason; allies: HP/status), primary `#pov-go`. `body[data-view]` lets phone CSS drop the sky crop in POV and hide
+  the redundant Fire button/turnline. `test17.mjs` (desktop flow), `test18.mjs` (touch: tap→POV, swipe, fire), `shotpov.mjs` (shots).
+
 ## Audio
 Everything is procedural WebAudio in the `Audio` module: master → sfx / ambient buses; every event sound takes a map
 x and is stereo-placed via `pan(x)`; pitches get ±6% variance. Voices: UI, deploy swell, turn stings, footsteps

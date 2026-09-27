@@ -224,7 +224,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);text-wrap:balance;letter-spaci
 .game-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;align-items:start}
 @media (max-width:900px){.game-grid{grid-template-columns:1fr}}
 .field{position:relative;background:var(--panel);border:1px solid var(--line);padding:8px}
-canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;cursor:crosshair;touch-action:manipulation}
+canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;cursor:crosshair;touch-action:none}
 .view{position:relative}
 .labels{position:absolute;inset:0;pointer-events:none;overflow:hidden;font-family:var(--font-display)}
 .flash{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .35s ease-out;background:radial-gradient(ellipse at center,transparent 45%,var(--fc,#fff) 100%)}
@@ -407,6 +407,25 @@ body{background:var(--ground)}
 .premise,.menu-foot,.section-h h2,.section-h .note,.act,.brief-head,.tagline,.menu .eyebrow{text-shadow:0 1px 10px rgba(7,4,13,.95),0 0 2px rgba(7,4,13,.9)}
 .abtn .k{padding-right:40px}
 
+/* ---------- POV target strip ---------- */
+.pov-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.pov-nav{display:flex;align-items:center;gap:4px}
+.pbtn{font-family:var(--font-display);font-weight:700;font-size:14px;line-height:1;min-width:30px;height:30px;padding:0 8px;border:1px solid rgba(138,77,255,.42);background:rgba(22,12,38,.82);color:var(--ink)}
+.pbtn:hover:not(:disabled){border-color:rgba(170,120,255,.8);box-shadow:var(--glow-v)} .pbtn:disabled{opacity:.35}
+.pbtn.view{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-hot);margin-left:6px}
+#btn-pov{flex:0 0 auto;align-self:center}
+.tstrip{position:relative;display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;padding:3px 3px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.tstrip::-webkit-scrollbar{height:5px} .tstrip::-webkit-scrollbar-thumb{background:rgba(138,77,255,.45);border-radius:3px}
+.tcard{--tc:var(--enemy);flex:0 0 138px;scroll-snap-align:center;text-align:left;padding:7px 9px;border:1px solid var(--line);border-left:3px solid var(--tc);background:var(--panel-2);display:flex;flex-direction:column;gap:4px;min-height:64px;transition:border-color .12s,background .12s,transform .12s}
+.tcard.on{border-color:var(--gold-hot);background:rgba(244,181,63,.10);box-shadow:0 0 0 1px rgba(244,181,63,.4),var(--glow-g)}
+.tcard.off{opacity:.5} .tcard.off.on{opacity:.75}
+.tc-top{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.tc-name{font-family:var(--font-display);font-weight:600;font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .tc-name .boss{font-style:normal;color:#FF5FA2;font-size:9px;letter-spacing:.08em;text-transform:uppercase}
+.tc-pct{font-family:var(--font-display);font-weight:700;font-size:16px;font-variant-numeric:tabular-nums;color:var(--ink)} .tc-pct.hi{color:var(--accent)} .tc-pct.lo{color:var(--danger)} .tc-pct.dim{color:var(--muted);font-weight:500}
+.tc-hp{height:4px;background:rgba(0,0,0,.5);border:1px solid rgba(0,0,0,.4)} .tc-hp i{display:block;height:100%;background:var(--heal)} .tc-hp i.mid{background:var(--accent)} .tc-hp i.low{background:var(--danger)}
+.tc-meta{font-size:10px;color:var(--muted);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .tc-meta i{font-style:normal;font-weight:600} .tc-meta .fl{color:var(--accent)} .tc-meta .mk{color:var(--danger)} .tc-meta .un{color:rgba(228,236,242,.7)}
+.pov-go{width:100%;margin-top:4px;padding:11px 14px;font-size:13px} .pov-go b{font-size:15px}
+.pov-go:disabled{background:rgba(22,12,38,.82);color:var(--muted);border-color:rgba(138,77,255,.3);box-shadow:none}
 /* ===================== MOBILE ===================== */
 /* Phones: no page scroll while playing — board on top, HUD fills the rest and scrolls internally if it must. */
 .view{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -436,7 +455,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
   .game-grid{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;align-items:stretch}
   .side>*{min-width:0}
   .field{flex:0 0 auto;padding:4px}
-  .view{overflow:hidden} canvas#gl{margin-top:-6%;margin-bottom:-5%} /* the ortho framing leaves empty sky/floor at top and bottom; crop it on phones */
+  .view{overflow:hidden} canvas#gl{margin-top:-6%;margin-bottom:-5%} body[data-view="pov"] canvas#gl{margin:0} /* the ortho framing leaves empty sky/floor at top and bottom; crop it on phones */
   .field-foot{flex-direction:column;gap:2px;padding-top:5px;font-size:11.5px;line-height:1.3}
   .field-foot .hint{min-height:2.6em;flex:none} .foot-meta{font-size:10.5px;opacity:.85} .foot-meta #mission-label,.foot-meta .sep{display:none}
   .side{flex:1;min-height:0;overflow-y:auto;gap:6px;-webkit-overflow-scrolling:touch;padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -446,7 +465,11 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
   .squad{flex-direction:row;gap:5px} .ucard{flex:1 1 0;min-width:0;grid-template-columns:22px 1fr;gap:6px;padding:6px 7px;align-content:start}
   .ucard .glyph{width:20px;height:20px;font-size:11px} .ucard .n{font-size:12px} .ucard .r{display:none} .ucard .st{font-size:9px;margin-left:0}
   .ucard .hp i{width:5px;height:5px} .ucard .ap{grid-column:1/-1;justify-content:flex-start;margin-top:2px}
-  #sel-panel{order:-1} .side .turnline{order:-2}
+  #sel-panel{order:-1} #pov-panel{order:-2} .side .turnline{order:-3}
+  .side:has(#pov-panel:not([hidden])) .abtn.fire{display:none}
+  .side:has(#pov-panel:not([hidden])) .turnline{display:none}
+  .tcard{flex-basis:124px;min-height:58px;padding:6px 8px} .pov-go{padding:10px 12px}
+  .field-foot{flex-direction:row;flex-wrap:wrap;align-items:center} .field-foot .hint{flex:1 1 200px} .foot-meta{flex:1 1 100%}
   .sel-title .who{font-size:14px} .passive{font-size:10.5px;margin:-2px 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .actions{gap:5px} .abtn{min-height:40px;padding:7px 8px;justify-content:center} .abtn .d{font-size:10px;line-height:1.2}
   .actions .abtn:not(.power):not(.perk) .d{display:none}
@@ -465,12 +488,14 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
   .field{padding:4px;min-height:0;display:flex;flex-direction:column}
   .view{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
   .view{overflow:hidden} canvas#gl,canvas#board{width:auto;height:auto;max-width:100%;max-height:100%}
-  canvas#gl{max-height:116%;margin-top:-4.5vh;margin-bottom:-3vh}
+  canvas#gl{max-height:116%;margin-top:-4.5vh;margin-bottom:-3vh} body[data-view="pov"] canvas#gl{max-height:100%;margin:0}
   .field-foot{padding-top:3px;font-size:10.5px;gap:4px} .field-foot .hint{min-height:1.3em}
   .side{min-height:0;overflow-y:auto;gap:5px}
   .side .panel{padding:6px 8px;flex:0 0 auto} .turnline .t{font-size:13px} .turnline .obj{font-size:11px}
   .squad{gap:4px} .ucard{padding:5px 7px;gap:6px} .ucard .n{font-size:12px} .ucard .r{display:none}
-  #sel-panel{order:-1} .side .turnline{order:-2}
+  #sel-panel{order:-1} #pov-panel{order:-2} .side .turnline{order:-3}
+  .side:has(#pov-panel:not([hidden])) .abtn.fire{display:none}
+  .tcard{flex-basis:118px;min-height:54px;padding:5px 7px}
   .actions{gap:4px} .abtn{min-height:44px;padding:6px 8px} .abtn .d{font-size:10px} .endturn{padding:9px}
   .side .panel:has(.log){flex:1 1 60px;min-height:60px;display:flex;flex-direction:column} .log{max-height:none;flex:1;min-height:0;font-size:10.5px}
   .intro .i-name{font-size:22px}
@@ -572,7 +597,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <div class="banner" id="banner"></div>
         <div class="intro" id="intro" hidden><div class="eyebrow" id="i-act"></div><div class="i-name" id="i-name"></div><div class="i-op" id="i-op"></div><div class="i-sub">Inserting squad…</div></div>
         <div class="field-foot">
-          <div class="hint" id="hint">Select a unit.</div>
+          <div class="hint" id="hint">Select a unit.</div><button class="pbtn view" id="btn-pov" hidden>POV</button>
           <div class="foot-meta"><span id="mission-label"></span><span class="sep"> · </span>Turn <span class="num" id="turn-num">1</span> · <span id="reinf"></span></div>
         </div>
       </div>
@@ -584,6 +609,11 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <div class="panel">
           <div class="eyebrow" style="margin-bottom:6px">Squad</div>
           <div class="squad" id="squad"></div>
+        </div>
+        <div class="panel pov" id="pov-panel" hidden>
+          <div class="pov-h"><span class="eyebrow" id="pov-title">Targets · by hit chance</span><span class="pov-nav"><button class="pbtn" id="pov-prev" aria-label="Previous target">‹</button><span class="note num" id="pov-count"></span><button class="pbtn" id="pov-next" aria-label="Next target">›</button><button class="pbtn view" id="pov-map">Map</button></span></div>
+          <div class="tstrip" id="tstrip"></div>
+          <button class="btn primary pov-go" id="pov-go">Fire</button>
         </div>
         <div class="panel" id="sel-panel">
           <div class="sel-title"><span class="who" id="sel-name">—</span><span class="stats" id="sel-stats"></span></div>
@@ -660,6 +690,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
       <div class="sheet-h"><h2>How to play</h2><button class="btn small" data-close="modal-help">Close</button></div>
       <div class="help">
         <p><b>Two actions per unit.</b> Moving costs one. A long move (dim tiles) costs both. Firing, Overwatch, and most powers end the unit's turn.</p>
+        <p><b>Selecting a mutant drops the camera behind them.</b> Targets line up in a strip sorted by hit chance — shootable ones first, the rest greyed with the reason. Swipe, use ‹ ›, or ← → to cycle; the big button fires at the current target (or uses a targeted power on them — Mend, Ward and Stim swap the strip to your allies). <b>Move</b>, Blast, Blink and the like pull back to the map so you can pick a tile, then the camera returns. <kbd>V</kbd> or the Map/POV button switches views any time; the map still works exactly as before.</p>
         <p><b>On a touchscreen,</b> the first tap previews — the path, who it wakes, the hit chance — and a second tap on the same spot confirms. Tapping one of your own mutants selects them straight away.</p>
         <p><b>Read the number.</b> Hover a hostile to see your hit chance. Half cover −20, full cover −40. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
         <p><b>Cover has a side.</b> Shield icons show which direction a unit is protected from. Bright shields protect against the unit you've selected.</p>
@@ -1356,7 +1387,7 @@ function makeRecruit(arch){ const kits=MUTANTS.filter(m=>m.arch===arch); const k
 
 /* ---------- Game state ---------- */
 const G = {
-  screen:'title', missionIdx:0, squad:['blaster','bruiser','phaser'],
+  screen:'title', missionIdx:0, squad:['blaster','bruiser','phaser'], pov:null, povView:'map', povReturn:false,
   grid:[], units:[], turn:1, phase:'player', sel:null, mode:'move', hover:null,
   fx:[], shake:0, busy:false, stats:{shots:0,hits:0,dmg:0}, over:false, op:'', reinforced:0, fallen:[],
   evac:new Set(), hold:new Set(), objState:{}, seen:new Set(PROG.seen||[]), theme:null, freezeUntil:0, freezeT:0, focus:null, light:null,
@@ -1454,7 +1485,7 @@ function makeCaptive(x,y,name){ const u=makeUnit(VIP,'captive',x,y,name||NAMES.v
 function startMission(idx,op){
   const base=idx<0?SIDE:MISSIONS[idx]; G.perks=equippedPerks(); G.adapt=adaptFor(CAMP.doom,base.act); MADJ=adjustMission(base,idx,G.perks,G.adapt); G.perkUsed=new Set(); G.medevacUsed=false; G.smoke=null; G.boost=false;
   const m=MX(idx); G.missionIdx=idx; G.grid=[]; G.units=[]; G.turn=1; G.phase='player'; G.sel=null; G.mode='move'; G.fx=[]; G.over=false; G.busy=false;
-  G.stats={shots:0,hits:0,dmg:0}; G.campApplied=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
+  G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.stats={shots:0,hits:0,dmg:0}; G.campApplied=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
   G.objState={relays:0,relaysTotal:0,freed:0,captivesTotal:0,shipped:false,holdCount:0,summons:0,evacOpen:!(m.evacAt||m.evacAfterHold)};
   const spawns=[]; let relayN=0, capN=0;
   for(let y=0;y<ROWS;y++){ const row=[]; for(let x=0;x<COLS;x++){ const ch=m.map[y][x]; let t=T.FLOOR; if(ch==='#')t=T.WALL; else if(ch==='=')t=T.HALF; else if(ch==='O')t=T.FULL; row.push(t);
@@ -1701,18 +1732,19 @@ function renderSide(){
     const pv=u.def.passive||''; $('sel-passive').innerHTML=pv.includes(' — ')?`<b>${pv.split(' — ')[0]}</b> — ${pv.split(' — ')[1]}`:pv;
     const can=G.phase==='player'&&!G.busy&&u.ap>0;
     const mk=(k,label,desc,{disabled=false,pressed=false,cd=0,cost=1,jam=false,cls='',tag=''}={})=>{ const b=document.createElement('button'); b.className='abtn '+cls; b.disabled=disabled; b.setAttribute('aria-pressed',String(pressed));
-      b.innerHTML=`<span class="k">${label}</span><span class="d">${desc}</span>`+(tag?`<span class="cd">${tag}</span>`:jam?`<span class="cd jam">JAMMED</span>`:cd>0?`<span class="cd">CD ${cd}</span>`:`<span class="cost">${'<i></i>'.repeat(cost)}</span>`); b.onclick=()=>setMode(k); act.appendChild(b); };
+      b.innerHTML=`<span class="k">${label}</span><span class="d">${desc}</span>`+(tag?`<span class="cd">${tag}</span>`:jam?`<span class="cd jam">JAMMED</span>`:cd>0?`<span class="cd">CD ${cd}</span>`:`<span class="cost">${'<i></i>'.repeat(cost)}</span>`); b.onclick=()=>{ const inPov=G.povView==='pov'&&G.pov&&G.pov.unit===u&&G.pov.target; if(inPov&&k==='shoot'&&G.pov.kind==='enemy'){ povGo(); return; } if(inPov&&TARGETED[k]==='enemy'&&G.pov.kind==='enemy'&&povEnemyOk(u,G.pov.target,k)){ G.mode=k; povGo(); return; } setMode(k); }; act.appendChild(b); };
     mk('move','Move',`Up to ${u.move} tiles. 1 action; move twice to dash.${u.carrying?' Carrying '+u.carrying.name+'.':''}`,{disabled:!can,pressed:G.mode==='move'});
     if(!u.def.noAttack){ const dn=downedNear(u); if(dn.length&&!u.carrying){ mk('stabilize',`Stabilize ${dn[0].name}`,'Stop the bleeding. They survive the mission, out of the fight. 1 action.',{disabled:!can||dn[0].stabilized,pressed:false}); mk('carry',`Carry ${dn[0].name}`,'Pick them up. −1 move, no overwatch while carrying. 1 action.',{disabled:!can,pressed:false}); }
       if(u.carrying) mk('setdown',`Set down ${u.carrying.name}`,'Put them on an adjacent tile. 1 action.',{disabled:!can,pressed:G.mode==='setdown'}); }
     if(!u.def.noAttack){
-      mk('shoot','Fire',`${u.dmg[0]}–${u.dmg[1]} dmg, range ${u.range}. Ends turn.`,{disabled:!can,pressed:G.mode==='shoot',cost:2});
+      mk('shoot','Fire',`${u.dmg[0]}–${u.dmg[1]} dmg, range ${u.range}. Ends turn.`,{disabled:!can,pressed:G.mode==='shoot',cost:2,cls:'fire'});
       mk('overwatch','Overwatch',`Hold fire. Shoot the first hostile that moves in view (aim −15). Ends turn.`,{disabled:!can||u.ow||!!u.carrying,pressed:u.ow,cost:2});
       const ab=u.def.ability; const isJam=jammed(u);
       for(const pid of [...(G.perks||[])]){ const P=PERKS[pid]; if(!P||P.kind!=='use') continue; const used=G.perkUsed.has(pid); mk('perk:'+pid,P.name,P.short,{disabled:!can||used||(P.cost&&u.ap<P.cost),pressed:G.mode==='perk:'+pid,cost:P.cost||0,cls:'perk'+(used?' used':''),tag:used?'USED':(P.cost?'':'FREE')}); }
       mk(ab.key,ab.name+(u.def.upgradeName?` · ${u.def.upgradeName}`:''),ab.desc+(u.def.upgradeName?` <i style="color:var(--accent)">${u.def.upgradeDesc||''}</i>`:''),{disabled:!can||u.cd>0||isJam,pressed:G.mode===ab.key,cd:u.cd,cost:ab.ends?2:1,jam:isJam,cls:'power'+(u.readyFlash&&now()-u.readyFlash<2500?' ready':'')});
     }
   }
+  renderPov();
   $('btn-end').disabled=G.phase!=='player'||G.busy; $('btn-end').classList.toggle('pulse',G.phase==='player'&&!G.busy&&alive('player').some(u=>u.side==='player')&&alive('player').every(u=>u.ap<=0||u.ow));
 }
 function armHint(u,p,target,hostile){ const again='<span class="tap">Tap again to confirm.</span>';
@@ -1723,7 +1755,57 @@ function armHint(u,p,target,hostile){ const again='<span class="tap">Tap again t
     return `<b>Move</b> here — ${n.c<=u.move?'1 action':'dash, both actions'}${wake?`. <i style="color:var(--danger);font-style:normal">${wake} unaware hostile${wake>1?'s':''} will see you.</i>`:'.'} ${again}`; }
   const ab=u.def.ability; const name=G.mode==='setdown'?'Set down':G.mode.startsWith('perk:')?(PERKS[G.mode.slice(5)]||{}).name||'Perk':(ab&&ab.key===G.mode?ab.name:G.mode);
   return `<b>${name}</b>${target?` on ${target.name}`:' here'}. ${again}`; }
-function select(u){ G.armed=null; if(G.phase!=='player'||G.busy) return; if(G.sel!==u){ VO.bark(u,'select',0.35); anim(u,'select'); fxRing(u.x,u.y,'#FFFFFF',0.5); } G.sel=u; G.mode='move'; Audio.select(); renderSide(); setHint(); }
+/* ---------- POV: over-the-shoulder targeting ----------
+   Selecting a mutant drops the camera behind them (G.povView='pov') with a strip of targets sorted by hit chance (G.pov.list).
+   Enemy strip: shootable first by %, then the rest greyed as info. Ally strip (Mend/Ward/Stim): valid first, then by distance.
+   Move and tile powers pull the camera back to the map (povReturn remembers to come back); anything that ends the unit's
+   activation chains straight to the next mutant's POV. Turn start and the Coalition phase are always on the map. */
+const TARGETED={concuss:'enemy',phasestrike:'enemy',smash:'enemy',mend:'ally',ward:'ally',stim:'ally'};
+const TILE_MODES=['blast','blink','afterimage','setdown','perk:smoke'];
+const ANYWHERE=['suppress','brace','rally'];
+function povEnemyOk(u,e,mode){ mode=mode||'shoot'; if(mode==='smash') return dist(u,e)<1.5; if(mode==='phasestrike') return e.side==='enemy'&&dist(u,e)<=6.01; if(mode==='concuss') return e.side==='enemy'&&inRange(Object.assign({},u,{range:6}),e); return inRange(u,e); }
+function povAllyOk(u,a,mode){ if(mode==='mend') return dist(u,a)<=u.def.ability.range+0.01&&(a.downed||a.hp<a.maxHp||a.marked||a.drained||a.drainedNow); if(mode==='ward') return !a.downed?dist(u,a)<=5.01:dist(u,a)<=5.01; if(mode==='stim') return a!==u&&!a.def.noAttack&&dist(u,a)<=4.01; return false; }
+function povMode(kind){ return kind==='ally'?G.mode:(TARGETED[G.mode]==='enemy'?G.mode:'shoot'); }
+function povTargets(u,kind,mode){
+  if(kind==='ally') return alive('player').filter(a=>a!==u&&!a.def.decoy&&!a.carried).map(a=>({u:a,ok:povAllyOk(u,a,mode),d:dist(u,a)})).sort((a,b)=>(b.ok-a.ok)||(a.d-b.d));
+  return G.units.filter(e=>e.alive&&(e.side==='enemy'||e.side==='obj')).map(e=>({u:e,ok:povEnemyOk(u,e,mode),h:hitChance(u,e),d:dist(u,e)})).sort((a,b)=>(b.ok-a.ok)||(a.ok?(b.h.chance-a.h.chance):(a.d-b.d))); }
+function enterPOV(u,opts={}){ if(!u||!u.alive||u.side!=='player'||u.downed||u.def.noAttack){ G.pov=null; G.povView='map'; return; }
+  const kind=opts.kind||'enemy'; const list=povTargets(u,kind,opts.mode||povMode(kind)); let idx=0;
+  if(opts.keep&&G.pov&&G.pov.unit===u&&G.pov.target){ const i=list.findIndex(t=>t.u===G.pov.target); if(i>=0) idx=i; }
+  G.pov={unit:u,kind,list,idx,target:list[idx]?list[idx].u:null}; if(opts.view) G.povView=opts.view; }
+function povRefresh(){ const pv=G.pov; if(!pv) return; if(!pv.unit.alive||pv.unit.downed){ G.pov=null; G.povView='map'; return; } pv.list=povTargets(pv.unit,pv.kind,povMode(pv.kind)); const i=pv.list.findIndex(t=>t.u===pv.target); pv.idx=i>=0?i:0; pv.target=pv.list[pv.idx]?pv.list[pv.idx].u:null; }
+function povCycle(d){ const pv=G.pov; if(!pv||pv.list.length<2||G.busy) return; pv.idx=(pv.idx+d+pv.list.length)%pv.list.length; pv.target=pv.list[pv.idx].u; G.armed=null; G.hover=null; Audio.select(); renderSide(); setHint(); }
+function povSet(e){ const pv=G.pov; if(!pv) return false; const i=pv.list.findIndex(t=>t.u===e); if(i<0) return false; pv.idx=i; pv.target=e; renderSide(); setHint(); return true; }
+function toggleView(){ if(!G.sel||G.phase!=='player') return; if(G.povView==='pov'){ G.povView='map'; G.povReturn=false; } else { if(!G.pov||G.pov.unit!==G.sel) enterPOV(G.sel); G.povView='pov'; } G.armed=null; Audio.select(); renderSide(); setHint(); }
+async function povGo(){ const pv=G.pov, u=G.sel; if(!pv||!u||pv.unit!==u||!pv.target||G.busy||u.ap<=0||G.phase!=='player') return; const item=pv.list[pv.idx];
+  if(!item.ok){ setHint(pv.kind==='ally'?`<b>${pv.target.name}</b> isn't a valid target for that right now.`:`<b>No shot</b> — ${pv.target.name} is out of range or line of sight. Move first, or pick another target.`); return; }
+  if(pv.kind==='enemy'&&!TARGETED[G.mode]) G.mode='shoot'; G.armed=null; await performAt({x:pv.target.x,y:pv.target.y},{confirmed:true}); }
+function renderPov(){
+  const u=G.sel, pv=G.pov; const on=!!(pv&&u&&pv.unit===u&&u.alive&&G.povView==='pov'&&G.phase==='player');
+  const panel=$('pov-panel'); panel.hidden=!on; document.body.dataset.view=on?'pov':'map'; $('btn-pov').hidden=!(u&&u.alive&&!u.downed&&G.phase==='player'&&G.povView!=='pov'&&!u.def.noAttack);
+  if(!on) return;
+  const strip=$('tstrip'); strip.innerHTML=''; const ab=u.def.ability; const mode=povMode(pv.kind);
+  $('pov-title').textContent=pv.kind==='ally'?`${ab.name} · allies`:mode==='shoot'?'Targets · by hit chance':`${ab.name} · targets`;
+  $('pov-count').textContent=pv.list.length?`${pv.idx+1}/${pv.list.length}`:'—';
+  if(!pv.list.length) strip.innerHTML=`<div class="note" style="padding:6px 2px">${pv.kind==='ally'?'No allies in reach.':'No hostiles on the field.'}</div>`;
+  pv.list.forEach((it,i)=>{ const t=it.u; const b=document.createElement('button'); b.className='tcard'+(i===pv.idx?' on':'')+(it.ok?'':' off'); b.style.setProperty('--tc',t.side==='obj'?'#F2B33D':t.side==='player'?(t.color||'#3FC1E3'):(t.color||'#E0524B'));
+    const frac=t.hp/t.maxHp; const hpcls=frac>0.5?'':frac>0.25?'mid':'low';
+    if(pv.kind==='enemy'){ const h=it.h; const meta=[]; if(it.ok){ if(h.flanked) meta.push('<i class="fl">FLANKED</i>'); else if(h.cover===2) meta.push('full cover'); else if(h.cover===1) meta.push('half cover'); if(h.marked) meta.push('<i class="mk">marked</i>'); } else meta.push(dist(u,t)>u.range?'out of range':'no line of sight'); if(t.side==='enemy'&&!t.alert) meta.push('<i class="un">unaware</i>'); if(t.armor) meta.push(`armor ${t.armor}`);
+      const pct=it.ok?`<span class="tc-pct ${h.chance>=65?'hi':h.chance>=40?'':'lo'}">${h.chance}%</span>`:`<span class="tc-pct dim">—</span>`;
+      b.innerHTML=`<div class="tc-top"><span class="tc-name">${t.side==='obj'?t.name:t.def.name}${t.def.boss?' <i class="boss">boss</i>':''}</span>${pct}</div><div class="tc-hp"><i class="${hpcls}" style="width:${Math.round(frac*100)}%"></i></div><div class="tc-meta">${meta.join(' · ')||'&nbsp;'}</div>`; }
+    else { const st=t.downed?`<i class="mk">${t.stabilized?'stable':'bleeding '+t.bleed}</i>`:[t.marked?'<i class="mk">marked</i>':'',(t.drained||t.drainedNow)?'drained':'',t.hp<t.maxHp?`${t.hp}/${t.maxHp} HP`:'full HP',t.shield?`shield ${t.shield}`:''].filter(Boolean).join(' · ');
+      b.innerHTML=`<div class="tc-top"><span class="tc-name">${t.name}</span><span class="tc-pct ${it.ok?'hi':'dim'}">${it.ok?'OK':'—'}</span></div><div class="tc-hp"><i class="${hpcls}" style="width:${Math.round(frac*100)}%"></i></div><div class="tc-meta">${st||(it.ok?'':'out of reach')}</div>`; }
+    b.onclick=()=>{ if(i===pv.idx){ povGo(); } else { pv.idx=i; pv.target=t; G.armed=null; Audio.select(); renderSide(); setHint(); } }; strip.appendChild(b); });
+  const onEl=strip.children[pv.idx]; if(onEl&&onEl.offsetWidth){ strip.scrollLeft=Math.max(0,onEl.offsetLeft-(strip.clientWidth-onEl.offsetWidth)/2); }
+  const go=$('pov-go'); const it=pv.list[pv.idx]; const can=G.phase==='player'&&!G.busy&&u.ap>0; const t=it&&it.u;
+  if(!t){ go.textContent='No target'; go.disabled=true; }
+  else if(pv.kind==='ally'){ go.innerHTML=`${ab.name} → ${t.name}`; go.disabled=!can||!it.ok||u.cd>0||jammed(u); }
+  else if(TARGETED[G.mode]==='enemy'){ go.innerHTML=`${ab.name} → ${t.side==='obj'?t.name:t.def.name}`; go.disabled=!can||!it.ok||u.cd>0||jammed(u); }
+  else { go.innerHTML=it.ok?`Fire at ${t.side==='obj'?t.name:t.def.name} · <b>${it.h.chance}%</b>`:`No shot — ${t.side==='obj'?t.name:t.def.name}`; go.disabled=!can||!it.ok; }
+  $('pov-prev').disabled=$('pov-next').disabled=pv.list.length<2||G.busy;
+}
+$('pov-prev').onclick=()=>povCycle(-1); $('pov-next').onclick=()=>povCycle(1); $('pov-map').onclick=toggleView; $('btn-pov').onclick=toggleView; $('pov-go').onclick=povGo;
+function select(u){ G.armed=null; if(G.phase!=='player'||G.busy) return; if(G.sel!==u){ VO.bark(u,'select',0.35); anim(u,'select'); fxRing(u.x,u.y,'#FFFFFF',0.5); } G.sel=u; G.mode='move'; enterPOV(u,{view:'pov'}); G.povReturn=false; Audio.select(); renderSide(); setHint(); }
 function setMode(m){ G.armed=null; if(!G.sel||G.phase!=='player'||G.busy) return;
   if(m==='stabilize'){ const u=G.sel; const d=downedNear(u)[0]; if(!d||u.ap<=0||d.stabilized) return; d.stabilized=true; u.ap-=1; Audio.heal(d.x); anim(u,'cast',{tx:d.x,ty:d.y}); fxRing(d.x,d.y,'#5CD68A',1); fxText(d.x,d.y,'STABLE','#5CD68A',true); log(`${u.name} stabilizes ${d.name}.`,'good'); say('stabilized',d.name); VO.bark(u,'mend',0.8); afterAction(u); return; }
   if(m==='carry'){ const u=G.sel; const d=downedNear(u)[0]; if(!d||u.ap<=0||u.carrying) return; u.carrying=d; d.carried=true; d.x=u.x; d.y=u.y; u.move=Math.max(1,u.move-1); u.ow=false; u.ap-=1; Audio.thud(u.x); fxRing(u.x,u.y,'#3FC1E3',0.8); log(`${u.name} picks up ${d.name}.`,'sys'); VO.bark(u,'move',0.8); afterAction(u); return; }
@@ -1734,14 +1816,24 @@ function setMode(m){ G.armed=null; if(!G.sel||G.phase!=='player'||G.busy) return
     if(pid==='surge'){ if(u.cd<=0){ setHint(`<b>${u.def.ability.name}</b> is already ready — save the surge.`); return; } G.perkUsed.add(pid); u.cd=0; u.readyPing=true; u.readyFlash=now(); Audio.heal(u.x); fxText(u.x,u.y,'SURGE','#B58CF0',true); fxRing(u.x,u.y,'#B58CF0',1); log(`Power Surge — ${u.def.ability.name} is ready again.`,'good'); G.mode='move'; renderSide(); setHint(); return; }
     if(pid==='booster'){ G.perkUsed.add(pid); G.boost=true; Audio.crit(u.x); for(const p of active()) fxText(p.x,p.y,'+1 DMG','#FFD27A',true); flash('#FFD27A',0.3,120); log('Mutagen Booster — every shot the squad lands this turn deals +1.','good'); G.mode='move'; renderSide(); setHint(); return; }
     if(pid==='dressing'){ if(u.ap<=0) return; if(u.hp>=u.maxHp){ setHint(`<b>${u.name}</b> is at full health.`); return; } G.perkUsed.add(pid); const h=Math.min(4,u.maxHp-u.hp); u.hp+=h; u.ap-=1; Audio.heal(u.x); anim(u,'healed'); fxText(u.x,u.y,'+'+h,'#5CD68A',true); fxRing(u.x,u.y,'#5CD68A',1); log(`${u.name} applies a field dressing — +${h}.`,'good'); G.mode='move'; afterAction(u); return; }
-    if(pid==='smoke'){ G.mode=m; Audio.select(); renderSide(); setHint(`<b>Smoke Canister</b> — click a tile within 6 of ${u.name}. Hostiles firing into the cloud take −30 aim until your next turn.`); return; } return; }
+    if(pid==='smoke'){ G.mode=m; if(G.povView==='pov'){ G.povReturn=true; G.povView='map'; } Audio.select(); renderSide(); setHint(`<b>Smoke Canister</b> — click a tile within 6 of ${u.name}. Hostiles firing into the cloud take −30 aim until your next turn.`); return; } return; }
   if(m===G.sel.def.ability?.key&&jammed(G.sel)){ setHint('<b>Jammed</b> — a Jammer within 3 tiles is suppressing powers. Kill it or move away.'); return; }
-  G.mode=m; Audio.select(); renderSide(); setHint(); }
+  const fromPov=G.povView==='pov'; G.mode=m;
+  if(m==='move'||TILE_MODES.includes(m)){ if(fromPov) G.povReturn=true; G.povView='map'; }
+  else if(TARGETED[m]==='ally') enterPOV(G.sel,{kind:'ally',mode:m,view:'pov'});
+  else if(TARGETED[m]==='enemy') enterPOV(G.sel,{kind:'enemy',mode:m,view:'pov',keep:true});
+  else if(m==='shoot') enterPOV(G.sel,{kind:'enemy',mode:'shoot',view:'pov',keep:true});
+  Audio.select(); renderSide(); setHint();
+  if(fromPov&&ANYWHERE.includes(m)&&G.sel&&!G.busy) performAt({x:G.sel.x,y:G.sel.y},{confirmed:true}); }
 function setHint(t){
   const h=$('hint'); if(t){ h.innerHTML=t; return; }
   const u=G.sel; if(!u){ h.textContent='Select a unit.'; return; }
   if(u.ap<=0){ h.textContent=`${u.name} is out of actions. Select another unit or end the turn.`; return; }
   const m=G.mode;
+  if(G.povView==='pov'&&G.pov&&G.pov.unit===u&&G.pov.target&&!TILE_MODES.includes(m)&&m!=='setdown'){ const pv=G.pov, t=pv.target, it=pv.list[pv.idx]; const nm=t.side==='obj'?t.name:t.side==='player'?t.name:t.def.name; const nav=pv.list.length>1?(G.touch?' Swipe or use ‹ › for other targets.':' ← → cycle targets.'):'';
+    if(pv.kind==='ally'){ h.innerHTML=`<b>${u.def.ability.name}</b> on <b>${nm}</b>${it.ok?'':' — not valid right now'}.${nav} <b>Move</b> pulls back to the map.`; return; }
+    if(TARGETED[m]==='enemy'){ h.innerHTML=`<b>${u.def.ability.name}</b> → <b>${nm}</b>${it.ok?'':' — out of reach'}.${nav}`; return; }
+    h.innerHTML=it.ok?`<b>${nm}</b> — <b>${it.h.chance}%</b>${it.h.flanked?' flanked':it.h.cover===2?' vs full cover':it.h.cover===1?' vs half cover':''}, ${u.dmg[0]}–${u.dmg[1]} dmg.${t.side==='enemy'&&!t.alert?' Firing wakes their pod.':''}${nav} <b>Move</b> pulls back to the map.`:`<b>${nm}</b> — no shot from here.${nav} <b>Move</b> to reposition.`; return; }
   if(m==='move') h.innerHTML=`<b>Move</b> — click a highlighted tile. Bright = 1 action, dim = dash (both actions).`;
   else if(m==='shoot') h.innerHTML=`<b>Fire</b> — click a hostile or a relay. Hover to see hit chance.`;
   else if(m==='blast') h.innerHTML=`<b>Pulse Blast</b> — click a target tile within 5. Hits everything in the 3×3, allies included. Wrecks crates.`;
@@ -1872,6 +1964,30 @@ const R3 = (()=>{
   const camera=new T3.OrthographicCamera(-HW,HW,HH,-HH,0.1,100);
   const CENTER=new T3.Vector3(0.1,0.3,0.5); const camDir=new T3.Vector3(-0.3,0.88,1).normalize(); const camDist=28;
   const camTarget=new T3.Vector3();
+  /* POV: a perspective camera over the selected mutant's shoulder, looking at the current target. The map stays orthographic;
+     the swap is seamless because a perspective camera 170 units out with a ~4° lens frames the board exactly like the ortho view,
+     and from there it dollies in. `active` is whichever camera draws this frame; pick/project/shake all use it. */
+  const pcam=new T3.PerspectiveCamera(46,aspect,0.1,320); let active=camera;
+  const POV={blend:0,pos:new T3.Vector3(),look:new T3.Vector3(),fov:46,init:false,farD:170,last:0};
+  const FOG0={near:34,far:66};
+  function povGoal(){ const pv=G.pov; const u=pv&&pv.unit; if(!u||!u.alive) return null; const g=units.get(u.id); const up=g?g.position.clone():W(u.x,u.y,0); up.y=0;
+    const tg=pv.target&&pv.target.alive?W(pv.target.x,pv.target.y,0):null; let dir;
+    if(tg){ dir=tg.clone().sub(up); dir.y=0; if(dir.lengthSq()<1e-4) dir.set(0,0,1); dir.normalize(); } else { const f=nearestFoe(u); dir=f?new T3.Vector3(f.x-u.x,0,f.y-u.y).normalize():new T3.Vector3(0,0,1); }
+    const right=new T3.Vector3(dir.z,0,-dir.x); const far=tg?Math.min(1,up.distanceTo(tg)/9):0.5;
+    const pos=up.clone().addScaledVector(dir,-(3.1+1.3*far)).addScaledVector(right,1.0); pos.y=2.35+1.3*far;
+    const look=tg?tg.clone().setY(0.5).lerp(up.clone().setY(0.9),0.15):up.clone().addScaledVector(dir,5); if(!tg) look.y=0.5;
+    return {pos,look,fov:tg?40+6*(1-far):46}; }
+  function updateCameras(tReal){ placeCamera();
+    const dt=Math.min(3,(tReal-(POV.last||tReal))/16.7); POV.last=tReal; const k=x=>1-Math.pow(1-x,dt);
+    const goal=(G.screen==='game'&&G.povView==='pov'&&G.pov&&G.pov.unit&&G.pov.unit.alive)?povGoal():null; const want=goal?1:0;
+    if(POV.blend===0&&!want){ active=camera; if(scene.fog){ scene.fog.near=FOG0.near; scene.fog.far=FOG0.far; } return; }
+    if(goal){ if(!POV.init){ POV.pos.copy(goal.pos); POV.look.copy(goal.look); POV.fov=goal.fov; POV.init=true; } else { POV.pos.lerp(goal.pos,k(0.14)); POV.look.lerp(goal.look,k(0.14)); POV.fov+=(goal.fov-POV.fov)*k(0.14); } }
+    POV.blend+=(want-POV.blend)*k(0.15); if(Math.abs(POV.blend-want)<0.004) POV.blend=want;
+    if(POV.blend===0){ active=camera; POV.init=false; if(scene.fog){ scene.fog.near=FOG0.near; scene.fog.far=FOG0.far; } return; }
+    const farPos=camTarget.clone().addScaledVector(camDir,POV.farD); const farFov=2*Math.atan((HH/camera.zoom)/POV.farD)*180/Math.PI;
+    const b=POV.blend, e=b<0.5?2*b*b:1-Math.pow(-2*b+2,2)/2;
+    pcam.position.lerpVectors(farPos,POV.pos,e); const lk=camTarget.clone().lerp(POV.look,e); pcam.fov=farFov+(POV.fov-farFov)*e; pcam.lookAt(lk); pcam.updateProjectionMatrix(); active=pcam;
+    if(scene.fog){ scene.fog.near=220; scene.fog.far=420; } }
   function placeCamera(){ camTarget.copy(CENTER); let zoom=1;
     if(G.killcam){ const dur=G.killcam.boss?1600:950; const k=(now()-G.killcam.t0)/dur; if(k>=1){ G.killcam=null; } else { const e=Math.sin(Math.PI*Math.min(1,k))**0.6; const p=W(G.killcam.x,G.killcam.y,0.4); camTarget.lerp(p,0.55*e); zoom=1+(G.killcam.boss?0.75:0.5)*e; } }
     else if(G.focus){ const k=(now()-G.focus.t0)/G.focus.dur; if(k>=1){ G.focus=null; } else { const e=Math.sin(Math.PI*Math.min(1,k))**0.7; const p=W(G.focus.x,G.focus.y,0.4); camTarget.lerp(p,0.4*e); zoom=1+G.focus.zoom*e; } }
@@ -2134,9 +2250,9 @@ const R3 = (()=>{
   const pathDots=new T3.InstancedMesh(geo.unit,basic({map:TEX.dot,color:'#3FC1E3',transparent:true,opacity:0.95,depthWrite:false,blending:T3.AdditiveBlending}),96); pathDots.count=0; scene.add(pathDots);
   const jamPlanes=[]; const fallen=[]; const fallenMat=basic({map:TEX.shadow,color:'#2a0a10',transparent:true,opacity:0.7,depthWrite:false,side:T3.DoubleSide});
   const ray=new T3.Raycaster(), ground=new T3.Plane(new T3.Vector3(0,1,0),0), ndc=new T3.Vector2(), hitP=new T3.Vector3();
-  function pick(ev){ const r=gl.getBoundingClientRect(); ndc.set(((ev.clientX-r.left)/r.width)*2-1,-((ev.clientY-r.top)/r.height)*2+1); ray.setFromCamera(ndc,camera); if(!ray.ray.intersectPlane(ground,hitP)) return null; const x=Math.floor(hitP.x+COLS/2), y=Math.floor(hitP.z+ROWS/2); return inb(x,y)?{x,y}:null; }
+  function pick(ev){ const r=gl.getBoundingClientRect(); ndc.set(((ev.clientX-r.left)/r.width)*2-1,-((ev.clientY-r.top)/r.height)*2+1); ray.setFromCamera(ndc,active); if(!ray.ray.intersectPlane(ground,hitP)) return null; const x=Math.floor(hitP.x+COLS/2), y=Math.floor(hitP.z+ROWS/2); return inb(x,y)?{x,y}:null; }
   const tmpV=new T3.Vector3();
-  function project(x,y,h){ const fr=$('view').getBoundingClientRect(); const r=gl.getBoundingClientRect(); tmpV.copy(W(x,y,h)).project(camera); return { x:(tmpV.x+1)/2*r.width+(r.left-fr.left), y:(1-tmpV.y)/2*r.height+(r.top-fr.top) }; }
+  function project(x,y,h){ const fr=$('view').getBoundingClientRect(); const r=gl.getBoundingClientRect(); tmpV.copy(W(x,y,h)).project(active); return { x:(tmpV.x+1)/2*r.width+(r.left-fr.left), y:(1-tmpV.y)/2*r.height+(r.top-fr.top) }; }
   // ---- label pool ----
   const labPool=new Map(); const pctPool=new Map(); const shieldPool=[]; let shieldUsed=0;
   function labFor(id){ let l=labPool.get(id); if(!l){ l={el:document.createElement('div'),html:''}; l.el.className='lab'; labels.appendChild(l.el); labPool.set(id,l); } l.used=true; return l; }
@@ -2233,7 +2349,7 @@ const R3 = (()=>{
       if(u.side==='player'&&!u.def.noAttack){ const low=u.hp<=3; const rm=g.userData.ring.material; if(low){ rm.color.set('#FF6B62'); rm.opacity=0.5+0.5*Math.abs(Math.sin(t/260)); } else if(g.userData.wasLow){ rm.color.set('#3FC1E3'); rm.opacity=0.9; } g.userData.wasLow=low; }
       if(g.userData.ring&&!u.downed){ g.userData.ring.rotation.z=(u.side==='player'?1:-1)*t/2600; }
       // facing
-      const dx=target.x-g.position.x, dz=target.z-g.position.z; let face=null; if(Math.hypot(dx,dz)>0.02) face=Math.atan2(dx,dz); else { const f=nearestFoe(u); if(f) face=Math.atan2((f.x-u.x),(f.y-u.y)); }
+      const dx=target.x-g.position.x, dz=target.z-g.position.z; let face=null; if(Math.hypot(dx,dz)>0.02) face=Math.atan2(dx,dz); else { const f=(G.pov&&G.pov.unit===u&&G.povView==='pov'&&G.pov.target&&G.pov.target.alive)?G.pov.target:nearestFoe(u); if(f) face=Math.atan2((f.x-u.x),(f.y-u.y)); }
       if(face!==null&&u.side!=='obj'&&!(u.anim&&(u.anim.k==='fire'||u.anim.k==='lunge'||u.anim.k==='cast'))){ const cur=g.userData.body.rotation.y; let d=face-cur; while(d>Math.PI) d-=2*Math.PI; while(d<-Math.PI) d+=2*Math.PI; g.userData.body.rotation.y=cur+d*0.2; }
       if(u.side!=='obj') pose(u,g,t,Math.hypot(dx,dz)>0.02);
       if(g.userData.spin) g.userData.spin.rotation.z=t/500; if(g.userData.pulse&&g.userData.pulse.material.emissive) g.userData.pulse.material.emissiveIntensity=1.2+0.7*Math.sin(t/300);
@@ -2296,11 +2412,11 @@ const R3 = (()=>{
     // fx
     G.fx=G.fx.filter(f=>{ const k=(t-f.t0)/f.d; if(k>=1){ dropFx(f); return false; } ensureFx(f); updFx(f,k); return true; });
     // shake
-    placeCamera(); if(G.shake>0){ camera.position.x+=(Math.random()-.5)*G.shake*0.03; camera.position.y+=(Math.random()-.5)*G.shake*0.03; G.shake*=0.82; if(G.shake<0.4) G.shake=0; }
-    renderer.render(scene,camera);
+    updateCameras(tReal); if(G.shake>0){ const sh=active===pcam?0.012:0.03; active.position.x+=(Math.random()-.5)*G.shake*sh; active.position.y+=(Math.random()-.5)*G.shake*sh; G.shake*=0.82; if(G.shake<0.4) G.shake=0; }
+    renderer.render(scene,active);
   }
   gl.hidden=false; $('board').hidden=true;
-  return { render, pick, canvas:gl, floatText, _scene:scene };
+  return { render, pick, canvas:gl, floatText, _scene:scene, povState:()=>({blend:POV.blend,cam:active===pcam?'pov':'map',pos:pcam.position.toArray().map(v=>+v.toFixed(2))}) };
 })();
 
 /* ---------- Player input ---------- */
@@ -2310,16 +2426,22 @@ const viewEl=R3?R3.canvas:canvas;
 viewEl.addEventListener('mousemove',ev=>{ G.hover=canvasPos(ev); const hu=G.hover?unitAt(G.hover.x,G.hover.y):null; if(hu!==hoverUnit){ hoverUnit=hu; if(!G.busy) { hu?setHint(tooltip(hu)):setHint(); } } });
 viewEl.addEventListener('mouseleave',()=>{ if(G.touch) return; G.hover=null; hoverUnit=null; if(!G.busy) setHint(); });
 viewEl.addEventListener('contextmenu',ev=>{ ev.preventDefault(); if(G.mode!=='move'){ setMode('move'); } });
-window.addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ for(const id of ['modal-threat','modal-help','modal-confirm','modal-mutant','modal-perk']) if(!$(id).hidden){ $(id).hidden=true; return; } } if(G.screen!=='game') return; if(ev.key==='Escape') setMode('move'); if(ev.key==='Tab'){ ev.preventDefault(); cycle(); } if(ev.key==='Enter'&&!G.busy&&G.phase==='player') endTurn(); if(ev.key==='1') setMode('move'); if(ev.key==='2') setMode('shoot'); if(ev.key==='3'&&G.sel&&G.sel.def.ability) setMode(G.sel.def.ability.key); if(ev.key==='4') setMode('overwatch'); });
+window.addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ for(const id of ['modal-threat','modal-help','modal-confirm','modal-mutant','modal-perk']) if(!$(id).hidden){ $(id).hidden=true; return; } } if(G.screen!=='game') return; if(ev.key==='Escape') setMode('move'); if(ev.key==='Tab'){ ev.preventDefault(); cycle(); } if(ev.key==='Enter'&&!G.busy&&G.phase==='player') endTurn(); if(ev.key==='ArrowRight'||ev.key==='e'||ev.key==='E'){ povCycle(1); } if(ev.key==='ArrowLeft'||ev.key==='q'||ev.key==='Q'){ povCycle(-1); } if(ev.key==='v'||ev.key==='V') toggleView(); if(ev.key===' '&&G.povView==='pov'){ ev.preventDefault(); povGo(); } if(ev.key==='1') setMode('move'); if(ev.key==='2') setMode('shoot'); if(ev.key==='3'&&G.sel&&G.sel.def.ability) setMode(G.sel.def.ability.key); if(ev.key==='4') setMode('overwatch'); });
+{ let sw=null; viewEl.addEventListener('pointerdown',ev=>{ sw=ev.pointerType==='touch'?{x:ev.clientX,y:ev.clientY,t:now()}:null; });
+  viewEl.addEventListener('pointerup',ev=>{ if(!sw) return; const dx=ev.clientX-sw.x, dy=ev.clientY-sw.y; sw=null; if(Math.abs(dx)>48&&Math.abs(dy)<Math.abs(dx)*0.6&&G.povView==='pov'&&G.pov){ G.swiped=now(); povCycle(dx<0?1:-1); } });
+  viewEl.addEventListener('pointercancel',()=>{ sw=null; }); }
 function cycle(){ const ps=alive('player').filter(u=>u.ap>0&&!u.downed); if(!ps.length) return; const i=ps.indexOf(G.sel); select(ps[(i+1)%ps.length]); }
-viewEl.addEventListener('click',async ev=>{
-  Audio.unlock(); if(G.screen!=='game'||G.phase!=='player'||G.busy||G.over) return;
-  const p=canvasPos(ev); if(!p) return; const target=unitAt(p.x,p.y);
+viewEl.addEventListener('click',ev=>{ Audio.unlock(); if(G.swiped&&now()-G.swiped<450) return; const p=canvasPos(ev); if(!p) return; performAt(p,{}); });
+async function performAt(p,opts={}){
+  if(G.screen!=='game'||G.phase!=='player'||G.busy||G.over) return;
+  const target=unitAt(p.x,p.y);
   if(target&&target.side==='player'&&!['mend','ward','stim','perk:smoke'].includes(G.mode)){ if(target.def.decoy) return; if(target.downed){ const u0=G.sel; if(u0&&u0.alive&&u0.ap>0&&!u0.downed&&cheb(u0,target)<=1&&!target.stabilized){ setMode('stabilize'); } else setHint(`<b>${target.name}</b> is down${target.stabilized?' but stable':` — bleeding out, ${target.bleed} turn${target.bleed===1?'':'s'}`}. Get adjacent to stabilize or carry; a Mender can revive.`); return; } select(target); return; }
   const u=G.sel; if(!u||!u.alive||u.ap<=0) return;
   const hostile=target&&(target.side==='enemy'||target.side==='obj');
   // Touch: the first tap previews (path, who wakes, hit %) and the second tap on the same tile commits. Mouse users get hover for free.
-  if(G.touch){ const a=G.armed; const same=a&&a.x===p.x&&a.y===p.y&&a.mode===G.mode&&a.sel===u; if(!same){ G.armed={x:p.x,y:p.y,mode:G.mode,sel:u}; G.hover=p; hoverUnit=target||null; setHint(armHint(u,p,target,hostile)); return; } G.armed=null; }
+  // POV: clicking a unit in the strip's family just makes it the current target (mouse and touch alike); clicking it again acts.
+  if(!opts.confirmed&&G.povView==='pov'&&G.pov&&G.pov.unit===u&&target&&target!==u&&(G.pov.kind==='enemy'?hostile:target.side==='player')&&G.pov.target!==target){ if(povSet(target)){ G.armed={x:p.x,y:p.y,mode:G.mode,sel:u}; G.hover=p; hoverUnit=target; setHint(); return; } }
+  if(G.touch&&!opts.confirmed){ const a=G.armed; const same=a&&a.x===p.x&&a.y===p.y&&a.mode===G.mode&&a.sel===u; if(!same){ G.armed={x:p.x,y:p.y,mode:G.mode,sel:u}; G.hover=p; hoverUnit=target||null; setHint(armHint(u,p,target,hostile)); return; } G.armed=null; }
   if(G.mode==='perk:smoke'){ if(dist(u,p)>6.01){ setHint('<b>Too far</b> — the canister reaches 6 tiles.'); return; } G.perkUsed.add('smoke'); G.smoke=new Set(); Audio.thud(p.x); anim(u,'cast',{tx:p.x,ty:p.y});
     for(let y=p.y-1;y<=p.y+1;y++) for(let x=p.x-1;x<=p.x+1;x++){ if(!inb(x,y)||tile(x,y)===T.WALL) continue; G.smoke.add(key(x,y)); fxPuff(x,y,'#b8c2cc',1.1,2200); fxSmoke(x,y,4); }
     log(`${u.name} pops smoke — anyone inside is −30 to hit until your next turn.`,'good'); G.mode='move'; renderSide(); setHint(); return; }
@@ -2395,12 +2517,13 @@ viewEl.addEventListener('click',async ev=>{
     if(F(u,'mendSplash')){ for(const a of alive('player')){ if(a!==target&&!a.def.decoy&&!a.downed&&cheb(a,target)<=1&&a.hp<a.maxHp){ const s=Math.min(F(u,'mendSplash'),a.maxHp-a.hp); a.hp+=s; anim(a,'healed'); fxText(a.x,a.y,'+'+s,'#5CD68A'); } } }
     const cleared=target.marked; target.marked=false; const restored=target.drained||target.drainedNow; if(target.drainedNow&&target.ap<2){ target.ap=Math.min(2,target.ap+1); } target.drained=false; target.drainedNow=false;
     log(`${u.name} mends ${target.name}${h?` for ${h}`:''}${cleared?' and clears the mark':''}${restored?' and restores their action':''}.`,'good'); u.cd=u.def.ability.cd; u.ap-=1; await wait(350); G.busy=false; G.mode='move'; afterAction(u); return; }
-});
+}
 async function playerShoot(u,t){ G.busy=true; renderSide(); const amb=t.side==='enemy'&&!t.alert&&perk('ambush'); if(t.side==='enemy'&&!t.alert){ await scamper(wakePod(t.pod)); } await shoot(u,t,{ambush:amb}); u.ap=0; await checkContact(); G.busy=false; afterAction(u); }
 function afterAction(u){
   if(checkEnd()) return;
-  if(u.ap<=0){ const next=active().find(p=>p.ap>0)||alive('player').find(p=>p.ap>0&&!p.downed); if(next){ G.sel=next; G.mode='move'; } else { renderSide(); setHint('Squad is out of actions — ending turn.'); setTimeout(()=>{ if(!G.busy&&G.phase==='player') endTurn(); },500); return; } }
-  else if(G.mode!=='move'&&G.mode!=='shoot') G.mode='move';
+  const wantPov=G.povView==='pov'||G.povReturn; G.povReturn=false; G.armed=null;
+  if(u.ap<=0){ const next=active().find(p=>p.ap>0)||alive('player').find(p=>p.ap>0&&!p.downed); if(next){ G.sel=next; G.mode='move'; enterPOV(next,{view:wantPov?'pov':'map'}); } else { G.pov=null; G.povView='map'; renderSide(); setHint('Squad is out of actions — ending turn.'); setTimeout(()=>{ if(!G.busy&&G.phase==='player') endTurn(); },500); return; } }
+  else { if(G.mode!=='move'&&G.mode!=='shoot') G.mode='move'; if(wantPov) enterPOV(u,{keep:true,view:'pov'}); else if(G.pov&&G.pov.unit===u) povRefresh(); }
   renderSide(); setHint();
 }
 $('btn-end').onclick=()=>{ Audio.endTurn(); endTurn(); };
@@ -2438,7 +2561,7 @@ async function endTurn(){
   // rescue deadline: the transport leaves with anyone still captive
   if(M.deadline&&!G.objState.shipped&&G.turn>=M.deadline){ G.objState.shipped=true; Audio.shipped(); const left=alive('captive'); for(const c of left){ c.alive=false; fxRing(c.x,c.y,'#7F91A3',1.3); } banner('Transport departed','enemy');
     if(left.length){ log(`The transport departs with ${left.map(c=>c.name).join(' and ')} aboard.`,'kill'); if(G.objState.freed===0) say('shippedAll'); else say('shipped',left.map(c=>c.name).join(' and ')); } else log('The transport departs empty.','good'); renderSide(); }
-  G.phase='enemy'; G.busy=true; G.sel=null; G.mode='move'; renderSide(); banner('Coalition turn','enemy'); Audio.enemyTurn(); Audio.music.phase('enemy'); if(alive('enemy').some(e=>e.alert)) VO.coalition('turn',1,0.3); else VO.controlBark('enemyTurn'); setHint('Coalition units are moving…'); await wait(700);
+  G.phase='enemy'; G.busy=true; G.sel=null; G.mode='move'; G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; renderSide(); banner('Coalition turn','enemy'); Audio.enemyTurn(); Audio.music.phase('enemy'); if(alive('enemy').some(e=>e.alert)) VO.coalition('turn',1,0.3); else VO.controlBark('enemyTurn'); setHint('Coalition units are moving…'); await wait(700);
   if(checkEnd()) return;
   for(const e of alive('enemy')) e.ow=false;
   await checkContact();
@@ -2654,5 +2777,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
+window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

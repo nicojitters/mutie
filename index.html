@@ -704,6 +704,13 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
       <div class="row" style="display:flex;gap:8px;margin-top:12px"><button class="btn primary" id="cf-yes">Confirm</button><button class="btn" id="cf-no">Cancel</button></div>
     </div>
   </div>
+  <div id="modal-diff" class="overlay modal" hidden>
+    <div class="sheet" style="width:min(760px,100%)">
+      <div class="sheet-h"><h2>Difficulty</h2></div>
+      <p class="note">Pick how much room for error the campaign gives you. It is set for the whole campaign.</p>
+      <div class="upgrade-choice three" id="df-choices"></div>
+    </div>
+  </div>
   <div id="modal-upgrade" class="overlay modal" hidden>
     <div class="sheet" style="width:min(520px,100%)">
       <div class="sheet-h"><h2 id="up-title">Level 3</h2></div>
@@ -1351,11 +1358,11 @@ const UPGRADES={
   phaser:[{id:'quick',name:'Quick',desc:'+1 move.',mod:{move:1}},{id:'ghost',name:'Ghost',desc:'+2 HP, +5 aim.',mod:{hp:2,aim:5}}],
   mender:[{id:'reach',name:'Reach',desc:'Power range +2.',mod:{range:2}},{id:'fieldkit',name:'Field Kit',desc:'Power cooldown −1.',mod:{cd:-1}}],
 };
-function freshCampaign(){ return { v:1, roster:MUTANTS.filter(m=>STARTING_IDS.includes(m.id)).map(m=>({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null})), fallen:[], doom:2, recruits:0, lost:false, log:[], perks:[], equipped:[], perkOffer:null, drafted:[], joined:[] }; }
+function freshCampaign(){ return { v:1, roster:MUTANTS.filter(m=>STARTING_IDS.includes(m.id)).map(m=>({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null})), fallen:[], doom:2, recruits:0, lost:false, log:[], perks:[], equipped:[], perkOffer:null, drafted:[], joined:[], diff:'veteran' }; }
 let CAMP=(()=>{ try{ const raw=localStorage.getItem('mutie.campaign'); if(raw){ const c=JSON.parse(raw); if(c&&c.roster) return c; } }catch(e){} return freshCampaign(); })();
 function saveCamp(){ try{ localStorage.setItem('mutie.campaign',JSON.stringify(CAMP)); }catch(e){} }
 const rosterEntry=cid=>CAMP.roster.find(r=>r.cid===cid);
-(function migrateCamp(){ CAMP.perks=CAMP.perks||[]; CAMP.equipped=CAMP.equipped||[]; CAMP.drafted=CAMP.drafted||[]; if(CAMP.perkOffer===undefined) CAMP.perkOffer=null; CAMP.joined=CAMP.joined||[]; })();
+(function migrateCamp(){ CAMP.perks=CAMP.perks||[]; CAMP.equipped=CAMP.equipped||[]; CAMP.drafted=CAMP.drafted||[]; if(CAMP.perkOffer===undefined) CAMP.perkOffer=null; CAMP.joined=CAMP.joined||[]; if(!['scout','veteran','graft'].includes(CAMP.diff)) CAMP.diff='veteran'; })();
 function togglePerk(id){ if(!CAMP.perks.includes(id)) return; const i=CAMP.equipped.indexOf(id); if(i>=0) CAMP.equipped.splice(i,1); else { if(CAMP.equipped.length>=PERK_SLOTS) CAMP.equipped.shift(); CAMP.equipped.push(id); } saveCamp(); Audio.select(); }
 function renderPerkList(el,note,{editable=true}={}){ el.innerHTML=''; const owned=CAMP.perks.filter(p=>PERKS[p]); const eq=equippedPerks();
   if(!owned.length){ el.innerHTML='<div class="note" style="grid-column:1/-1">None yet. Clearing a campaign mission earns a pick of three.</div>'; if(note) note.textContent=''; return; }
@@ -1412,10 +1419,19 @@ const ADAPT=[
   {id:'surplus',name:'Tissue Surplus',desc:'Every hostile +1 HP.'},
   {id:'vanguard',name:'Husk Vanguard',desc:'The first reinforcement wave is a Husk.'},
 ];
-const adaptCount=(doom,act)=>Math.min(ADAPT.length,(act||0)+Math.floor(doom/3)+(doom>=9?1:0));
+/* Difficulty modes — picked when a campaign starts, stored in CAMP.diff. Everything is a delta on the Veteran numbers so the
+   balance reference stays the baseline: aim for both sides, how many Coalition adaptations are live, and the reinforcement
+   timer. Graft Index math is untouched — the clock is the same, the fights differ. */
+const DIFF={
+  scout:  {name:'Scout',   sub:'Learn the map',     desc:'Your squad aims +5, the Coalition −5. One fewer adaptation in play and reinforcements a turn later. The story is the same; the margins are wider.', playerAim:5,  enemyAim:-5, adapt:-1, reinf:1},
+  veteran:{name:'Veteran', sub:'As designed',       desc:'The numbers the game was tuned on. Every shot you take is a real decision, and the Graft Index is a real clock.', playerAim:0,  enemyAim:0,  adapt:0,  reinf:0},
+  graft:  {name:'Graft',   sub:'They know you now', desc:'The Coalition aims +5, fields one more adaptation from the first mission, and answers a turn sooner. Wounds and deaths hurt the same — you will just take more of them.', playerAim:0,  enemyAim:5,  adapt:1,  reinf:-1},
+};
+const diff=()=>DIFF[(CAMP&&CAMP.diff)||'veteran']||DIFF.veteran;
+const adaptCount=(doom,act)=>Math.max(0,Math.min(ADAPT.length,(act||0)+Math.floor(doom/3)+(doom>=9?1:0)+diff().adapt));
 const adaptFor=(doom,act)=>ADAPT.slice(0,adaptCount(doom,act)).map(a=>a.id);
 function adjustMission(base,idx,perks,adapt){ const m=Object.assign({},base,{_idx:idx});
-  if(m.reinforceAt<50){ if(perks.has('intel')) m.reinforceAt+=1; if(adapt.includes('rapid')) m.reinforceAt=Math.max(2,m.reinforceAt-1); }
+  if(m.reinforceAt<50){ if(perks.has('intel')) m.reinforceAt+=1; if(adapt.includes('rapid')) m.reinforceAt=Math.max(2,m.reinforceAt-1); m.reinforceAt=Math.max(2,m.reinforceAt+diff().reinf); }
   if(m.deadline&&perks.has('intel')) m.deadline+=1; if(m.evacAt&&perks.has('fastpad')) m.evacAt=Math.max(2,m.evacAt-1); return m; }
 const equippedPerks=()=>new Set((CAMP.equipped||[]).filter(p=>(CAMP.perks||[]).includes(p)&&PERKS[p]).slice(0,PERK_SLOTS));
 const upgradesFor=kit=>KIT_UPGRADES[kit]||UPGRADES[(MUT[kit]||{}).arch]||[];
@@ -1531,7 +1547,7 @@ function pathTo(map,x,y){ let n=map.get(key(x,y)); const p=[]; while(n){ p.unshi
 
 /* ---------- Setup ---------- */
 function makeUnit(def,side,x,y,name){
-  const u=makeUnit0(def,side,x,y,name); if(side==='enemy'&&G.adapt&&G.adapt.length){ const A=G.adapt; let hp=0;
+  const u=makeUnit0(def,side,x,y,name); if(side==='enemy'&&diff().enemyAim) u.aim=Math.max(5,u.aim+diff().enemyAim); if(side==='enemy'&&G.adapt&&G.adapt.length){ const A=G.adapt; let hp=0;
     if(A.includes('plates')&&(def.id==='trooper'||def.id==='spotter')) hp+=1; if(A.includes('surplus')) hp+=1; if(hp){ u.hp+=hp; u.maxHp+=hp; }
     if(A.includes('optics')&&def.id==='marksman') u.aim+=5; if(A.includes('reactive')&&(def.id==='bulwark'||def.id==='juggernaut')) u.armor+=1; }
   return u; }
@@ -1563,7 +1579,7 @@ function startMission(idx,op){
   G.objState.relaysTotal=relayN; G.objState.captivesTotal=capN;
   assignPods();
   G.squad=G.squad.filter(cid=>rosterEntry(cid)&&rosterEntry(cid).alive); { const pool=deployPool(); while(G.squad.length<3&&pool.some(r=>!G.squad.includes(r.cid))) G.squad.push(pool.find(r=>!G.squad.includes(r.cid)).cid); }
-  G.squad.forEach((cid,i)=>{ const s=spawns[i]||spawns[0]; const e=rosterEntry(cid); const d=buildDef(e); const u=makeUnit(d,'player',s.x,s.y,e.name); u.cid=cid; if(e.custom&&e.custom.accent) u.color=e.custom.accent; if(perk('plating')) u.shield=2; G.units.push(u); anim(u,'drop',{delay:900+i*260}); setTimeout(()=>{ fxPuff(u.x,u.y,'#6f7f90',0.7,500); Audio.thud(u.x); shake(4); },900+i*260+420); });
+  G.squad.forEach((cid,i)=>{ const s=spawns[i]||spawns[0]; const e=rosterEntry(cid); const d=buildDef(e); const u=makeUnit(d,'player',s.x,s.y,e.name); u.cid=cid; u.aim+=diff().playerAim; if(e.custom&&e.custom.accent) u.color=e.custom.accent; if(perk('plating')) u.shield=2; G.units.push(u); anim(u,'drop',{delay:900+i*260}); setTimeout(()=>{ fxPuff(u.x,u.y,'#6f7f90',0.7,500); Audio.thud(u.x); shake(4); },900+i*260+420); });
   $('mission-label').textContent=`${m.name} · ${G.op}`; $('log').innerHTML='';
   log(`${G.op} — ${m.name}. ${alive('enemy').length} hostiles on the field.`,'sys'); log(`Objective: ${m.brief}`,'sys');
   if(G.adapt.length) log(`Coalition adaptations: ${G.adapt.map(id=>ADAPT.find(a=>a.id===id).name).join(', ')}.`,'aug'); if(G.perks.size) log(`Perks: ${[...G.perks].map(p=>PERKS[p].name).join(', ')}.`,'good'); if(m.intro) log(`${HANDLER}: ${m.intro}`,'sys'); else say('start');
@@ -1598,9 +1614,11 @@ function renderMenu(){
   $('menu-foot').textContent = CAMP.lost ? 'Campaign lost — the Graft Index hit 10. Start a new one.' : cleared===0 ? 'Ten missions. Three acts. One squad of three.' : done ? 'Campaign complete. The Coalition cannot un-see itself.' : `${cleared} of ${MISSIONS.length} missions cleared · Graft Index ${CAMP.doom}/10 · ${CAMP.roster.filter(r=>r.alive).length} mutants · next: ${MISSIONS[next].name}`;
   $('m-continue').disabled=!!CAMP.lost;
 }
-$('m-continue').onclick=()=>{ Audio.unlock(); Audio.select(); openBriefing(nextMissionIdx()); };
+$('m-continue').onclick=()=>{ Audio.unlock(); Audio.select(); if(campaignUntouched()&&!CAMP.diffChosen){ pickDifficulty(id=>{ CAMP.diff=id; CAMP.diffChosen=true; saveCamp(); openBriefing(0); }); return; } openBriefing(nextMissionIdx()); };
 function confirmBox(title,text,yes){ $('cf-title').textContent=title; $('cf-text').textContent=text; $('modal-confirm').hidden=false; $('cf-yes').onclick=()=>{ $('modal-confirm').hidden=true; yes(); }; $('cf-no').onclick=()=>{ $('modal-confirm').hidden=true; }; }
-function newCampaign(){ PROG.cleared=[]; PROG.freeplay=false; saveProg(); CAMP=freshCampaign(); saveCamp(); G.squad=['blaster','bruiser','phaser']; openBriefing(0); }
+function newCampaign(){ pickDifficulty(id=>{ PROG.cleared=[]; PROG.freeplay=false; saveProg(); CAMP=freshCampaign(); CAMP.diff=id; saveCamp(); G.squad=['blaster','bruiser','phaser']; openBriefing(0); }); }
+function pickDifficulty(cb){ const box=$('df-choices'); box.innerHTML=''; for(const [id,D] of Object.entries(DIFF)){ const b=document.createElement('button'); b.className='btn'+(id==='veteran'?' primary':''); b.innerHTML=`<b>${D.name}</b><span class="note" style="display:block;margin-bottom:4px">${D.sub}</span>${D.desc}`; b.onclick=()=>{ $('modal-diff').hidden=true; Audio.select(); cb(id); }; box.appendChild(b); } $('modal-diff').hidden=false; }
+const campaignUntouched=()=>!PROG.cleared.length&&!CAMP.fallen.length&&!CAMP.roster.some(r=>r.xp>0||r.missions>0)&&CAMP.doom===2&&!CAMP.lost;
 $('m-new').onclick=()=>{ Audio.unlock(); Audio.select(); const has=PROG.cleared.length||CAMP.fallen.length||CAMP.roster.some(r=>r.xp>0||r.missions>0)||CAMP.doom!==2;
   if(!has) return newCampaign(); confirmBox('Start a new campaign?',`This erases ${PROG.cleared.length} cleared mission${PROG.cleared.length===1?'':'s'}, every level and upgrade, and the memorial (${CAMP.fallen.length} name${CAMP.fallen.length===1?'':'s'}). The Graft Index resets. This cannot be undone.`,newCampaign); };
 $('m-select').onclick=()=>{ Audio.unlock(); Audio.select(); renderSelect(); showScreen('select'); };
@@ -1608,7 +1626,7 @@ $('brand-home').onclick=()=>{ if(G.screen==='game'&&!G.over){ if(G.busy) return;
 $('unlock-all').onclick=()=>{ PROG.freeplay=true; saveProg(); renderSelect(); };
 
 function renderHub(){
-  const d=CAMP.doom; $('doom').innerHTML=`<div class="row"><span class="t">Graft Index · ${doomLabel()}</span><span class="note num">${d}/10</span></div><div class="bar"><i style="width:${d*10}%"></i></div><div class="note">${CAMP.lost?'The Coalition has fielded a Husk army. This campaign is lost — start a new one.':'Rises after every mission. Sabotage, broadcasts and the Surgeon push it back. At 10, the Coalition fields a Husk army and the campaign is lost.'}</div>`;
+  const d=CAMP.doom; $('doom').innerHTML=`<div class="row"><span class="t">Graft Index · ${doomLabel()}</span><span class="note num">${d}/10 · ${diff().name}</span></div><div class="bar"><i style="width:${d*10}%"></i></div><div class="note">${CAMP.lost?'The Coalition has fielded a Husk army. This campaign is lost — start a new one.':'Rises after every mission. Sabotage, broadcasts and the Surgeon push it back. At 10, the Coalition fields a Husk army and the campaign is lost.'}</div>`;
   const ro=$('roster'); ro.innerHTML=''; const alive_=CAMP.roster.filter(r=>r.alive);
   for(const r of alive_){ const kit=MUT[r.kit]; const b=document.createElement('button'); b.className='rc'; b.style.borderLeftColor=r.custom&&r.custom.accent?r.custom.accent:kit.color; const L=r.level; const nx=LEVEL_XP[Math.min(LEVEL_XP.length-1,L)]; const prev=LEVEL_XP[L-1]; const pct=L>=4?100:Math.round(100*(r.xp-prev)/Math.max(1,nx-prev));
     b.innerHTML=`<div class="n">${r.name} <span class="lv">L${L}</span>${r.wounded>0?'<span class="st w">Wounded</span>':''}${r.pendingUpgrade?'<span class="st u">Upgrade</span>':''}${r.recruit&&r.missions===0?'<span class="st new">New</span>':''}</div><div>${famName(kit)} · <span style="color:${kit.color}">${kit.ability.name}</span>${r.upgrade?` · <span style="color:var(--accent)">${(findUpgrade(r.kit,r.upgrade)||{}).name||''}</span>`:''}</div><div>${r.missions} mission${r.missions===1?'':'s'} · ${r.kills} kill${r.kills===1?'':'s'} · XP ${r.xp}</div><div class="xp"><i style="width:${pct}%"></i></div>`;
@@ -1691,7 +1709,7 @@ function openBriefing(i){
   $('b-intro').textContent=m.intro||''; $('b-desc').textContent=m.desc;
   const objNames={eliminate:'Eliminate',sabotage:'Sabotage',rescue:'Rescue',extract:'Extraction',hold:'Hold',assassinate:'Assassination'};
   $('b-obj').innerHTML=`<em>${objNames[m.objective]}</em> — ${m.brief}`;
-  const params=[]; params.push(`<span>Graft Index <b>${CAMP.doom}/10 · ${doomLabel()}</b></span>`); params.push(m.reinforceAt>50?`<span>Reinforcements: <b>none — she grafts her own</b></span>`:`<span>Reinforcements from <b>turn ${adj.reinforceAt}</b>${adj.reinforceAt!==m.reinforceAt?` <i class="note">(was ${m.reinforceAt})</i>`:''}</span>`);
+  const params=[]; params.push(`<span>Graft Index <b>${CAMP.doom}/10 · ${doomLabel()}</b> · <b>${diff().name}</b></span>`); params.push(m.reinforceAt>50?`<span>Reinforcements: <b>none — she grafts her own</b></span>`:`<span>Reinforcements from <b>turn ${adj.reinforceAt}</b>${adj.reinforceAt!==m.reinforceAt?` <i class="note">(was ${m.reinforceAt})</i>`:''}</span>`);
   if(m.evacAt) params.push(`<span>Evac pad opens <b>turn ${adj.evacAt}</b>${adj.evacAt!==m.evacAt?` <i class="note">(was ${m.evacAt})</i>`:''}</span>`); if(m.deadline) params.push(`<span>Transport leaves <b>turn ${adj.deadline}</b>${adj.deadline!==m.deadline?` <i class="note">(was ${m.deadline})</i>`:''}</span>`); if(m.holdTurns) params.push(`<span>Hold the console <b>${m.holdTurns} turns</b>${m.evacAfterHold?', then evac':''}</span>`);
   if(m.captiveNames) params.push(`<span>Captives: <b>${m.captiveNames.join(', ')}</b></span>`); if(m.objLabel) params.push(`<span>Targets: <b>3× ${m.objLabel}</b></span>`.replace('3×',String((m.map.join('').match(/X/g)||[]).length)+'×'));
   $('b-params').innerHTML=params.join('');
@@ -2590,7 +2608,7 @@ viewEl.addEventListener('mousemove',ev=>{ const prev=G.hover; G.hover=canvasPos(
   if(hu!==hoverUnit){ hoverUnit=hu; if(!G.busy) { hu?setHint(tooltip(hu)):setHint(); } } else if(movedTile&&!hu&&!G.busy&&G.mode==='move'&&G.screen==='game'&&G.phase==='player') setHint(); });
 viewEl.addEventListener('mouseleave',()=>{ if(G.touch) return; G.hover=null; hoverUnit=null; if(!G.busy) setHint(); });
 viewEl.addEventListener('contextmenu',ev=>{ ev.preventDefault(); if(G.mode!=='move'){ setMode('move'); } });
-window.addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ for(const id of ['modal-threat','modal-help','modal-confirm','modal-mutant','modal-perk']) if(!$(id).hidden){ $(id).hidden=true; return; } } if(G.screen!=='game') return; if(ev.key==='Escape') setMode('move'); if(ev.key==='Tab'){ ev.preventDefault(); cycle(); } if(ev.key==='Enter'&&!G.busy&&G.phase==='player') endTurn(); if(ev.key==='ArrowRight'||ev.key==='e'||ev.key==='E'){ povCycle(1); } if(ev.key==='ArrowLeft'||ev.key==='q'||ev.key==='Q'){ povCycle(-1); } if(ev.key==='v'||ev.key==='V') toggleView(); if(ev.key===' '&&G.povView==='pov'){ ev.preventDefault(); povGo(); } if(ev.key==='1') setMode('move'); if(ev.key==='2') setMode('shoot'); if(ev.key==='3'&&G.sel&&G.sel.def.ability) setMode(G.sel.def.ability.key); if(ev.key==='4') setMode('overwatch'); });
+window.addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ for(const id of ['modal-threat','modal-help','modal-confirm','modal-mutant','modal-perk','modal-diff']) if(!$(id).hidden){ $(id).hidden=true; return; } } if(G.screen!=='game') return; if(ev.key==='Escape') setMode('move'); if(ev.key==='Tab'){ ev.preventDefault(); cycle(); } if(ev.key==='Enter'&&!G.busy&&G.phase==='player') endTurn(); if(ev.key==='ArrowRight'||ev.key==='e'||ev.key==='E'){ povCycle(1); } if(ev.key==='ArrowLeft'||ev.key==='q'||ev.key==='Q'){ povCycle(-1); } if(ev.key==='v'||ev.key==='V') toggleView(); if(ev.key===' '&&G.povView==='pov'){ ev.preventDefault(); povGo(); } if(ev.key==='1') setMode('move'); if(ev.key==='2') setMode('shoot'); if(ev.key==='3'&&G.sel&&G.sel.def.ability) setMode(G.sel.def.ability.key); if(ev.key==='4') setMode('overwatch'); });
 { let sw=null; viewEl.addEventListener('pointerdown',ev=>{ sw=ev.pointerType==='touch'?{x:ev.clientX,y:ev.clientY,t:now()}:null; });
   viewEl.addEventListener('pointerup',ev=>{ if(!sw) return; const dx=ev.clientX-sw.x, dy=ev.clientY-sw.y; sw=null; if(Math.abs(dx)>48&&Math.abs(dy)<Math.abs(dx)*0.6&&G.povView==='pov'&&G.pov){ G.swiped=now(); povCycle(dx<0?1:-1); } });
   viewEl.addEventListener('pointercancel',()=>{ sw=null; }); }
@@ -2953,5 +2971,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
+window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

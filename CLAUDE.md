@@ -232,6 +232,28 @@ renderer's mesh/label maps — only one relay per map was ever drawn. Relays and
 `sim.mjs` bot: shoots via `performAt(...,{confirmed:true})` (a bare click on a non-current hostile in POV only retargets) and
 ignores drums when listing relays. Bot never uses drums, so it undercounts their value.
 
+## Render target path, bloom & cover crouch (2026-09-27)
+- **All 3D frames now go scene → `sceneRT` (half-float, MSAA 4, linear, un-tonemapped) → composite quad**, on phones too. The
+  composite does ACES (three's matrices, `renderer.toneMappingExposure`) and linear→sRGB **by hand** (`comp` ShaderMaterial,
+  `toneMapped:false`) — three only applies its tonemapping/colorspace chunks to the default framebuffer, and relying on the
+  defines inside a ShaderMaterial was unreliable. `BLOOM` (inside `R3`) is `null` when WebGL2 is missing or the framebuffer
+  check at init fails (`checkFramebufferStatus`), and then the old direct `renderer.render` path runs unchanged.
+- **Glow** (bright pass with soft knee at ¼ res → two separable blurs → added in the composite, `strength 0.85`) runs only for
+  fine-pointer desktop viewports (`glow` flag); phones pay one RT + one blit and skip the blur. `R3.bloom(on)` toggles glow,
+  `R3.rtPath(on)` the whole RT path, `R3.bloomTune({threshold,knee,strength})` tunes. Emissives with intensity >1 (trims,
+  drum bands, wall strips, evac rings, Surgeon halo, muzzle flash) are what crosses the threshold; lit surfaces stay below it.
+- **Why the overlay alphas changed:** a render target blends transparent overlays in *linear* space, the screen path blended in
+  sRGB, so every half-transparent thing read brighter. `basic()`/`sprite()` no longer set `toneMapped:false` (the composite
+  tone-maps everything anyway) and alphas were re-tuned once for linear blending: highlight tiles 0.34, hover 0.24, path dots
+  0.7, AO decals ×1.3, figure contact shadow 0.75, unaware dim 0.45, evac columns 0.15, jam field 0.11. Tune for the RT path;
+  the direct fallback will look slightly hotter, which is acceptable for a fallback.
+- **Cover crouch** in `pose()`: an idle, non-captive, armed unit beside cover eases (`g.userData.cr`, 0.12/frame, paused while
+  frozen) into a hunker — knees bent, torso lowered/leaned, head down — 0.62 for half cover, 1.0 if any adjacent cover is full,
+  preferring the cover that `protects` against the nearest foe. Suppressed while moving, on overwatch, or during fire/lunge/cast/
+  drop anims. Convergence is frame-rate based, so in swiftshader tests wait ~20 s before judging it.
+- Perf (swiftshader 1240×900, M2 with drums): direct 473 ms/frame, RT 545, RT+glow 541 — the RT/MSAA is the cost, the glow is
+  free. On a GPU all of it is negligible.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

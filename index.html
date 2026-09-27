@@ -1878,7 +1878,7 @@ function setHint(t){
     if(pv.kind==='ally'){ h.innerHTML=`<b>${u.def.ability.name}</b> on <b>${nm}</b>${it.ok?'':' — not valid right now'}.${nav} <b>Move</b> pulls back to the map.`; return; }
     if(TARGETED[m]==='enemy'){ h.innerHTML=`<b>${u.def.ability.name}</b> → <b>${nm}</b>${it.ok?'':' — out of reach'}.${nav}`; return; }
     h.innerHTML=it.ok?`<b>${nm}</b> — <b>${it.h.chance}%</b>${it.h.flanked?' flanked':it.h.cover===2?' vs full cover':it.h.cover===1?' vs half cover':''}, ${u.dmg[0]}–${u.dmg[1]} dmg.${t.side==='enemy'&&!t.alert?' Firing wakes their pod.':''}${nav} <b>Move</b> pulls back to the map.`:`<b>${nm}</b> — no shot from here.${nav} <b>Move</b> to reposition.`; return; }
-  if(m==='move'){ const p=G.hover; if(p&&!unitAt(p.x,p.y)){ const n=reachable(u,u.move*u.ap).get(key(p.x,p.y)); if(n){ h.innerHTML=moveHint(u,p,n); return; } } h.innerHTML=`<b>Move</b> — click a highlighted tile. Bright = 1 action, dim = dash (both actions). Hover a tile to see who could hit you there.`; }
+  if(m==='move'){ const p=G.hover; if(p&&!unitAt(p.x,p.y)){ const n=reachable(u,u.move*u.ap).get(key(p.x,p.y)); if(n){ h.innerHTML=moveHint(u,p,n); return; } } h.innerHTML=G.touch?`<b>Move</b> — tap a highlighted tile to preview it (who wakes, who could hit you there), tap again to go.`:`<b>Move</b> — click a highlighted tile. Bright = 1 action, dim = dash (both actions). Hover a tile to see who could hit you there.`; }
   else if(m==='shoot') h.innerHTML=`<b>Fire</b> — click a hostile or a relay. Hover to see hit chance.`;
   else if(m==='blast') h.innerHTML=`<b>Pulse Blast</b> — click a target tile within 5. Hits everything in the 3×3, allies included. Wrecks crates.`;
   else if(m==='smash') h.innerHTML=`<b>Seismic Smash</b> — click an adjacent hostile.`;
@@ -2013,6 +2013,31 @@ const R3 = (()=>{
   let fitDirty=true; addEventListener('resize',()=>{ fitDirty=true; }); if(window.ResizeObserver) new ResizeObserver(()=>{ fitDirty=true; }).observe($('view'));
   function fit(){ const w=gl.clientWidth; if(!w) return; fitDirty=false; const dpr=Math.min(w<600?2:1.75,window.devicePixelRatio||1); if(fit.w===w&&fit.dpr===dpr) return; fit.w=w; fit.dpr=dpr; renderer.setPixelRatio(dpr); renderer.setSize(w,Math.round(w*700/1040),false); labels.style.setProperty('--ls',String(w<420?0.6:w<560?0.68:w<760?0.82:1)); }
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=T3.PCFSoftShadowMap; renderer.outputColorSpace=T3.SRGBColorSpace;
+  /* Bloom (hand-rolled — r158 UMD ships no EffectComposer). Scene → half-float MSAA target (linear, un-tonemapped), bright pass
+     at 1/4 res with a soft knee, two separable blurs, then a composite quad that adds the glow and runs three's own
+     tonemapping/colorspace chunks, so the picture matches the direct path exactly except for the glow. Desktop pointers only:
+     phones keep the single-pass path. `R3.bloom(on)` toggles it; `R3.bloom()` reports. */
+  const BLOOM=(()=>{ if(!renderer.capabilities.isWebGL2) return null; let on=true; let glow=!matchMedia('(max-width:760px)').matches&&!matchMedia('(pointer:coarse)').matches; let w=0,h=0;
+    const sceneRT=new T3.WebGLRenderTarget(4,4,{type:T3.HalfFloatType,samples:4,depthBuffer:true}); sceneRT.texture.colorSpace=T3.LinearSRGBColorSpace;
+    const mk=()=>new T3.WebGLRenderTarget(4,4,{type:T3.HalfFloatType,depthBuffer:false}); const rtA=mk(), rtB=mk();
+    const qcam=new T3.OrthographicCamera(-1,1,1,-1,0,1); const qs=new T3.Scene(); const quad=new T3.Mesh(new T3.PlaneGeometry(2,2)); quad.frustumCulled=false; qs.add(quad);
+    const vs='varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}';
+    const bright=new T3.ShaderMaterial({uniforms:{t:{value:null},th:{value:1.0},knee:{value:0.35}},vertexShader:vs,depthTest:false,depthWrite:false,fragmentShader:'uniform sampler2D t;uniform float th,knee;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb;float l=max(c.r,max(c.g,c.b));float s=clamp(l-th+knee,0.,2.*knee);s=s*s/(4.*knee+1e-4);float f=max(s,l-th)/max(l,1e-4);gl_FragColor=vec4(c*f,1.);}'});
+    const blur=new T3.ShaderMaterial({uniforms:{t:{value:null},dir:{value:new T3.Vector2()}},vertexShader:vs,depthTest:false,depthWrite:false,fragmentShader:'uniform sampler2D t;uniform vec2 dir;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb*0.227;c+=texture2D(t,vUv+dir*1.384).rgb*0.316;c+=texture2D(t,vUv-dir*1.384).rgb*0.316;c+=texture2D(t,vUv+dir*3.230).rgb*0.070;c+=texture2D(t,vUv-dir*3.230).rgb*0.070;gl_FragColor=vec4(c,1.);}'});
+    const comp=new T3.ShaderMaterial({uniforms:{t:{value:null},b:{value:null},k:{value:0.85},ex:{value:1}},vertexShader:vs,depthTest:false,depthWrite:false,toneMapped:false,fragmentShader:`uniform sampler2D t,b;uniform float k,ex;varying vec2 vUv;
+      vec3 rrt(vec3 v){vec3 a=v*(v+0.0245786)-0.000090537;vec3 b2=v*(0.983729*v+0.4329510)+0.238081;return a/b2;}
+      vec3 aces(vec3 c){const mat3 I=mat3(vec3(0.59719,0.07600,0.02840),vec3(0.35458,0.90834,0.13383),vec3(0.04823,0.01566,0.83777));const mat3 O=mat3(vec3(1.60475,-0.10208,-0.00327),vec3(-0.53108,1.10813,-0.07276),vec3(-0.07367,-0.00605,1.07602));c*=ex/0.6;c=I*c;c=rrt(c);c=O*c;return clamp(c,0.,1.);}
+      vec3 srgb(vec3 c){return mix(pow(c,vec3(1./2.4))*1.055-0.055,c*12.92,vec3(lessThanEqual(c,vec3(0.0031308))));}
+      void main(){vec3 c=texture2D(t,vUv).rgb+texture2D(b,vUv).rgb*k;gl_FragColor=vec4(srgb(aces(c)),1.);}`}); comp.userData.k=0.85;
+    const pass=(m,target)=>{ quad.material=m; renderer.setRenderTarget(target); renderer.render(qs,qcam); };
+    const size=()=>{ const s=new T3.Vector2(); renderer.getDrawingBufferSize(s); if(s.x===w&&s.y===h) return; w=s.x; h=s.y; sceneRT.setSize(w,h); rtA.setSize(Math.max(1,w>>2),Math.max(1,h>>2)); rtB.setSize(Math.max(1,w>>2),Math.max(1,h>>2)); };
+    // can this device actually render into a half-float MSAA target? If not, fall back to the direct path rather than go black.
+    { size(); const g2=renderer.getContext(); renderer.setRenderTarget(sceneRT); const ok=g2.checkFramebufferStatus(g2.FRAMEBUFFER)===g2.FRAMEBUFFER_COMPLETE; renderer.setRenderTarget(null); if(!ok) return null; }
+    return { get on(){ return on; }, set on(v){ on=!!v; }, get glow(){ return glow; }, set glow(v){ glow=!!v; }, size,
+      render(sc,cam){ size(); renderer.setRenderTarget(sceneRT); renderer.render(sc,cam);
+        if(glow){ bright.uniforms.t.value=sceneRT.texture; pass(bright,rtA); const px=1/rtA.width, py=1/rtA.height; for(let i=0;i<2;i++){ blur.uniforms.t.value=rtA.texture; blur.uniforms.dir.value.set(px*(1+i),0); pass(blur,rtB); blur.uniforms.t.value=rtB.texture; blur.uniforms.dir.value.set(0,py*(1+i)); pass(blur,rtA); } }
+        comp.uniforms.t.value=sceneRT.texture; comp.uniforms.b.value=rtA.texture; comp.uniforms.k.value=glow?comp.userData.k:0; comp.uniforms.ex.value=renderer.toneMappingExposure; pass(comp,null); },
+      tune(o){ if(o.threshold!==undefined) bright.uniforms.th.value=o.threshold; if(o.knee!==undefined) bright.uniforms.knee.value=o.knee; if(o.strength!==undefined) comp.userData.k=o.strength; } }; })();
   renderer.toneMapping=T3.ACESFilmicToneMapping; renderer.toneMappingExposure=1.42;
   const scene=new T3.Scene(); scene.background=new T3.Color('#0D1319'); scene.fog=new T3.Fog('#0D1319',34,66);
   const aspect=gl.width/gl.height, HW=8.6, HH=HW/aspect;
@@ -2068,7 +2093,7 @@ const R3 = (()=>{
   const clothM=(c,o={})=>PM(c,Object.assign({roughness:0.92,metalness:0,sheen:0.35,sheenRoughness:0.8,sheenColor:new T3.Color(c).multiplyScalar(0.5)},o));
   const metalM=(c,o={})=>PM(c,Object.assign({roughness:0.32,metalness:0.9,envMapIntensity:0.9,envMap:ENV},o));
   const glowM=(c,i=1,o={})=>PM(c,Object.assign({emissive:c,emissiveIntensity:i,roughness:0.4,metalness:0},o));
-  const basic=(o)=>new T3.MeshBasicMaterial(Object.assign({toneMapped:false},o));
+  const basic=(o)=>new T3.MeshBasicMaterial(Object.assign({},o)); // tone-mapped like everything else, so the bloom composite and the direct path agree
   const statics=new T3.Group(); scene.add(statics); const units=new Map(); const unitGroup=new T3.Group(); scene.add(unitGroup);
   const fxGroup=new T3.Group(); scene.add(fxGroup); const hiGroup=new T3.Group(); scene.add(hiGroup);
   let builtFor=null, gridSig='';
@@ -2164,7 +2189,7 @@ const R3 = (()=>{
   const floorMesh={inst:null};
   // ---- statics: floor, platform, walls, cover, objective props, backdrop ----
   const motes={pts:null,vel:[]};
-  function aoDecal(x,y,s,a=0.5){ const m=new T3.Mesh(geo.unit,basic({map:TEX.shadow,transparent:true,opacity:a,depthWrite:false})); m.rotation.x=-Math.PI/2; m.scale.setScalar(s); m.position.copy(W(x,y,0.006)); return m; }
+  function aoDecal(x,y,s,a=0.5){ const m=new T3.Mesh(geo.unit,basic({map:TEX.shadow,transparent:true,opacity:Math.min(1,a*1.3),depthWrite:false})); m.rotation.x=-Math.PI/2; m.scale.setScalar(s); m.position.copy(W(x,y,0.006)); return m; }
   function buildStatics(){
     while(statics.children.length) statics.remove(statics.children[0]);
     const L=rigFor(); const TX=texSet(L); ENV=envFor(L); scene.environment=null;
@@ -2235,7 +2260,7 @@ const R3 = (()=>{
     const baseScale=d.boss?1.28:d.id==='juggernaut'?1.22:d.id==='bulwark'?1.15:d.id==='sprinter'?0.92:isCap?0.92:d.look==='bulk'?1.12:1;
     const cu=(d.custom)||{}; const scale=baseScale*(0.94+rng()*0.12); const bulk=0.9+rng()*0.25; const headS=0.12+rng()*0.03; const skinM=PM(cu.skin||SKINS[Math.floor(rng()*SKINS.length)],{roughness:0.6,sheen:0.2,sheenColor:new T3.Color('#ffb090')}); const hairM=PM(cu.hair||HAIR[Math.floor(rng()*HAIR.length)],{roughness:0.85});
     // contact shadow + faction ring
-    const shadow=new T3.Mesh(geo.unit,basic({map:TEX.shadow,transparent:true,opacity:0.6,depthWrite:false})); shadow.rotation.x=-Math.PI/2; shadow.scale.setScalar(1.15*baseScale); shadow.position.y=0.008; g.add(shadow);
+    const shadow=new T3.Mesh(geo.unit,basic({map:TEX.shadow,transparent:true,opacity:0.75,depthWrite:false})); shadow.rotation.x=-Math.PI/2; shadow.scale.setScalar(1.15*baseScale); shadow.position.y=0.008; g.add(shadow);
     const ring=new T3.Mesh(geo.ring,basic({map:TEX.ring,color:u.side==='player'?'#3FC1E3':isCap?'#8FD3C7':'#E0524B',transparent:true,opacity:0.9,depthWrite:false,side:T3.DoubleSide})); ring.rotation.x=-Math.PI/2; ring.position.y=0.02; ring.scale.setScalar(1.05*Math.max(1,baseScale)); g.add(ring); g.userData.ring=ring;
     const body=new T3.Group(); g.add(body); g.userData.body=body;
     // legs: hip pivot → thigh → knee pivot → shin + boot
@@ -2312,11 +2337,11 @@ const R3 = (()=>{
     g.position.copy(W(u.x,u.y,0)); unitGroup.add(g); return g; }
   const muzzleLight=new T3.PointLight(0xffd27a,0,4,2); scene.add(muzzleLight);
   const selRing=new T3.Mesh(geo.unit,basic({map:TEX.selring,color:'#FFFFFF',transparent:true,opacity:0.95,depthWrite:false,side:T3.DoubleSide})); selRing.rotation.x=-Math.PI/2; selRing.scale.setScalar(1.25); selRing.visible=false; scene.add(selRing);
-  const hover=new T3.Mesh(geo.unit,basic({map:TEX.frame,color:'#FFFFFF',transparent:true,opacity:0.35,side:T3.DoubleSide,depthWrite:false})); hover.rotation.x=-Math.PI/2; hover.scale.setScalar(0.96); hover.visible=false; scene.add(hover);
+  const hover=new T3.Mesh(geo.unit,basic({map:TEX.frame,color:'#FFFFFF',transparent:true,opacity:0.24,side:T3.DoubleSide,depthWrite:false})); hover.rotation.x=-Math.PI/2; hover.scale.setScalar(0.96); hover.visible=false; scene.add(hover);
   // highlight instanced layer
-  const hiMat=basic({map:TEX.frame,color:'#ffffff',transparent:true,opacity:0.6,side:T3.DoubleSide,depthWrite:false});
+  const hiMat=basic({map:TEX.frame,color:'#ffffff',transparent:true,opacity:0.34,side:T3.DoubleSide,depthWrite:false});
   const hi=new T3.InstancedMesh(geo.unit,hiMat,COLS*ROWS); hi.count=0; hiGroup.add(hi);
-  const pathDots=new T3.InstancedMesh(geo.unit,basic({map:TEX.dot,color:'#3FC1E3',transparent:true,opacity:0.95,depthWrite:false,blending:T3.AdditiveBlending}),96); pathDots.count=0; scene.add(pathDots);
+  const pathDots=new T3.InstancedMesh(geo.unit,basic({map:TEX.dot,color:'#3FC1E3',transparent:true,opacity:0.7,depthWrite:false,blending:T3.AdditiveBlending}),96); pathDots.count=0; scene.add(pathDots);
   const jamPlanes=[]; const fallen=[]; const fallenMat=basic({map:TEX.shadow,color:'#2a0a10',transparent:true,opacity:0.7,depthWrite:false,side:T3.DoubleSide});
   const ray=new T3.Raycaster(), ground=new T3.Plane(new T3.Vector3(0,1,0),0), ndc=new T3.Vector2(), hitP=new T3.Vector3();
   function pick(ev){ const r=gl.getBoundingClientRect(); ndc.set(((ev.clientX-r.left)/r.width)*2-1,-((ev.clientY-r.top)/r.height)*2+1); ray.setFromCamera(ndc,active); if(!ray.ray.intersectPlane(ground,hitP)) return null; const x=Math.floor(hitP.x+COLS/2), y=Math.floor(hitP.z+ROWS/2); return inb(x,y)?{x,y}:null; }
@@ -2329,7 +2354,7 @@ const R3 = (()=>{
   function shieldEl(){ let e=shieldPool[shieldUsed]; if(!e){ e=document.createElement('div'); e.className='shield'; e.innerHTML='<svg viewBox="0 0 10 12" width="10" height="12"><path d="M5 0 L10 2 L10 6 Q10 10 5 12 Q0 10 0 6 L0 2 Z"/></svg>'; labels.appendChild(e); shieldPool.push(e); } shieldUsed++; e.style.display='block'; return e; }
   function floatText(x,y,text,color,big){ const e=document.createElement('div'); e.className='ftext'+(big==='huge'?' huge':big?' big':''); e.textContent=text; e.style.color=color; const p=project(x,y,1.1); e.style.left=p.x+'px'; e.style.top=p.y+'px'; labels.appendChild(e); setTimeout(()=>e.remove(),950); }
   // ---- fx ----
-  const sprite=(tex,color,opacity=1,additive=true)=>new T3.Sprite(new T3.SpriteMaterial({map:tex,color,transparent:true,opacity,depthWrite:false,blending:additive?T3.AdditiveBlending:T3.NormalBlending,toneMapped:false}));
+  const sprite=(tex,color,opacity=1,additive=true)=>new T3.Sprite(new T3.SpriteMaterial({map:tex,color,transparent:true,opacity,depthWrite:false,blending:additive?T3.AdditiveBlending:T3.NormalBlending}));
   function ensureFx(f){ if(f.m) return; const t=f.k;
     if(t==='tracer'){ const a=W(f.a.x,f.a.y,0.55), b=W(f.b.x,f.b.y,0.55); const gline=new T3.BufferGeometry().setFromPoints([a,b]); const line=new T3.Line(gline,new T3.LineBasicMaterial({color:f.color,transparent:true,opacity:0.5,toneMapped:false})); const bolt=sprite(TEX.dot,f.color); bolt.scale.setScalar(0.3); const trail=new T3.Mesh(new T3.PlaneGeometry(1,0.09),basic({map:TEX.trail,color:f.color,transparent:true,depthWrite:false,blending:T3.AdditiveBlending,side:T3.DoubleSide})); const dir=b.clone().sub(a); const len=Math.min(1.1,dir.length()*0.5); trail.scale.x=len; trail.userData.len=len; trail.rotation.y=Math.atan2(dir.x,dir.z)+Math.PI/2; trail.rotation.x=0; f.m=new T3.Group(); f.m.add(line,bolt,trail); f.bolt=bolt; f.trail=trail; f.pa=a; f.pb=b; f.dir=dir.normalize(); fxGroup.add(f.m); }
     else if(t==='flash'){ f.m=sprite(TEX.flash,f.color); f.m.position.copy(W(f.x,f.y,0.5)); fxGroup.add(f.m); }
@@ -2357,13 +2382,16 @@ const R3 = (()=>{
     if(u.downed){ body.rotation.x=1.45; body.rotation.z=0.15; body.position.set(0,-0.02,0); P.legL.rotation.x=0.2; P.legR.rotation.x=-0.1; P.kneeL.rotation.x=0.3; P.kneeR.rotation.x=0.1; P.armL.rotation.x=0.4; P.armR.rotation.x=-0.6; P.armL.rotation.z=0; P.armR.rotation.z=0; const rm=g.userData.ring.material; rm.color.set(u.stabilized?'#5CD68A':'#FF6B62'); rm.opacity=u.stabilized?0.7:0.4+0.6*Math.abs(Math.sin(t/220)); for(const m of g.userData.mats){ m.emissive.copy(m.userData.e0); m.emissiveIntensity=m.userData.i0*0.25; } if(g.userData.muzzle) g.userData.muzzle.visible=false; return; }
     // reset to rest pose
     body.rotation.x=0; body.rotation.z=0.012*Math.sin(t/1400+u.x*2); body.position.x=0; body.position.z=0; let bobY=0;
-    P.legL.rotation.x=0; P.legR.rotation.x=0; P.kneeL.rotation.x=0; P.kneeR.rotation.x=0; P.armL.rotation.x=rest.lx; P.armR.rotation.x=rest.rx; P.armL.rotation.z=rest.lz; P.armR.rotation.z=-0.08; P.head.rotation.y=0; P.torso.scale.y=0.38;
+    P.legL.rotation.x=0; P.legR.rotation.x=0; P.kneeL.rotation.x=0; P.kneeR.rotation.x=0; P.armL.rotation.x=rest.lx; P.armR.rotation.x=rest.rx; P.armL.rotation.z=rest.lz; P.armR.rotation.z=-0.08; P.head.rotation.y=0; P.head.rotation.x=0; P.torso.scale.y=0.38;
     if(g.userData.muzzle) g.userData.muzzle.visible=false;
     // idle breathing + slow head scan
     P.torso.scale.y=0.38+0.008*Math.sin(t/900+u.x); P.head.rotation.y=0.25*Math.sin(t/1700+u.y); P.shoulders.position.y=0.665+0.006*Math.sin(t/900+u.x);
     if(u.side==='captive'){ P.legL.rotation.x=-1.5; P.legR.rotation.x=-1.5; P.kneeL.rotation.x=1.6; P.kneeR.rotation.x=1.6; P.armL.rotation.x=0.55; P.armR.rotation.x=0.55; P.armL.rotation.z=0.25; P.armR.rotation.z=-0.25; bobY=-0.19; P.head.rotation.x=0.25; }
     if(moving){ const w=Math.sin(t/70); P.legL.rotation.x=w*0.75; P.legR.rotation.x=-w*0.75; P.kneeL.rotation.x=Math.max(0,-w)*0.9; P.kneeR.rotation.x=Math.max(0,w)*0.9; P.armL.rotation.x=rest.lx-w*0.25; P.armR.rotation.x=rest.rx+w*0.25; bobY=Math.abs(w)*0.05; body.rotation.x=0.08; }
     else if(u.ow){ P.armR.rotation.x=-1.35; P.armL.rotation.x=-1.1; P.armL.rotation.z=0.5; bobY=-0.04; P.head.rotation.y=0.35*Math.sin(t/600); }
+    // cover crouch: standing beside cover, an idle unit hunkers behind it (deeper for full cover); eased in and out so stops don't snap
+    { const wantCr=(!moving&&!u.ow&&u.side!=='captive'&&!u.def.noAttack&&!(a&&k<1&&(a.k==='fire'||a.k==='lunge'||a.k==='cast'||a.k==='drop')))?(()=>{ const cov=adjacentCover(u); if(!cov.length) return 0; const f=nearestFoe(u); const rel=f?cov.filter(c=>protects(u,c,f)):cov; const use=rel.length?rel:cov; return use.some(c=>c.val===2)?1:0.62; })():0;
+      const cr=g.userData.cr=(g.userData.cr||0)+(wantCr-(g.userData.cr||0))*(frozen?0:0.12); if(cr>0.01){ const e=cr; P.legL.rotation.x-=0.62*e; P.legR.rotation.x-=0.78*e; P.kneeL.rotation.x+=1.0*e; P.kneeR.rotation.x+=1.15*e; bobY-=0.15*e; body.rotation.x+=0.16*e; P.armR.rotation.x+=0.18*e; P.armL.rotation.x+=0.1*e; P.head.rotation.x=-0.12*e; } }
     if(a&&k<1){
       const dirTo=(tx,ty)=>{ const fx=tx-u.x, fy=ty-u.y; if(fx||fy) body.rotation.y=Math.atan2(fx,fy); };
       switch(a.k){
@@ -2385,7 +2413,7 @@ const R3 = (()=>{
   // ---- per-frame ----
   const dying=new Map();
   const fxLight=new T3.PointLight(0xffffff,0,6,2); scene.add(fxLight);
-  const columnMat=basic({map:TEX.column,color:'#5CD68A',transparent:true,opacity:0.22,side:T3.DoubleSide,depthWrite:false,blending:T3.AdditiveBlending}); const columns=[];
+  const columnMat=basic({map:TEX.column,color:'#5CD68A',transparent:true,opacity:0.15,side:T3.DoubleSide,depthWrite:false,blending:T3.AdditiveBlending}); const columns=[];
   let frozen=false;
   function render(tReal){
     if(G.screen!=='game'){ fitDirty=true; return; }
@@ -2427,7 +2455,7 @@ const R3 = (()=>{
       if(face!==null&&u.side!=='obj'&&!(u.anim&&(u.anim.k==='fire'||u.anim.k==='lunge'||u.anim.k==='cast'))){ const cur=g.userData.body.rotation.y; let d=face-cur; while(d>Math.PI) d-=2*Math.PI; while(d<-Math.PI) d+=2*Math.PI; g.userData.body.rotation.y=cur+d*0.2; }
       if(u.side!=='obj') pose(u,g,t,Math.hypot(dx,dz)>0.02);
       if(g.userData.spin) g.userData.spin.rotation.z=t/500; if(g.userData.pulse&&g.userData.pulse.material.emissive) g.userData.pulse.material.emissiveIntensity=1.2+0.7*Math.sin(t/300);
-      if(u.side==='enemy'&&!u.alert){ g.traverse(o=>{ if(o.isMesh&&o.material.transparent!==true&&!o.userData.dimmed){ o.userData.dimmed=true; o.material=o.material.clone(); o.material.transparent=true; o.material.opacity=0.55; } }); }
+      if(u.side==='enemy'&&!u.alert){ g.traverse(o=>{ if(o.isMesh&&o.material.transparent!==true&&!o.userData.dimmed){ o.userData.dimmed=true; o.material=o.material.clone(); o.material.transparent=true; o.material.opacity=0.45; } }); }
       else if(g.userData.dimState!==u.alert&&u.alert){ g.traverse(o=>{ if(o.isMesh&&o.userData.dimmed){ o.userData.dimmed=false; o.material.opacity=1; o.material.transparent=false; } }); }
       g.userData.dimState=u.alert;
       // labels
@@ -2460,8 +2488,8 @@ const R3 = (()=>{
     let n=0; const m4=new T3.Matrix4(); const q=new T3.Quaternion().setFromEuler(new T3.Euler(-Math.PI/2,0,0)); const sc1=new T3.Vector3(0.97,0.97,0.97); const col=new T3.Color();
     const put=(x,y,c,a)=>{ m4.compose(W(x,y,0.025+a*0.001),q,sc1); hi.setMatrixAt(n,m4); hi.setColorAt(n,col.set(c)); n++; };
     let nd=0; const dsc=new T3.Vector3(0.22,0.22,0.22);
-    { const zs=jammers(); while(jamPlanes.length<zs.length){ const jp=new T3.Mesh(new T3.PlaneGeometry(7,7),basic({map:TEX.field,color:'#C77DFF',transparent:true,opacity:0.16,side:T3.DoubleSide,depthWrite:false,blending:T3.AdditiveBlending})); jp.rotation.x=-Math.PI/2; scene.add(jp); jamPlanes.push(jp); }
-      jamPlanes.forEach((jp,i)=>{ const z=zs[i]; jp.visible=!!z; if(z){ jp.material.opacity=0.16+0.04*Math.sin(t/300); jp.rotation.z=t/6000; jp.position.copy(W(z.x,z.y,0.02)); } }); }
+    { const zs=jammers(); while(jamPlanes.length<zs.length){ const jp=new T3.Mesh(new T3.PlaneGeometry(7,7),basic({map:TEX.field,color:'#C77DFF',transparent:true,opacity:0.11,side:T3.DoubleSide,depthWrite:false,blending:T3.AdditiveBlending})); jp.rotation.x=-Math.PI/2; scene.add(jp); jamPlanes.push(jp); }
+      jamPlanes.forEach((jp,i)=>{ const z=zs[i]; jp.visible=!!z; if(z){ jp.material.opacity=0.11+0.03*Math.sin(t/300); jp.rotation.z=t/6000; jp.position.copy(W(z.x,z.y,0.02)); } }); }
     if(G.smoke){ for(const k of G.smoke){ const [sx,sy]=k.split(',').map(Number); put(sx,sy,'#8f9aa6',0); } }
     if(sel&&sel.alive&&playerPhase&&sel.ap>0){
       if(G.mode==='move'){ const r=moveR||reachable(sel,sel.move*sel.ap); for(const nd_ of r.values()) put(nd_.x,nd_.y,nd_.c<=sel.move?'#3FC1E3':'#1E5F70',0);
@@ -2487,15 +2515,15 @@ const R3 = (()=>{
     // light columns: units on an open evac pad, and a held console
     { const spots=[]; if(G.objState.evacOpen) for(const u of alive('player')) if(G.evac.has(key(u.x,u.y))) spots.push({x:u.x,y:u.y,c:'#5CD68A'}); for(const k of G.hold){ const [x,y]=k.split(',').map(Number); if(alive('player').some(u=>u.x===x&&u.y===y)) spots.push({x,y,c:'#F2B33D'}); }
       while(columns.length<spots.length){ const m=new T3.Mesh(new T3.CylinderGeometry(0.42,0.5,3.2,16,1,true),columnMat.clone()); m.position.y=1.6; scene.add(m); columns.push(m); }
-      columns.forEach((m,i)=>{ if(i<spots.length){ m.visible=true; const p=W(spots[i].x,spots[i].y,1.6); m.position.copy(p); m.material.color.set(spots[i].c); m.material.opacity=0.16+0.08*Math.sin(t/250+i); m.rotation.y=t/900; } else m.visible=false; }); }
+      columns.forEach((m,i)=>{ if(i<spots.length){ m.visible=true; const p=W(spots[i].x,spots[i].y,1.6); m.position.copy(p); m.material.color.set(spots[i].c); m.material.opacity=0.11+0.06*Math.sin(t/250+i); m.rotation.y=t/900; } else m.visible=false; }); }
     // fx
     G.fx=G.fx.filter(f=>{ const k=(t-f.t0)/f.d; if(k>=1){ dropFx(f); return false; } ensureFx(f); updFx(f,k); return true; });
     // shake
     updateCameras(tReal); if(G.shake>0){ const sh=active===pcam?0.012:0.03; active.position.x+=(Math.random()-.5)*G.shake*sh; active.position.y+=(Math.random()-.5)*G.shake*sh; G.shake*=0.82; if(G.shake<0.4) G.shake=0; }
-    renderer.render(scene,active);
+    if(BLOOM&&BLOOM.on) BLOOM.render(scene,active); else { renderer.setRenderTarget(null); renderer.render(scene,active); }
   }
   gl.hidden=false; $('board').hidden=true;
-  return { render, pick, canvas:gl, floatText, _scene:scene, povState:()=>({blend:POV.blend,cam:active===pcam?'pov':'map',pos:pcam.position.toArray().map(v=>+v.toFixed(2))}) };
+  return { render, pick, canvas:gl, floatText, _scene:scene, _units:units, bloom:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.glow=v; return BLOOM.glow; }, rtPath:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.on=v; return BLOOM.on; }, bloomTune:(o)=>BLOOM&&BLOOM.tune(o), povState:()=>({blend:POV.blend,cam:active===pcam?'pov':'map',pos:pcam.position.toArray().map(v=>+v.toFixed(2))}) };
 })();
 
 /* ---------- Player input ---------- */

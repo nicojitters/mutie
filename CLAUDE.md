@@ -269,6 +269,35 @@ ignores drums when listing relays. Bot never uses drums, so it undercounts their
   (menu music, act 2). Buttons: Return to base, New campaign (reuses the menu's confirm). `test22.mjs` drives the whole flow.
   Phase 8's remaining open item is mid-mission resume.
 
+## Difficulty modes (2026-09-27)
+`DIFF` = scout / veteran / graft, stored in `CAMP.diff` (old saves migrate to veteran). Pure deltas on the Veteran numbers via
+`diff()`: `playerAim` (added to squad units at deploy), `enemyAim` (in `makeUnit`), `adapt` (added inside `adaptCount`, clamped
+0..ADAPT.length), `reinf` (added in `adjustMission`, floor 2). Graft Index math is untouched. Picked in `#modal-diff`
+(`pickDifficulty(cb)`) from New campaign and from Begin campaign on an untouched save (`campaignUntouched()`, `CAMP.diffChosen`);
+shown in the hub index bar and the briefing parameters. `DIFF=graft node sim.mjs …` for balance runs; `MUTIE.setDiff(id)`.
+Scout: +5/−5 aim, one fewer adaptation, reinforcements +1 turn. Graft: enemy +5 aim, one more adaptation (so M1 already has
+Graft Optics), reinforcements −1 turn.
+
+## Per-mission set dressing (2026-09-27, "make them truly distinct")
+`DRESS[missionId]` inside `R3`, layered on the theme `RIG`: `light` overrides (sky/horizon/ground → env map, hemi/sun/fill/rim,
+`strip`, `fog:[near,far]` → `FOG0`, `bg` → fog + background colour, `mote`), `floor(x,S,w,h,R)` paints mission markings into
+the floor albedo before the grout pass, `build(c)` places off-board set pieces and non-blocking decor with `c.B(geoName, mat,
+[sx,sy,sz], [x,y,z], {rx,ry,rz, beacon|flicker|noise|landing|pulse})`, `c.cone(pos,col,op,{sweep})` (additive light cone
+group), `c.spot(pos,at,col,i,angle)` (shadowless SpotLight) and `c.tex('crate'|'static')`, and `particles` = motes | rain |
+embers | ash | none (`TEX.streak` for rain; `motes.kind/yMax` drive the update). `rigFor()` merges the dressing into `L` and
+sets `L.key = theme|dress`, which now keys `texCache` and `envCache`. Side ops borrow a dressing of their theme by seed
+(`DRESS_BY_THEME`). Animated flags are read in the statics traverse in `render()`. **Rule learned:** anything hung above the
+board overlaps the play area in the ortho view, so overhead pieces (lamps, tubes) must be small; big pieces go beyond the
+back (−z) and right (+x) edges, where the POV camera sees them. The ten: helipad (H, water tower, AC units, beacon mast) ·
+loading bay (racks, forklift, roller door, hanging lamps) · containment (biohazard trefoils, glass wall + vats, flickering
+tubes, decon arch, no motes) · range (numbered lanes, scorch, watchtower + sweeping cone, standees, sandbag berm, embers) ·
+black site (chevrons, chasing landing lights on the pad, fence + razor wire, floodlight towers, transport, rain) · transport
+yard (tire tracks, YIELD stencil, the transport with its pink-lit open doors, containers, crane, sodium sun) · plaza
+(Coalition emblem, static screens, lamp posts, planters, banner, dusk sky) · growth floor (drains, pink stains, vat rows,
+surgical lamps, gurneys, pink hemi/fog) · theatre (operating circle, blood, gallery, small lamp head + real spotlight pool,
+specimen tanks, no motes) · transmitter (cable trays, lattice mast with beacons, dishes and guy wires, generators, dawn sky).
+`shotdress.mjs [idx,…]` renders the map view, `shotdresspov.mjs` four POV frames; software-GL cost ≈ +20 ms/frame.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with
@@ -364,7 +393,7 @@ See `Xutant_Build_Plan.md` (phases), `Xutant_Phase8_Todo.md` (campaign layer sli
 Phase 8 (roster, permadeath + memorial, recruitment, XP with binary rank-up choices, Doom Clock)
 is **not** in this build yet. Shipped: overwatch, timers, codenames, handler lines, kill beat, destructible crates, silhouettes, verb enemies,
 pod activation (was "later"), a recurring nemesis (was "Phase 9"), ten-mission story arc. Remaining:
-custom-mission JSON import (data tables are already plain objects); difficulty modes; more figure detail (helmets, archetype costumes) and mission-specific set dressing; the mission-report overlay Cameron reported as stuck once (not reproduced; a TDZ bug in finish() that froze mission end was introduced and fixed during the menu pass — if it recurs, check finish()).
+custom-mission JSON import (data tables are already plain objects); more figure detail (helmets, archetype costumes); mid-mission resume; the mission-report overlay Cameron reported as stuck once (not reproduced; a TDZ bug in finish() that froze mission end was introduced and fixed during the menu pass — if it recurs, check finish()).
 
 ## Open creative decision (Cameron's call)
 Who or what is the authority the mutants are fighting. Everything else here is mechanics.

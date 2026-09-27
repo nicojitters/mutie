@@ -40,6 +40,14 @@ well-placed teleport or a missed 80% shot can swing the whole fight.
 - **Guerrilla stance.** The squad is outgunned and picks its fights; missions are strikes, not sieges.
 
 ## Campaign layer (Phase 8 — built in-page)
+**Roster growth (2026-09-27, Cameron's call).** A new campaign starts with only Vex, Halden and Nix (`STARTING_IDS`).
+The other nine named mutants join one per campaign-mission clear, keyed by mission index: `RECRUIT_ORDER[G.missionIdx]`
+= Sol (after M1), Ember, Mara, Sable, Iris, Rook, Grit, Echo, Tobias (after M9); nothing after M10. Order is role-spread so
+the first mender arrives before M2. Guarded by `CAMP.joined` (mission ids, like `CAMP.drafted`), so replays and side ops
+never add anyone; skipped if that mutant is already on the roster (old 12-member saves just never trigger it). Separate
+from death recruits (`makeRecruit`, random name, same family). `renderArchCards` hides family headers with no members.
+`window.MUTIE.unlockAll()` adds every missing mutant; **test harnesses that deploy non-starter kits must call it** after load.
+
 `CAMP` in localStorage `mutie.campaign` (per browser): `roster[]` entries `{cid, kit, name, level, xp, kills, missions,
 wounded, alive, upgrade, pendingUpgrade, custom}`, `fallen[]` (memorial), `doom` (Graft Index 0–10), `lost`.
 `buildDef(entry)` = ARCH + kit + level bonuses (L2 +1HP/+5aim, L4 +2HP/+5aim) + the chosen L3 upgrade (`KIT_UPGRADES`: 12 kits × 2 options,
@@ -179,7 +187,8 @@ The old drone is gone; to change the mood of an act, edit its THEMES row, not th
 ## Screens & flow
 menu (animated backdrop; Begin/Continue, New campaign, Mission select) → select (acts, sequential unlock, "Unlock all"
 free-play link) → briefing (act/mission, codename, Control's intro, objective + parameters, hostile intel with
-UNKNOWN AUGMENT for unseen types, squad pick) → game (2.4s insertion overlay, per-mission palette `THEMES`, vignette,
+UNKNOWN AUGMENT for unseen types, squad pick; Back/Deploy live in `.deploy-bar`, `position:sticky;bottom:0` at the end of
+`#screen-brief`, so Deploy is on screen without scrolling at any roster size or viewport — `#db-squad` echoes the pick) → game (2.4s insertion overlay, per-mission palette `THEMES`, vignette,
 ambient drone) → result (debrief as a Control transmission; Continue opens the next briefing; campaign-complete
 variant after M10). Modals: Threat file (reveals as encountered), How to play. Sound toggle in the top bar.
 Progress (`PROG`: cleared ids, seen enemy ids, freeplay) lives in localStorage `mutie.progress`, try/catch-wrapped —

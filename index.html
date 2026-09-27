@@ -112,6 +112,13 @@ h1,h2,h3{margin:0;font-family:var(--font-display);text-wrap:balance;letter-spaci
 /* ---------- Briefing ---------- */
 .brief-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(320px,1.1fr);gap:20px;align-items:start}
 @media (max-width:860px){.brief-grid{grid-template-columns:1fr}}
+.deploy-bar{position:sticky;bottom:0;z-index:5;margin-top:16px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  background:linear-gradient(180deg,rgba(13,7,24,.78),rgba(13,7,24,.96));border:1px solid var(--line);border-bottom:0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 -10px 30px rgba(0,0,0,.45)}
+.deploy-bar::before{content:"";position:absolute;left:0;right:0;top:-1px;height:1px;background:var(--rule)}
+.deploy-bar .db-squad{font-family:var(--font-display);letter-spacing:.08em;text-transform:uppercase;font-size:12px;color:var(--muted)}
+.deploy-bar .db-squad b{color:var(--ink);font-weight:600}
+.deploy-bar .db-btns{display:flex;gap:10px;margin-left:auto}
+@media (max-width:480px){.deploy-bar{padding:10px 12px}.deploy-bar .db-btns{width:100%}.deploy-bar .db-btns .btn{flex:1}}
 .brief-head h1{font-size:34px;text-transform:uppercase;letter-spacing:.04em;line-height:1;margin:4px 0 6px}
 .b-op{font-family:var(--font-display);color:var(--accent);letter-spacing:.14em;text-transform:uppercase;font-size:12px}
 .comms{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--player);padding:10px 14px;margin:14px 0}
@@ -472,9 +479,9 @@ body{background:var(--ground)}
       <aside class="brief-side">
         <div class="section-h" style="margin-top:0"><h2>Squad</h2><span class="note" id="squad-count">3 of 3</span></div>
         <div class="cards arch-cards" id="arch-cards"></div>
-        <div class="deploy-row"><button class="btn" id="b-back">Back</button><button class="btn primary big" id="btn-deploy">Deploy</button></div>
       </aside>
     </div>
+    <div class="deploy-bar"><span class="db-squad" id="db-squad"></span><div class="db-btns"><button class="btn" id="b-back">Back</button><button class="btn primary big" id="btn-deploy">Deploy</button></div></div>
   </section>
 
   <!-- ============ GAME ============ -->
@@ -670,6 +677,11 @@ const MUTANTS = [
     ability:{key:'stim', name:'Stim', cd:3, range:4, ends:false, desc:'An ally within 4 gets an action back (max 2) and their power cooldown drops by 1; clears drain. Costs 1 action.'} },
 ];
 const MUT=Object.fromEntries(MUTANTS.map(m=>[m.id,m]));
+/* The three the player starts with; the rest join over the campaign (see RECRUIT_ORDER). */
+const STARTING_IDS=['blaster','bruiser','phaser'];
+/* One new named mutant joins after each of the first 9 campaign-mission clears (mission index = array index),
+   role-spread so a mender shows up early: Sol after M1, then one every mission through M9. Nothing after M10. */
+const RECRUIT_ORDER=['mender','ember','mara','sable','iris','rook','grit','echo','tobias'];
 let SIDE=null, MADJ=null; const MX=i=>(MADJ&&MADJ._idx===i)?MADJ:(i<0?SIDE:MISSIONS[i]);
 /* ---------- Procedural strike generator ---------- */
 function mulberry(seed){ let a=seed>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
@@ -1183,11 +1195,11 @@ const UPGRADES={
   phaser:[{id:'quick',name:'Quick',desc:'+1 move.',mod:{move:1}},{id:'ghost',name:'Ghost',desc:'+2 HP, +5 aim.',mod:{hp:2,aim:5}}],
   mender:[{id:'reach',name:'Reach',desc:'Power range +2.',mod:{range:2}},{id:'fieldkit',name:'Field Kit',desc:'Power cooldown −1.',mod:{cd:-1}}],
 };
-function freshCampaign(){ return { v:1, roster:MUTANTS.map(m=>({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null})), fallen:[], doom:2, recruits:0, lost:false, log:[], perks:[], equipped:[], perkOffer:null, drafted:[] }; }
+function freshCampaign(){ return { v:1, roster:MUTANTS.filter(m=>STARTING_IDS.includes(m.id)).map(m=>({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null})), fallen:[], doom:2, recruits:0, lost:false, log:[], perks:[], equipped:[], perkOffer:null, drafted:[], joined:[] }; }
 let CAMP=(()=>{ try{ const raw=localStorage.getItem('mutie.campaign'); if(raw){ const c=JSON.parse(raw); if(c&&c.roster) return c; } }catch(e){} return freshCampaign(); })();
 function saveCamp(){ try{ localStorage.setItem('mutie.campaign',JSON.stringify(CAMP)); }catch(e){} }
 const rosterEntry=cid=>CAMP.roster.find(r=>r.cid===cid);
-(function migrateCamp(){ CAMP.perks=CAMP.perks||[]; CAMP.equipped=CAMP.equipped||[]; CAMP.drafted=CAMP.drafted||[]; if(CAMP.perkOffer===undefined) CAMP.perkOffer=null; })();
+(function migrateCamp(){ CAMP.perks=CAMP.perks||[]; CAMP.equipped=CAMP.equipped||[]; CAMP.drafted=CAMP.drafted||[]; if(CAMP.perkOffer===undefined) CAMP.perkOffer=null; CAMP.joined=CAMP.joined||[]; })();
 function togglePerk(id){ if(!CAMP.perks.includes(id)) return; const i=CAMP.equipped.indexOf(id); if(i>=0) CAMP.equipped.splice(i,1); else { if(CAMP.equipped.length>=PERK_SLOTS) CAMP.equipped.shift(); CAMP.equipped.push(id); } saveCamp(); Audio.select(); }
 function renderPerkList(el,note,{editable=true}={}){ el.innerHTML=''; const owned=CAMP.perks.filter(p=>PERKS[p]); const eq=equippedPerks();
   if(!owned.length){ el.innerHTML='<div class="note" style="grid-column:1/-1">None yet. Clearing a campaign mission earns a pick of three.</div>'; if(note) note.textContent=''; return; }
@@ -1492,14 +1504,16 @@ function openBriefing(i){
 function renderArchCards(){
   const ac=$('arch-cards'); ac.innerHTML='';
   G.squad=G.squad.filter(cid=>{ const r=rosterEntry(cid); return r&&r.alive&&r.wounded<=0; });
-  for(const arch of Object.keys(ARCH_INFO)){ const h=document.createElement('div'); h.className='act'; h.textContent=`${ARCH_INFO[arch].name} · ${ARCH_INFO[arch].role}`; ac.appendChild(h);
-    for(const r of CAMP.roster.filter(x=>x.alive&&MUT[x.kit].arch===arch)){ const m=MUT[r.kit]; const d=buildDef(r); const on=G.squad.includes(r.cid); const ready=r.wounded<=0; const b=document.createElement('button'); b.className='arch-card mut'+(ready?'':' locked'); b.disabled=!ready; b.setAttribute('aria-pressed',String(on)); const accent=r.custom&&r.custom.accent?r.custom.accent:m.color;
+  for(const arch of Object.keys(ARCH_INFO)){ const members=CAMP.roster.filter(x=>x.alive&&MUT[x.kit].arch===arch); if(!members.length) continue;
+    const h=document.createElement('div'); h.className='act'; h.textContent=`${ARCH_INFO[arch].name} · ${ARCH_INFO[arch].role}`; ac.appendChild(h);
+    for(const r of members){ const m=MUT[r.kit]; const d=buildDef(r); const on=G.squad.includes(r.cid); const ready=r.wounded<=0; const b=document.createElement('button'); b.className='arch-card mut'+(ready?'':' locked'); b.disabled=!ready; b.setAttribute('aria-pressed',String(on)); const accent=r.custom&&r.custom.accent?r.custom.accent:m.color;
       b.innerHTML=`<div class="a-name" style="color:${accent}">${r.name} <span class="tag">L${r.level}</span> <span class="tag">${m.tagline}</span>${ready?'':' <span class="tag" style="color:var(--danger)">Wounded</span>'}${r.pendingUpgrade?' <span class="tag" style="color:var(--heal)">Upgrade waiting</span>':''}</div>
         <div class="stat-row"><span>HP <b>${d.hp}</b></span><span>Aim <b>${d.aim}</b></span><span>Move <b>${d.move}</b></span><span>Dmg <b>${d.dmg[0]}–${d.dmg[1]}</b></span><span>Rng <b>${d.range}</b></span>${d.armor?`<span>Armor <b>${d.armor}</b></span>`:''}</div>
         <div class="ability-line"><em>${m.ability.name}</em> — ${m.ability.desc}${d.ability.cd!==m.ability.cd?` <span class="note">(CD ${d.ability.cd})</span>`:''}${d.upgradeName?` <span class="tag" style="color:var(--accent)">${d.upgradeName}</span>`:''}</div><div class="ability-line passive"><em>${m.passive.split(' — ')[0]}</em> — ${m.passive.split(' — ')[1]}</div>`;
       b.onclick=()=>{ Audio.select(); if(!ready) return; if(on){ if(G.squad.length>1) G.squad=G.squad.filter(x=>x!==r.cid); } else { if(G.squad.length>=3) G.squad.shift(); G.squad.push(r.cid); } renderArchCards(); };
       ac.appendChild(b); } }
   $('squad-count').textContent=`${G.squad.length} of 3 · ${G.squad.map(id=>rosterEntry(id).name).join(', ')}`; $('btn-deploy').disabled=G.squad.length!==3;
+  $('db-squad').innerHTML=G.squad.length===3?`Squad <b>${G.squad.map(id=>rosterEntry(id).name).join(' · ')}</b>`:`Pick <b>${3-G.squad.length}</b> more`;
 }
 $('btn-deploy').onclick=()=>{ Audio.unlock(); Audio.deploy(); startMission(G.missionIdx,G.op); };
 $('b-back').onclick=()=>{ Audio.select(); renderSelect(); showScreen('select'); };
@@ -2431,6 +2445,10 @@ function finish(win,reason){
       const before=CAMP.doom; CAMP.doom=clamp(CAMP.doom+delta,0,10); lines.push(`<span class="doomline">Graft Index ${before} → <b>${CAMP.doom}</b> (${doomLabel()}).</span>`);
       if(CAMP.doom>=10&&!(win&&last)){ CAMP.lost=true; lines.push(`<span class="lost"><b>The Coalition has fielded a Husk army.</b> The campaign is lost.</span>`); }
       if(win&&!m.generated&&G.missionIdx>=0&&!CAMP.drafted.includes(m.id)){ CAMP.drafted.push(m.id); const pool=Object.keys(PERKS).filter(p=>!CAMP.perks.includes(p)); for(let i=pool.length-1;i>0;i--){ const j=rnd(0,i); [pool[i],pool[j]]=[pool[j],pool[i]]; } CAMP.perkOffer=pool.slice(0,3); if(CAMP.perkOffer.length) lines.push(`<span class="up"><b>Supply drop.</b> The network has a new perk for you — pick one of three back at base.</span>`); else CAMP.perkOffer=null; }
+      // new recruit joins the roster after each of the first 9 campaign-mission clears (one per mission index)
+      if(win&&!m.generated&&G.missionIdx>=0&&!CAMP.joined.includes(m.id)){ CAMP.joined.push(m.id); const nid=RECRUIT_ORDER[G.missionIdx];
+        if(nid&&!CAMP.roster.some(r=>r.cid===nid)){ const mm=MUT[nid]; CAMP.roster.push({cid:nid,kit:nid,name:mm.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null});
+          lines.push(`<span class="new">New recruit: <b>${mm.name}</b>, ${famName(mm)} (${mm.ability.name}) has joined the squad.</span>`); } }
       CAMP.offers=null; saveCamp(); const rc=$('res-camp'); rc.innerHTML=lines.join(''); rc.hidden=!lines.length;
       if(pendingUps.length) setTimeout(()=>offerUpgrade(pendingUps[0]),1500); }
     if(win){ lost.length?say('winLoss',lost.join(' and ')):say('win'); } else say('lose');
@@ -2540,5 +2558,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3};
+window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

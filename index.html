@@ -715,6 +715,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <p><b>On a touchscreen,</b> the first tap previews — the path, who it wakes, the hit chance — and a second tap on the same spot confirms. Tapping one of your own mutants selects them straight away.</p>
         <p><b>Read the number.</b> Hover a hostile to see your hit chance. Half cover −20, full cover −40. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
         <p><b>Cover has a side.</b> Shield icons show which direction a unit is protected from. Bright shields protect against the unit you've selected.</p>
+        <p><b>Fuel drums</b> (the ones with the hazard band) are full cover for anyone — until someone shoots one. Any hit sets it off: 4 damage to everything beside it, armor ignored, crates wrecked, neighbouring drums chain. Bait a pod behind one, or don't stand next to one yourself.</p>
         <p><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it.</p>
         <p><b>Hostiles start unaware.</b> They wake in groups when a mutant comes within seven tiles in view, or fires on them. Hover a move tile to see who it would wake, and every awake hostile that could hit you there shows its odds against you. Pick your fights, and your tiles.</p>
         <p><b>Don't linger.</b> Reinforcements arrive every turn after the mission's timer.</p>
@@ -1435,7 +1436,8 @@ const downedNear=(u)=>G.units.filter(d=>d.alive&&d.side==='player'&&d.downed&&!d
 const alive=side=>G.units.filter(u=>u.alive&&u.side===side);
 const squadAlive=()=>alive('player').filter(u=>!u.def.noAttack&&!u.downed);
 const evacUnits=()=>alive('player').filter(u=>!u.def.decoy&&(!u.downed||u.carried));
-const isWall=u=>u&&u.alive&&(u.def.verb==='wall'||(u.brace&&F(u,'braceLOS')));
+const isWall=u=>u&&u.alive&&(u.def.verb==='wall'||u.def.hazard||(u.brace&&F(u,'braceLOS')));
+const isDrum=u=>!!(u&&u.alive&&u.def.hazard);
 const blocksLOS=(x,y)=>tileBlocksLOS(x,y)||isWall(unitAt(x,y));
 
 /* Supercover line-of-sight between tile centers, ignoring endpoints. Bulwarks block like pillars. */
@@ -1457,7 +1459,7 @@ function hasLOS(a,b){
 
 /* Cover: adjacent crates (half), pillars/walls (full), and friendly Bulwarks (full). */
 const DIRS=[{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
-function adjacentCover(d){ const out=[]; for(const dir of DIRS){ const x=d.x+dir.x,y=d.y+dir.y; const t=tile(x,y); if(t===T.HALF) out.push({dir,val:1}); else if(t===T.FULL||t===T.WALL) out.push({dir,val:2}); else { const u=unitAt(x,y); if(u&&u!==d&&u.side===d.side&&(isWall(u)||u.brace)) out.push({dir,val:2,unit:u}); } } return out; }
+function adjacentCover(d){ const out=[]; for(const dir of DIRS){ const x=d.x+dir.x,y=d.y+dir.y; const t=tile(x,y); if(t===T.HALF) out.push({dir,val:1}); else if(t===T.FULL||t===T.WALL) out.push({dir,val:2}); else { const u=unitAt(x,y); if(u&&u!==d&&(isDrum(u)||(u.side===d.side&&(isWall(u)||u.brace)))) out.push({dir,val:2,unit:u}); } } return out; }
 function protects(d,c,a){ const rx=a.x-d.x, ry=a.y-d.y; const along=rx*c.dir.x+ry*c.dir.y, perp=Math.abs(rx*c.dir.y)+Math.abs(ry*c.dir.x); return along>=1&&perp<=along+1; }
 function nearestFoe(u){ let best=null,bd=1e9; for(const e of alive(u.side==='player'?'enemy':'player')){ const d=dist(u,e); if(d<bd){bd=d;best=e;} } return best; }
 function coverAgainst(d,a){ let best=0; for(const c of adjacentCover(d)){ if(protects(d,c,a)) best=Math.max(best,c.val); } return best; }
@@ -1510,7 +1512,16 @@ function makeUnit0(def,side,x,y,name){
   return { def, side, x, y, name:name||def.name, hp:def.hp, maxHp:def.hp, aim:def.aim, move:def.move, dmg:def.dmg, range:def.range, melee:!!def.melee, armor:def.armor||0,
     glyph:def.glyph, color:def.color, alive:true, ap:2, cd:0, id:Math.random().toString(36).slice(2), ow:false, kills:0, marked:false, drained:false, drainedNow:false, alert:side!=='enemy', pod:0, alertTurn:0, shield:0, suppressed:false, brace:false, taunt:null, seed:Math.random(), downed:false, bleed:0, stabilized:false, carried:false, carrying:null };
 }
-function makeRelay(x,y,i,label){ return { def:{id:'relay',name:label||'Relay',noAttack:true,armor:0}, side:'obj', x, y, name:(label||'Relay')+' '+(i+1), hp:5, maxHp:5, armor:0, alive:true, ap:0, cd:0, glyph:'X', color:'#F2B33D', kills:0, immobile:true }; }
+function makeRelay(x,y,i,label){ return { id:'relay'+i+'_'+Math.random().toString(36).slice(2), def:{id:'relay',name:label||'Relay',noAttack:true,armor:0}, side:'obj', x, y, name:(label||'Relay')+' '+(i+1), hp:5, maxHp:5, armor:0, alive:true, ap:0, cd:0, glyph:'X', color:'#F2B33D', kills:0, immobile:true }; }
+/* Fuel drums: full cover for everyone, block line of sight, and go up when they hit 0 — DRUM_DMG to every unit beside them,
+   armor ignored, adjacent crates wrecked, neighbouring drums chain. `D` in a map is always a drum; in themes whose cover prop
+   is a drum (industrial, rust) a hash-picked share of `O` tiles are live drums too, so authored maps get them for free. */
+const DRUM_DMG=4, DRUM_HP=2, DRUM_SHARE=0.45;
+function makeDrum(x,y){ return { def:{id:'drum',name:'Fuel drum',noAttack:true,armor:0,hazard:true,desc:`Shooting it detonates: ${DRUM_DMG} damage to everything beside it, armor ignored. Full cover until then — for anyone.`}, side:'obj', x, y, id:'drum'+x+'_'+y+'_'+Math.random().toString(36).slice(2), name:'Fuel drum', hp:DRUM_HP, maxHp:DRUM_HP, armor:0, alive:true, ap:0, cd:0, glyph:'D', color:'#E0A040', kills:0, immobile:true }; }
+const DRUM_THEMES=new Set(['industrial','rust']);
+function drumSet(m){ const th=m.theme||MISSION_THEME[m.id]; const out=new Set(); if(!DRUM_THEMES.has(th)) return out; const hs=s=>{ let h=2166136261; for(const c of s){ h^=c.charCodeAt(0); h=Math.imul(h,16777619); } return h>>>0; };
+  const os=[]; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++) if(m.map[y][x]==='O') os.push({x,y,h:hs(`${m.id}:${x},${y}`)});
+  os.sort((a,b)=>a.h-b.h); const n=os.length?Math.max(1,Math.round(os.length*DRUM_SHARE)):0; for(const o of os.slice(0,n)) out.add(key(o.x,o.y)); return out; }
 function makeCaptive(x,y,name){ const u=makeUnit(VIP,'captive',x,y,name||NAMES.vip); u.ap=0; u.immobile=true; return u; }
 
 function startMission(idx,op){
@@ -1519,8 +1530,9 @@ function startMission(idx,op){
   G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.stats={shots:0,hits:0,dmg:0}; G.campApplied=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
   G.objState={relays:0,relaysTotal:0,freed:0,captivesTotal:0,shipped:false,holdCount:0,summons:0,evacOpen:!(m.evacAt||m.evacAfterHold)};
   const spawns=[]; let relayN=0, capN=0;
-  for(let y=0;y<ROWS;y++){ const row=[]; for(let x=0;x<COLS;x++){ const ch=m.map[y][x]; let t=T.FLOOR; if(ch==='#')t=T.WALL; else if(ch==='=')t=T.HALF; else if(ch==='O')t=T.FULL; row.push(t);
-    if(ch==='P') spawns.push({x,y}); else if(ch==='E') G.evac.add(key(x,y)); else if(ch==='C') G.hold.add(key(x,y)); else if(ch==='X'){ G.units.push(makeRelay(x,y,relayN++,m.objLabel)); } else if(ch==='V'){ G.units.push(makeCaptive(x,y,(m.captiveNames||[])[capN++])); } else if(ENEMY[ch]) G.units.push(makeUnit(ENEMY[ch],'enemy',x,y)); } G.grid.push(row); }
+  const drums=drumSet(m);
+  for(let y=0;y<ROWS;y++){ const row=[]; for(let x=0;x<COLS;x++){ const ch=m.map[y][x]; let t=T.FLOOR; if(ch==='#')t=T.WALL; else if(ch==='=')t=T.HALF; else if(ch==='O'&&!drums.has(key(x,y)))t=T.FULL; row.push(t);
+    if(ch==='D'||(ch==='O'&&t===T.FLOOR)) G.units.push(makeDrum(x,y)); else if(ch==='P') spawns.push({x,y}); else if(ch==='E') G.evac.add(key(x,y)); else if(ch==='C') G.hold.add(key(x,y)); else if(ch==='X'){ G.units.push(makeRelay(x,y,relayN++,m.objLabel)); } else if(ch==='V'){ G.units.push(makeCaptive(x,y,(m.captiveNames||[])[capN++])); } else if(ENEMY[ch]) G.units.push(makeUnit(ENEMY[ch],'enemy',x,y)); } G.grid.push(row); }
   G.objState.relaysTotal=relayN; G.objState.captivesTotal=capN;
   assignPods();
   G.squad=G.squad.filter(cid=>rosterEntry(cid)&&rosterEntry(cid).alive); { const pool=deployPool(); while(G.squad.length<3&&pool.some(r=>!G.squad.includes(r.cid))) G.squad.push(pool.find(r=>!G.squad.includes(r.cid)).cid); }
@@ -1546,7 +1558,7 @@ async function scamper(members){ if(!members.length) return; Audio.contact(); Au
   for(const e of members){ if(!e.alive) continue; const reach=reachable(e,e.move); let best=null,bs=-1e9; for(const n of reach.values()){ const pos={x:n.x,y:n.y}; const sc=coverScore(pos,players)*10-nearestPlayer(pos).d*0.5+(alliesAdjacent(pos,e)*3); if(sc>bs){bs=sc;best=n;} }
     if(best&&coverScore(best,players)>coverScore(e,players)){ if(e.def.verb==='phase'){ fxRing(e.x,e.y,'#9BE7FF',0.9); e.x=best.x; e.y=best.y; anim(e,'blinkIn'); fxRing(e.x,e.y,'#9BE7FF',0.9); Audio.huskBlink(e.x); await wait(150); } else { const path=pathTo(reach,best.x,best.y); for(const p of path){ e.x=p.x; e.y=p.y; await wait(45); } } } }
   introduceNew(members); renderSide(); }
-async function checkContact(){ const woke=alertEnemies(); if(woke.length){ const wasBusy=G.busy; G.busy=true; renderSide(); await scamper(woke); G.busy=wasBusy; renderSide(); } }
+async function checkContact(){ const woke=alertEnemies(); if(G.pendingScamper&&G.pendingScamper.length){ woke.push(...G.pendingScamper.filter(e=>e.alive)); G.pendingScamper=null; } if(woke.length){ const wasBusy=G.busy; G.busy=true; renderSide(); await scamper(woke); G.busy=wasBusy; renderSide(); } }
 function introduceNew(list){ let announced=false; for(const e of list){ if(e.side!=='enemy'||G.seen.has(e.def.id)) continue; G.seen.add(e.def.id); saveProg(); log(`Threat file — ${e.def.name}${e.def.aug?' ['+e.def.aug+' augment]':''}: ${e.def.desc}`,'aug'); if(!announced&&e.def.aug){ banner(`New hostile: ${e.def.name}`,'aug'); say('newAug'); announced=true; } } }
 function showScreen(s){ G.screen=s; document.body.dataset.screen=s; for(const k of ['menu','select','brief','game']) $('screen-'+k).hidden=s!==k; $('crumb').textContent=s==='game'?(G.missionIdx<0?`Side op · ${MX(G.missionIdx).sector}`:`${ACTS[MX(G.missionIdx).act]} · Mission ${G.missionIdx+1}`):s==='brief'?'Briefing':s==='select'?'Campaign':''; if(s==='menu'||s==='select'||s==='brief'){ Audio.music.set('menu',{act:s==='brief'?MX(G.missionIdx).act:Math.min(2,Math.floor(nextMissionIdx()/5)*1+(nextMissionIdx()>=8?1:0))}); } if(s==='menu') renderMenu(); }
 
@@ -1798,7 +1810,9 @@ function povAllyOk(u,a,mode){ if(mode==='mend') return dist(u,a)<=u.def.ability.
 function povMode(kind){ return kind==='ally'?G.mode:(TARGETED[G.mode]==='enemy'?G.mode:'shoot'); }
 function povTargets(u,kind,mode){
   if(kind==='ally') return alive('player').filter(a=>a!==u&&!a.def.decoy&&!a.carried).map(a=>({u:a,ok:povAllyOk(u,a,mode),d:dist(u,a)})).sort((a,b)=>(b.ok-a.ok)||(a.d-b.d));
-  return G.units.filter(e=>e.alive&&(e.side==='enemy'||e.side==='obj')).map(e=>({u:e,ok:povEnemyOk(u,e,mode),h:hitChance(u,e),d:dist(u,e)})).sort((a,b)=>(b.ok-a.ok)||(a.ok?(b.h.chance-a.h.chance):(a.d-b.d))); }
+  // shootable hostiles first by hit chance, then shootable relays, then drums (never the default target), then everything else by distance
+  const tier=e=>e.side==='enemy'?0:isDrumDef(e)?2:1;
+  return G.units.filter(e=>e.alive&&(e.side==='enemy'||e.side==='obj')).map(e=>({u:e,ok:povEnemyOk(u,e,mode),h:hitChance(u,e),d:dist(u,e)})).sort((a,b)=>(b.ok-a.ok)||(a.ok?((tier(a.u)-tier(b.u))||(b.h.chance-a.h.chance)):(a.d-b.d))); }
 function enterPOV(u,opts={}){ if(!u||!u.alive||u.side!=='player'||u.downed||u.def.noAttack){ G.pov=null; G.povView='map'; return; }
   const kind=opts.kind||'enemy'; const list=povTargets(u,kind,opts.mode||povMode(kind)); let idx=0;
   if(opts.keep&&G.pov&&G.pov.unit===u&&G.pov.target){ const i=list.findIndex(t=>t.u===G.pov.target); if(i>=0) idx=i; }
@@ -1881,6 +1895,7 @@ function setHint(t){
   else if(m==='setdown') h.innerHTML=`<b>Set down</b> — click an open tile next to you.`;
 }
 function tooltip(u){
+  if(isDrumDef(u)) return `<span class="tip"><b>${u.name}</b> · HP ${u.hp}/${u.maxHp} · Any hit lands. <i>${u.def.desc}</i></span>`;
   if(u.side==='obj') return `<span class="tip"><b>${u.name}</b> · HP ${u.hp}/${u.maxHp} · Any hit lands. Destroy to complete the objective.</span>`;
   if(u.side==='captive') return `<span class="tip"><b>${u.name}</b> · captive mutant · move a unit next to them to free them.</span>`;
   const d=u.def; const st=[u.side==='enemy'&&!u.alert?'UNAWARE — has not seen you; its pod wakes when you get within 7 tiles in view or fire on it':'',u.marked?'MARKED':'',u.ow?'OVERWATCH':'',jammed(u)?'JAMMED':'',(u.drained||u.drainedNow)?'DRAINED':''].filter(Boolean).join(' · ');
@@ -1928,10 +1943,20 @@ function applyDamage(target,amount,source,opt={}){
     if(G.sel===target) G.sel=null; return; }
   if(target.hp<=0){ target.hp=0; killUnit(target,source); }
 }
+const isDrumDef=u=>!!(u&&u.def&&u.def.hazard);
+function detonate(d,source){ // d is already dead; everything within one tile takes DRUM_DMG (armor ignored), crates go, drums chain
+  Audio.blast(d.x); fxRing(d.x,d.y,'#FFB347',2.0); fxFlash(d.x,d.y,'#FFD27A',2.0); fxSpark(d.x,d.y,'#FFB347',30,{speed:2.4,up:2.2,life:800,size:0.08}); fxSpark(d.x,d.y,'#FF6B3A',14,{speed:1.4,up:1.2,life:600,shape:'sph',size:0.1}); fxSmoke(d.x,d.y,10); fxDebris(d.x,d.y);
+  light(d.x,d.y,'#FF9A40',14,520); flash('#FFB347',0.4,130); shake(16); freeze(90); fxText(d.x,d.y-0.5,'BOOM','#FFB347',true); log(`${d.name} detonates.`,'kill');
+  let crates=0; for(let y=d.y-1;y<=d.y+1;y++) for(let x=d.x-1;x<=d.x+1;x++){ if(tile(x,y)===T.HALF){ G.grid[y][x]=T.FLOOR; fxDebris(x,y); crates++; } }
+  if(crates) log(`${crates} crate${crates>1?'s':''} wrecked in the blast.`,'sys');
+  const hit=G.units.filter(v=>v.alive&&v!==d&&!v.def.decoy&&cheb(v,d)<=1);
+  for(const v of hit){ if(v.side==='enemy'&&!v.alert){ (G.pendingScamper||(G.pendingScamper=[])).push(...wakePod(v.pod)); } log(`Blast catches ${v.name} for ${DRUM_DMG}.`,'hit'); applyDamage(v,DRUM_DMG,source,{ignoreArmor:true}); }
+  if(source&&source.side==='player'&&hit.filter(v=>v.side==='enemy'&&!v.alive).length>=2){ setTimeout(()=>{ fxText(d.x,d.y-0.9,'MULTI-KILL','#F2B33D','huge'); Audio.win(); },260); } }
 function decoyBoom(d){ if(!d.boom) return; const hs=alive('enemy').filter(e=>cheb(e,d)<=1); Audio.blast(d.x); fxRing(d.x,d.y,'#7FD4FF',1.6); fxSpark(d.x,d.y,'#7FD4FF',18,{speed:1.8,up:1.4,life:600}); light(d.x,d.y,'#7FD4FF',8,400); shake(8);
   for(const e of hs){ log(`Afterimage detonates — ${e.name} takes ${d.boom}.`,'hit'); applyDamage(e,d.boom,null,{ignoreArmor:true}); } }
 function killUnit(target,source){ target.hp=0; target.alive=false; target.ow=false; target.downed=false; if(target.def&&target.def.decoy&&target.boom) setTimeout(()=>decoyBoom(target),120); if(target.carrying) dropCarried(target); if(target.carried){ const c=G.units.find(u=>u.carrying===target); if(c) c.carrying=null; target.carried=false; }
   if(source) source.kills=(source.kills||0)+1;
+    if(isDrumDef(target)){ detonate(target,source); return; }
     if(target.side==='obj'){ Audio.relay(target.x); fxRing(target.x,target.y,'#F2B33D',1.3); fxDebris(target.x,target.y); fxSpark(target.x,target.y,'#FFD27A',22,{speed:1.8,up:2,life:700}); fxSmoke(target.x,target.y,8); light(target.x,target.y,'#FFB347',8,500); flash('#FFD27A',0.3,120); G.objState.relays++; log(`${target.name} destroyed.`,'good');
       if(G.objState.relays<G.objState.relaysTotal) say('relay',(G.objState.relaysTotal-G.objState.relays)); else { say('relaysDone'); banner('Relays down — evac','good'); } return; }
     if(target.def.decoy){ fxRing(target.x,target.y,'#7FD4FF',1); log(`${target.name} shatters.`,'sys'); return; }
@@ -2166,7 +2191,7 @@ const R3 = (()=>{
         else if(v<7){ const s=new T3.Mesh(geo.box,glowM(L.strip,0.8)); s.scale.set(0.9,0.02,0.05); s.position.copy(W(x,y,1.165)); s.position.z+=0.46; statics.add(s); } }
       else if(t===T.FULL){ statics.add(aoDecal(x,y,1.4,0.5)); const g=new T3.Group(); g.position.copy(W(x,y,0)); g.rotation.y=hh(x,y,4)*Math.PI/2;
         if(L.prop==='hvac'){ const b=new T3.Mesh(geo.rbS,PM('#fff',{map:TX.wall,roughness:0.6,metalness:0.4})); b.scale.set(0.72,0.8,0.72); b.position.y=0.4; b.castShadow=b.receiveShadow=true; g.add(b); const cap=new T3.Mesh(geo.rbS,propDark); cap.scale.set(0.76,0.06,0.76); cap.position.y=0.83; g.add(cap); const fan=new T3.Mesh(new T3.TorusGeometry(0.22,0.035,8,24),propMetal); fan.rotation.x=Math.PI/2; fan.position.y=0.88; g.add(fan); const disc=new T3.Mesh(geo.cyl,propDark); disc.scale.set(0.2,0.02,0.2); disc.position.y=0.87; g.add(disc); for(let i=0;i<4;i++){ const sl=new T3.Mesh(geo.box,propDark); sl.scale.set(0.5,0.03,0.02); sl.position.set(0,0.25+i*0.12,-0.37); g.add(sl); } const led=new T3.Mesh(geo.sph,glowM('#5CD68A',1.4)); led.scale.setScalar(0.025); led.position.set(0.28,0.7,-0.37); g.add(led); }
-        else if(L.prop==='drum'||L.prop==='drumRust'){ const dm=PM('#fff',{map:TX.crate,roughness:0.5,metalness:0.5}); const b=new T3.Mesh(geo.cyl,L.prop==='drumRust'?propMetal:dm); b.scale.set(0.34,1.0,0.34); b.position.y=0.5; b.castShadow=b.receiveShadow=true; g.add(b); for(const yy of [0.2,0.5,0.8]){ const r=new T3.Mesh(new T3.TorusGeometry(0.345,0.02,6,24),propDark); r.rotation.x=Math.PI/2; r.position.y=yy; g.add(r); } const top=new T3.Mesh(geo.cyl,propDark); top.scale.set(0.3,0.03,0.3); top.position.y=1.01; g.add(top); if(L.prop==='drum'){ const band=new T3.Mesh(geo.cyl,glowM('#c9a227',0.15,{roughness:0.6})); band.scale.set(0.345,0.12,0.345); band.position.y=0.62; g.add(band); } }
+        else if(L.prop==='drum'||L.prop==='drumRust'){ const dm=PM('#fff',{map:TX.crate,roughness:0.5,metalness:0.5}); const b=new T3.Mesh(geo.cyl,L.prop==='drumRust'?propMetal:dm); b.scale.set(0.34,1.0,0.34); b.position.y=0.5; b.castShadow=b.receiveShadow=true; g.add(b); for(const yy of [0.2,0.5,0.8]){ const r=new T3.Mesh(new T3.TorusGeometry(0.345,0.02,6,24),propDark); r.rotation.x=Math.PI/2; r.position.y=yy; g.add(r); } const top=new T3.Mesh(geo.cyl,propDark); top.scale.set(0.3,0.03,0.3); top.position.y=1.01; g.add(top); const lid=new T3.Mesh(geo.cyl,propMetal); lid.scale.set(0.08,0.05,0.08); lid.position.set(0.12,1.04,0.08); g.add(lid); /* inert: sealed, no hazard band */ }
         else if(L.prop==='tank'){ const base=new T3.Mesh(geo.cyl,propDark); base.scale.set(0.38,0.16,0.38); base.position.y=0.08; base.castShadow=true; g.add(base); const glass=new T3.Mesh(geo.cyl,PM('#9fe8e0',{transparent:true,opacity:0.32,roughness:0.08,metalness:0,clearcoat:1,envMapIntensity:1.2,envMap:ENV,depthWrite:false})); glass.scale.set(0.3,0.8,0.3); glass.position.y=0.56; g.add(glass); const core=new T3.Mesh(geo.cyl,glowM('#5CE1D6',1.3)); core.scale.set(0.11,0.66,0.11); core.position.y=0.55; core.userData.pulse=true; g.add(core); const cap=new T3.Mesh(geo.cyl,propDark); cap.scale.set(0.34,0.1,0.34); cap.position.y=1.0; g.add(cap); const ringL=new T3.Mesh(new T3.TorusGeometry(0.33,0.02,6,28),glowM('#5CE1D6',1)); ringL.rotation.x=Math.PI/2; ringL.position.y=0.95; g.add(ringL); }
         else { const b=new T3.Mesh(geo.rbS,PM('#fff',{map:TX.wall,roughness:0.9})); b.scale.set(0.62,1.1,0.62); b.position.y=0.55; b.castShadow=b.receiveShadow=true; g.add(b); const cap=new T3.Mesh(geo.rbS,propDark); cap.scale.set(0.7,0.06,0.7); cap.position.y=1.12; g.add(cap); const lamp=new T3.Mesh(geo.box,glowM(L.strip,1.2)); lamp.scale.set(0.16,0.05,0.04); lamp.position.set(0,0.95,-0.33); g.add(lamp); }
         statics.add(g); }
@@ -2271,6 +2296,15 @@ const R3 = (()=>{
     g.position.copy(W(u.x,u.y,0)); g.userData.tx=u.x; g.userData.ty=u.y; unitGroup.add(g); return g;
   }
   const restoreE=g=>{ for(const m of g.userData.mats){ m.emissive.copy(m.userData.e0); m.emissiveIntensity=m.userData.i0; } };
+  function drumMesh(u){ const g=new T3.Group(); const L=rigFor(); const TX=texSet(L); g.add(aoDecal(0,0,1.3,0.5)); g.children[0].position.set(0,0.006,0);
+    const body=new T3.Mesh(geo.cyl,PM('#fff',{map:TX.crate,color:'#c9b58a',roughness:0.45,metalness:0.55,envMap:ENV})); body.scale.set(0.34,1.0,0.34); body.position.y=0.5; body.castShadow=body.receiveShadow=true; g.add(body);
+    for(const yy of [0.2,0.8]){ const r=new T3.Mesh(new T3.TorusGeometry(0.345,0.02,6,24),PM('#1b2027',{roughness:0.7,metalness:0.3})); r.rotation.x=Math.PI/2; r.position.y=yy; g.add(r); }
+    const band=new T3.Mesh(geo.cyl,glowM('#F2B33D',0.95,{roughness:0.5})); band.scale.set(0.352,0.2,0.352); band.position.y=0.5; g.add(band); // hazard band = live
+    const stripes=new T3.Mesh(geo.cyl,PM('#1b1b1b',{roughness:0.8})); stripes.scale.set(0.352,0.05,0.352); stripes.position.y=0.5; g.add(stripes);
+    const top=new T3.Mesh(geo.cyl,PM('#1b2027',{roughness:0.7,metalness:0.3})); top.scale.set(0.3,0.03,0.3); top.position.y=1.01; g.add(top);
+    const valve=new T3.Mesh(geo.sph,glowM('#ff5a4a',1.6)); valve.scale.setScalar(0.045); valve.position.set(0.14,1.06,0.1); g.add(valve); g.userData.pulse=valve;
+    const fume=sprite(TEX.smoke,'#ffb347',0.18); fume.scale.setScalar(0.5); fume.position.y=1.25; g.add(fume); g.userData.fume=fume;
+    g.rotation.y=(u.x*7+u.y*3)%6*0.2; g.position.copy(W(u.x,u.y,0)); unitGroup.add(g); return g; }
   function relayMesh(u){ const g=new T3.Group(); const isVat=/vat/i.test(u.def.name||'');
     g.add(aoDecal(0,0,1.2,0.45)); g.children[0].position.set(0,0.006,0);
     if(isVat){ const base=new T3.Mesh(geo.cyl,metalM('#2a3038')); base.scale.set(0.36,0.16,0.36); base.position.y=0.08; base.castShadow=true; g.add(base); const glass=new T3.Mesh(geo.cyl,PM('#ffb0d0',{transparent:true,opacity:0.35,roughness:0.08,clearcoat:1,envMap:ENV,depthWrite:false})); glass.scale.set(0.28,0.7,0.28); glass.position.y=0.51; g.add(glass); const core=new T3.Mesh(geo.cyl,glowM('#FF5FA2',1.2)); core.scale.set(0.1,0.56,0.1); core.position.y=0.5; g.add(core); g.userData.pulse=core; const cap=new T3.Mesh(geo.cyl,metalM('#2a3038')); cap.scale.set(0.32,0.1,0.32); cap.position.y=0.9; g.add(cap); const tube=new T3.Mesh(geo.cyl,metalM('#6a737e')); tube.scale.set(0.03,0.5,0.03); tube.position.set(0.2,1.0,0); tube.rotation.z=0.4; g.add(tube); }
@@ -2377,7 +2411,8 @@ const R3 = (()=>{
     for(const u of G.units){
       let g=units.get(u.id);
       if(!u.alive){ if(g&&!dying.has(u.id)){ dying.set(u.id,{g,t0:t}); units.delete(u.id); } continue; }
-      if(!g){ g=u.side==='obj'?relayMesh(u):fig(u); units.set(u.id,g); }
+      if(!g){ g=isDrumDef(u)?drumMesh(u):u.side==='obj'?relayMesh(u):fig(u); units.set(u.id,g); }
+      if(g.userData.fume){ g.userData.fume.position.y=1.22+0.08*Math.sin(t/700+u.x); g.userData.fume.material.opacity=0.12+0.08*Math.sin(t/900+u.y); g.userData.fume.material.rotation=t/4000; }
       g.visible=!u.carried; if(u.carried){ const l0=labFor(u.id); l0.used=false; continue; }
       if(u.side==='captive'&&g.userData.wasCaptive!==true){ g.userData.wasCaptive=true; }
       if(u.side==='player'&&g.userData.wasCaptive&&!g.userData.freedFix){ g.userData.freedFix=true; g.userData.ring.material.color.set('#3FC1E3'); }
@@ -2772,6 +2807,9 @@ function draw(){
   for(const f of G.fallen){ const cx=f.x*TILE+TILE/2, cy=f.y*TILE+TILE/2; ctx.globalAlpha=0.35; ctx.strokeStyle=f.color; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(cx-9,cy-9); ctx.lineTo(cx+9,cy+9); ctx.moveTo(cx+9,cy-9); ctx.lineTo(cx-9,cy+9); ctx.stroke(); ctx.globalAlpha=1; }
   const labels=[];
   for(const u of G.units){ if(!u.alive) continue; const cx=u.x*TILE+TILE/2, cy=u.y*TILE+TILE/2;
+    if(isDrumDef(u)){ ctx.fillStyle='#8a6a2a'; rr(cx-10,cy-12,20,26,5); ctx.fill(); ctx.fillStyle='#F2B33D'; ctx.fillRect(cx-10,cy-3,20,6); ctx.fillStyle='#1b1b1b'; for(let i=-8;i<10;i+=6) ctx.fillRect(cx+i,cy-3,3,6); ctx.strokeStyle='#3a2a10'; ctx.lineWidth=1.5; rr(cx-10,cy-12,20,26,5); ctx.stroke(); ctx.fillStyle=`rgba(255,90,74,${0.5+0.5*Math.sin(t/300)})`; ctx.beginPath(); ctx.arc(cx+5,cy-13,2.5,0,7); ctx.fill();
+      const bw=24,bx=cx-bw/2,by=cy+17; ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(bx-1,by-1,bw+2,6); ctx.fillStyle='#E0A040'; ctx.fillRect(bx,by,bw*u.hp/u.maxHp,4);
+      if(sel&&sel.alive&&playerPhase&&sel.ap>0&&!sel.def.noAttack&&(G.mode==='move'||G.mode==='shoot')) labels.push(u); continue; }
     if(u.side==='obj'){ // relay
       ctx.fillStyle='#2B3442'; rr(cx-12,cy-6,24,20,3); ctx.fill(); ctx.strokeStyle='#F2B33D'; ctx.lineWidth=1.5; ctx.strokeRect(cx-11.5,cy-5.5,23,19); ctx.beginPath(); ctx.moveTo(cx,cy-6); ctx.lineTo(cx,cy-18); ctx.stroke(); ctx.fillStyle=`rgba(242,179,61,${0.5+0.5*Math.sin(t/250)})`; ctx.beginPath(); ctx.arc(cx,cy-19,3,0,Math.PI*2); ctx.fill();
       ctx.fillStyle='#F2B33D'; ctx.font='700 9px "Chakra Petch",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(u.def.name.toUpperCase(),cx,cy+4);

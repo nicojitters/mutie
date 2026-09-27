@@ -207,6 +207,31 @@ capture FX by freezing game time (`G.freezeUntil=now()+1e7; G.freezeT=<fx.t0>+of
   armor or the no-shot reason; allies: HP/status), primary `#pov-go`. `body[data-view]` lets phone CSS drop the sky crop in POV and hide
   the redundant Fire button/turnline. `test17.mjs` (desktop flow), `test18.mjs` (touch: tap→POV, swipe, fire), `shotpov.mjs` (shots).
 
+## Exposure preview (2026-09-27)
+Hovering (or touch-arming) a reachable move tile answers "who could hit me there?": `exposureAt(u,p)` probes the tile with a
+copy of the unit (`Object.assign({},u,{x,y})`) through the same `inRange`/`hitChance` the Coalition turn uses, so preview and
+roll can't disagree. Awake, un-stunned hostiles only, from where they stand now (melee counts if adjacent). Surfaces: each
+threatening enemy's `.pct` label swaps from *your* odds to theirs ("47% AT YOU" / "FLANKS YOU", class `lo exp`); a tile label
+(`pctFor('exptile')`, class `exp lo|ok`) reads "N CAN HIT · best % · FLANKED/NO COVER" or "SAFE"; the tile tints red/amber/green
+via `put(...,2)`; and `moveHint(u,p,n)` feeds both the hover hint and the touch arm hint (`.hint .risk/.safe`). The renderer
+computes `moveR` (reachable set) and `expo` once per frame before the unit loop. The 2D fallback draws dashed threat lines and a
+tile chip. `mousemove` now re-runs `setHint()` whenever the hovered *tile* changes in move mode, not only the hovered unit.
+
+## Fuel drums (2026-09-27)
+A drum is a unit, not a tile: `makeDrum(x,y)` → `side:'obj'`, `def.hazard`, `DRUM_HP=2`, 100% to hit like a relay. `isWall`
+includes hazards (blocks LOS) and `adjacentCover` grants val 2 to **either** side (`isDrum(u)`), so when it dies the cover
+vanishes with no grid edit. `killUnit` → `detonate(d,source)`: `DRUM_DMG=4` to every unit within Chebyshev 1 (players and
+captives included, armor ignored, kills credited to `source` so kill cam/XP work), adjacent crates → floor, neighbouring drums
+chain through `applyDamage`, unaware victims are woken via `wakePod` into `G.pendingScamper`, which `checkContact()` drains.
+Placement: map char `D` is always a drum; in `DRUM_THEMES` (industrial, rust) `drumSet(m)` ranks the map's `O` tiles by a hash
+of `mission id:x,y` and converts the top `DRUM_SHARE=0.45` (min 1) — the rest stay `T.FULL` and render as sealed drums with no
+band. Live drums: `drumMesh` (hazard band, blinking valve, fume sprite) in 3D, banded barrel in 2D; tooltip carries `def.desc`.
+POV strip order is now shootable hostiles → relays → drums → the rest, so a drum is never the default target.
+**Fixed alongside:** `makeRelay` never set a unit `id`, so every relay (and then every drum) shared the `undefined` slot in the
+renderer's mesh/label maps — only one relay per map was ever drawn. Relays and drums now get unique ids.
+`sim.mjs` bot: shoots via `performAt(...,{confirmed:true})` (a bare click on a non-current hostile in POV only retargets) and
+ignores drums when listing relays. Bot never uses drums, so it undercounts their value.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

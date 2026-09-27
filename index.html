@@ -1,3 +1,7 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07040D">
 <title>Mutie</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -59,8 +63,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);text-wrap:balance;letter-spaci
 .doom .bar{height:8px;background:var(--panel-2);border:1px solid var(--line);margin:6px 0 4px;position:relative;overflow:hidden}
 .doom .bar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--aug),var(--enemy))}
 .doom .note{font-size:12px}
-.roster{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
-@media (max-width:520px){.roster{grid-template-columns:1fr}}
+.roster{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+@media (max-width:520px){.roster{grid-template-columns:minmax(0,1fr)}}
 .rc{display:flex;flex-direction:column;gap:3px;text-align:left;padding:8px 10px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);font-size:12px;color:var(--muted)}
 .rc:hover{background:var(--panel-2)}
 .rc .n{font-family:var(--font-display);font-weight:600;font-size:14px;color:var(--ink);display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
@@ -72,9 +76,9 @@ h1,h2,h3{margin:0;font-family:var(--font-display);text-wrap:balance;letter-spaci
 .memorial{display:flex;flex-direction:column;gap:4px}
 .mem{display:flex;justify-content:space-between;gap:8px;padding:6px 10px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--muted)}
 .mem b{color:var(--ink);font-family:var(--font-display)}
-.upgrade-choice{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-.upgrade-choice.three{grid-template-columns:1fr 1fr 1fr}
-.perks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.upgrade-choice{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.upgrade-choice.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.perks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .perks .pk{display:flex;flex-direction:column;gap:2px;text-align:left;padding:8px 10px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);font-size:12px;color:var(--muted);cursor:pointer}
 .perks .pk[aria-pressed="true"]{border-left-color:var(--heal);color:var(--ink);background:var(--panel-2)}
 .perks .pk .n{font-family:var(--font-display);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px;color:var(--ink)}
@@ -97,8 +101,8 @@ h1,h2,h3{margin:0;font-family:var(--font-display);text-wrap:balance;letter-spaci
 .seg{display:flex;gap:4px;flex-wrap:wrap}
 .seg button{font-size:11px;padding:4px 8px;border:1px solid var(--line);color:var(--muted)}
 .seg button[aria-pressed="true"]{color:var(--ink);border-color:var(--accent)}
-.side-ops{grid-template-columns:1fr 1fr;gap:8px}
-@media (max-width:600px){.side-ops{grid-template-columns:1fr}}
+.side-ops{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (max-width:600px){.side-ops{grid-template-columns:minmax(0,1fr)}}
 .side-ops .mission-card{border-left-color:var(--aug)}
 .side-ops .m-name .tier{font-size:10px;letter-spacing:.08em;color:var(--aug);border:1px solid var(--aug);padding:0 5px;margin-left:6px}
 .sector-row{display:flex;gap:6px;margin:8px 0 4px}
@@ -126,7 +130,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);text-wrap:balance;letter-spaci
 .comms .dot{width:7px;height:7px;border-radius:50%;background:var(--player);box-shadow:0 0 8px var(--player);animation:blink 1.6s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 .comms p{margin:0;font-family:var(--font-mono);font-size:13px;line-height:1.55;color:var(--ink)}
-.brief-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.brief-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 @media (max-width:560px){.brief-cols{grid-template-columns:1fr}}
 .bcard{background:var(--panel);border:1px solid var(--line);padding:10px 12px}
 .b-obj{font-family:var(--font-display);font-weight:600;font-size:15px;margin:4px 0 6px}
@@ -176,10 +180,10 @@ h1,h2,h3{margin:0;font-family:var(--font-display);text-wrap:balance;letter-spaci
 .hero p.lede{color:var(--ink)}
 .hero .rule{position:absolute;inset:auto 0 0 0;height:3px;background:linear-gradient(90deg,var(--accent),transparent 70%)}
 .section-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:18px 0 8px}
-.cards{display:grid;gap:10px}
+.cards{display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
 .act{font-family:var(--font-display);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-top:6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
 
-.mission-card,.arch-card{display:flex;flex-direction:column;gap:6px;text-align:left;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);transition:border-color .15s,background .15s}
+.mission-card,.arch-card{min-width:0;max-width:100%;display:flex;flex-direction:column;gap:6px;text-align:left;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);transition:border-color .15s,background .15s}
 .mission-card:hover,.arch-card:hover{background:var(--panel-2)}
 .mission-card[aria-pressed="true"]{border-left-color:var(--accent);background:var(--panel-2)}
 .arch-card[aria-pressed="true"]{border-left-color:var(--player);background:var(--panel-2)}
@@ -188,14 +192,14 @@ h1,h2,h3{margin:0;font-family:var(--font-display);text-wrap:balance;letter-spaci
 .mission-card .m-meta{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .mission-card .m-obj{font-size:12px;color:var(--ink)}
 .mission-card .m-obj em{font-style:normal;color:var(--accent);font-family:var(--font-display);font-weight:600;letter-spacing:.04em}
-.arch-cards{grid-template-columns:repeat(3,1fr);gap:8px}
+.arch-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .arch-cards .act{grid-column:1/-1}
 .arch-card.mut{padding:9px 10px;gap:4px}
 .arch-card.mut .a-name{font-size:14px}
 .arch-card.mut .stat-row{font-size:11px;gap:7px}
 .arch-card.mut .ability-line{font-size:11px}
-@media (max-width:1100px){.arch-cards{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:480px){.arch-cards{grid-template-columns:1fr}}
+@media (max-width:1100px){.arch-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){.arch-cards{grid-template-columns:minmax(0,1fr)}}
 .stat-row{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .stat-row b{color:var(--ink);font-weight:500}
 .ability-line{font-size:12px;color:var(--ink);border-top:1px dashed var(--line);padding-top:6px;margin-top:2px}
@@ -227,8 +231,8 @@ canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;curso
 .flash.on{opacity:var(--fa,.5);transition:opacity .04s}
 .ftext{animation:floatUp .9s forwards, popIn .25s cubic-bezier(.2,1.6,.4,1)}
 @keyframes popIn{0%{transform:translate(-50%,-50%) scale(.4)}100%{transform:translate(-50%,-50%) scale(1)}}
-.ftext.big{font-size:22px;letter-spacing:.02em}
-.ftext.huge{font-size:30px;letter-spacing:.08em;text-shadow:0 0 12px rgba(242,179,61,.6),0 0 4px #000}
+.ftext.big{font-size:calc(22px*var(--ls));letter-spacing:.02em}
+.ftext.huge{font-size:calc(30px*var(--ls));letter-spacing:.08em;text-shadow:0 0 12px rgba(242,179,61,.6),0 0 4px #000}
 .banner.show{animation:bannerIn .35s cubic-bezier(.2,1.2,.3,1)}
 @keyframes bannerIn{0%{letter-spacing:.6em;opacity:0;transform:translateX(-50%) translateY(-10px) scale(.96)}100%{letter-spacing:.2em;opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
 .abtn{transition:transform .08s,background .12s,border-color .12s}
@@ -245,20 +249,21 @@ canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;curso
 @keyframes slamIn{0%{transform:scale(1.6);opacity:0;letter-spacing:.3em}100%{transform:scale(1);opacity:1;letter-spacing:.1em}}
 .lab .hpb i{transition:width .35s ease-out}
 .lab{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none;will-change:left,top}
-.lab .hpb{width:34px;height:5px;background:rgba(0,0,0,.6);border:1px solid rgba(0,0,0,.6)}
+.labels{--ls:1}
+.lab .hpb{width:calc(34px*var(--ls));height:calc(5px*var(--ls));background:rgba(0,0,0,.6);border:1px solid rgba(0,0,0,.6)}
 .lab .hpb i{display:block;height:100%;background:var(--heal)}
 .lab .hpb i.mid{background:var(--accent)} .lab .hpb i.low{background:var(--danger)}
-.lab .arm{display:flex;gap:2px} .lab .arm i{width:6px;height:3px;background:#AEBFD0;display:block}
-.lab .badge{font-size:8px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;padding:0 3px;border-radius:2px;background:rgba(13,19,25,.85)}
+.lab .arm{display:flex;gap:2px} .lab .arm i{width:calc(6px*var(--ls));height:calc(3px*var(--ls));background:#AEBFD0;display:block}
+.lab .badge{font-size:calc(8px*var(--ls));letter-spacing:.08em;text-transform:uppercase;font-weight:700;padding:0 3px;border-radius:2px;background:rgba(13,19,25,.85)}
 .lab .badge.ow{color:var(--accent)} .lab .badge.mk{color:var(--danger)} .lab .badge.jm{color:var(--aug)} .lab .badge.dr{color:#4FD1C5} .lab .badge.un{color:rgba(228,236,242,.6)} .lab .badge.boss{color:#FF5FA2} .lab .badge.sh{color:#7BE0C8} .lab .badge.br{color:#C96A3A} .lab .badge.sup{color:#D9A441}
-.lab .name{font-size:9px;letter-spacing:.06em;color:rgba(228,236,242,.85);text-shadow:0 1px 2px #000}
-.pct{position:absolute;transform:translate(-50%,0);font-weight:600;font-size:12px;padding:1px 6px;border-radius:3px;background:rgba(13,19,25,.92);color:var(--ink);pointer-events:none;white-space:nowrap;text-align:center;line-height:1.2}
+.lab .name{font-size:calc(9px*var(--ls));letter-spacing:.06em;color:rgba(228,236,242,.85);text-shadow:0 1px 2px #000}
+.pct{position:absolute;transform:translate(-50%,0);font-weight:600;font-size:calc(12px*var(--ls));padding:1px calc(6px*var(--ls));border-radius:3px;background:rgba(13,19,25,.92);color:var(--ink);pointer-events:none;white-space:nowrap;text-align:center;line-height:1.2}
 .pct.hi{color:var(--accent)} .pct.lo{color:var(--danger)}
-.pct small{display:block;font-size:8px;color:var(--danger);letter-spacing:.06em}
-.pct.dim{color:rgba(228,236,242,.4);background:transparent;font-size:10px}
-.shield{position:absolute;width:10px;height:12px;transform:translate(-50%,-50%);pointer-events:none}
-.ftext{position:absolute;transform:translate(-50%,-50%);font-weight:700;font-size:13px;pointer-events:none;text-shadow:0 0 4px #000,0 0 2px #000;animation:floatUp .9s forwards;white-space:nowrap}
-.ftext.big{font-size:20px}
+.pct small{display:block;font-size:calc(8px*var(--ls));color:var(--danger);letter-spacing:.06em}
+.pct.dim{color:rgba(228,236,242,.4);background:transparent;font-size:calc(10px*var(--ls))}
+.shield{position:absolute;width:calc(10px*var(--ls));height:calc(12px*var(--ls));transform:translate(-50%,-50%);pointer-events:none} .shield svg{width:100%;height:100%;display:block}
+.ftext{position:absolute;transform:translate(-50%,-50%);font-weight:700;font-size:calc(13px*var(--ls));pointer-events:none;text-shadow:0 0 4px #000,0 0 2px #000;animation:floatUp .9s forwards;white-space:nowrap}
+.ftext.big{font-size:calc(20px*var(--ls))}
 @keyframes floatUp{0%{opacity:1;margin-top:0}60%{opacity:1}100%{opacity:0;margin-top:-34px}}
 .banner{position:absolute;left:50%;top:14px;transform:translateX(-50%);pointer-events:none;font-family:var(--font-display);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:18px;padding:6px 18px;background:rgba(13,19,25,.88);border:1px solid var(--line);opacity:0;transition:opacity .25s;white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis}
 .banner.show{opacity:1}
@@ -268,6 +273,7 @@ canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;curso
 .field-foot .hint b{color:var(--accent);font-weight:600}
 .field-foot .hint .tip{color:var(--ink)}
 .field-foot .hint .tip i{font-style:normal;color:var(--aug)}
+.field-foot .hint .tap{color:var(--gold-hot);font-family:var(--font-display);font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-left:4px}
 
 .side{display:flex;flex-direction:column;gap:10px}
 .panel{background:var(--panel);border:1px solid var(--line);padding:10px 12px}
@@ -293,7 +299,7 @@ canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;curso
 .ucard .ap{display:flex;gap:3px;justify-content:flex-end}
 .ucard .ap i{display:block;width:8px;height:8px;border-radius:50%;background:var(--accent)}
 .ucard .ap i.off{background:var(--line)}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .actions .abtn.power{grid-column:1/-1;border-left:3px solid var(--accent)}
 .abtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;border:1px solid var(--line);background:var(--panel-2);text-align:left;position:relative;min-height:54px}
 .abtn:hover:not(:disabled){background:#243447;border-color:#3A4E68}
@@ -400,6 +406,75 @@ body{background:var(--ground)}
 /* legibility for text that sits directly on the backdrop */
 .premise,.menu-foot,.section-h h2,.section-h .note,.act,.brief-head,.tagline,.menu .eyebrow{text-shadow:0 1px 10px rgba(7,4,13,.95),0 0 2px rgba(7,4,13,.9)}
 .abtn .k{padding-right:40px}
+
+/* ===================== MOBILE ===================== */
+/* Phones: no page scroll while playing — board on top, HUD fills the rest and scrolls internally if it must. */
+.view{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button,.navbtn,.linkbtn{touch-action:manipulation}
+.deploy-bar{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+@media (pointer:coarse){
+  .navbtn{padding:9px 10px} .linkbtn{padding:6px 0;display:inline-block} .btn.small{padding:9px 14px}
+  .perks .pk,.rc,.mission-card,.arch-card{min-height:44px} .seg button{padding:8px 12px} .sw-row button{width:30px;height:30px}
+}
+@media (max-width:760px){
+  body{padding-inline:10px;padding-block:8px;padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}
+  .app{gap:8px}
+  .topbar{gap:4px 6px;align-items:center;padding-bottom:4px;flex-wrap:nowrap} .brand{font-size:17px} .crumb{display:none}
+  .nav{gap:0;margin-left:auto;flex-wrap:nowrap} .navbtn{font-size:9.5px;letter-spacing:.03em;padding:9px 5px;white-space:nowrap}
+  @media (max-width:360px){ .topbar{flex-wrap:wrap} .nav{margin-left:0;width:100%;justify-content:space-between} .navbtn{font-size:9.5px;padding:8px 4px} }
+  .menu{min-height:min(560px,calc(100dvh - 210px))} .wordmark{font-size:clamp(52px,17vw,96px)} .menu-inner{padding:34px 16px}
+  .premise{font-size:12.5px}
+  .upgrade-choice,.upgrade-choice.three,.perks{grid-template-columns:minmax(0,1fr)}
+  .brief-head h1{font-size:26px} .sheet{padding:14px 14px;max-height:88dvh} .overlay{padding:10px}
+  .result{padding:16px} .result h2{font-size:28px} .result .stats .v{font-size:17px}
+  .intro .i-name{font-size:clamp(18px,6.5vw,30px)} .banner{font-size:13px;letter-spacing:.14em;padding:5px 12px;top:8px}
+  .hint{font-size:12px}
+  /* game screen */
+  body[data-screen="game"]{overflow:hidden;height:100vh;height:100dvh;overscroll-behavior:none}
+  body[data-screen="game"] .app{height:100%;min-height:0}
+  body[data-screen="game"] #screen-game{flex:1;min-height:0;display:flex;flex-direction:column}
+  .game-grid{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;align-items:stretch}
+  .side>*{min-width:0}
+  .field{flex:0 0 auto;padding:4px}
+  .view{overflow:hidden} canvas#gl{margin-top:-6%;margin-bottom:-5%} /* the ortho framing leaves empty sky/floor at top and bottom; crop it on phones */
+  .field-foot{flex-direction:column;gap:2px;padding-top:5px;font-size:11.5px;line-height:1.3}
+  .field-foot .hint{min-height:2.6em;flex:none} .foot-meta{font-size:10.5px;opacity:.85} .foot-meta #mission-label,.foot-meta .sep{display:none}
+  .side{flex:1;min-height:0;overflow-y:auto;gap:6px;-webkit-overflow-scrolling:touch;padding-bottom:env(safe-area-inset-bottom,0px)}
+  .side .panel{padding:8px 10px;flex:0 0 auto}
+  .turnline{flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:2px 10px} .turnline .row{gap:8px} .turnline .t{font-size:13px} .turnline .obj{font-size:11.5px}
+  .side .panel .eyebrow{margin-bottom:4px!important}
+  .squad{flex-direction:row;gap:5px} .ucard{flex:1 1 0;min-width:0;grid-template-columns:22px 1fr;gap:6px;padding:6px 7px;align-content:start}
+  .ucard .glyph{width:20px;height:20px;font-size:11px} .ucard .n{font-size:12px} .ucard .r{display:none} .ucard .st{font-size:9px;margin-left:0}
+  .ucard .hp i{width:5px;height:5px} .ucard .ap{grid-column:1/-1;justify-content:flex-start;margin-top:2px}
+  #sel-panel{order:-1} .side .turnline{order:-2}
+  .sel-title .who{font-size:14px} .passive{font-size:10.5px;margin:-2px 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .actions{gap:5px} .abtn{min-height:40px;padding:7px 8px;justify-content:center} .abtn .d{font-size:10px;line-height:1.2}
+  .actions .abtn:not(.power):not(.perk) .d{display:none}
+  .endturn{margin-top:5px;padding:11px}
+  .side .panel:has(.log){flex:1 1 90px;min-height:90px;display:flex;flex-direction:column}
+  .log{max-height:none;flex:1;min-height:0;font-size:11px}
+}
+/* Phone landscape: board left, HUD right, everything within one viewport height. */
+@media (max-width:1000px) and (max-height:520px) and (orientation:landscape){
+  body{padding-block:4px;padding-inline:max(8px,env(safe-area-inset-left)) max(8px,env(safe-area-inset-right))}
+  .app{gap:4px} .topbar{padding-bottom:2px} .brand{font-size:16px} .navbtn{padding:5px 7px;font-size:10px} .crumb{display:none}
+  body[data-screen="game"]{overflow:hidden;height:100vh;height:100dvh;overscroll-behavior:none}
+  body[data-screen="game"] .app{height:100%;min-height:0}
+  body[data-screen="game"] #screen-game{flex:1;min-height:0;display:flex;flex-direction:column}
+  .game-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,34%);gap:6px;flex:1;min-height:0;align-items:stretch}
+  .field{padding:4px;min-height:0;display:flex;flex-direction:column}
+  .view{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+  .view{overflow:hidden} canvas#gl,canvas#board{width:auto;height:auto;max-width:100%;max-height:100%}
+  canvas#gl{max-height:116%;margin-top:-4.5vh;margin-bottom:-3vh}
+  .field-foot{padding-top:3px;font-size:10.5px;gap:4px} .field-foot .hint{min-height:1.3em}
+  .side{min-height:0;overflow-y:auto;gap:5px}
+  .side .panel{padding:6px 8px;flex:0 0 auto} .turnline .t{font-size:13px} .turnline .obj{font-size:11px}
+  .squad{gap:4px} .ucard{padding:5px 7px;gap:6px} .ucard .n{font-size:12px} .ucard .r{display:none}
+  #sel-panel{order:-1} .side .turnline{order:-2}
+  .actions{gap:4px} .abtn{min-height:44px;padding:6px 8px} .abtn .d{font-size:10px} .endturn{padding:9px}
+  .side .panel:has(.log){flex:1 1 60px;min-height:60px;display:flex;flex-direction:column} .log{max-height:none;flex:1;min-height:0;font-size:10.5px}
+  .intro .i-name{font-size:22px}
+}
 </style>
 
 <canvas id="bg" aria-hidden="true"></canvas>
@@ -498,7 +573,7 @@ body{background:var(--ground)}
         <div class="intro" id="intro" hidden><div class="eyebrow" id="i-act"></div><div class="i-name" id="i-name"></div><div class="i-op" id="i-op"></div><div class="i-sub">Inserting squad…</div></div>
         <div class="field-foot">
           <div class="hint" id="hint">Select a unit.</div>
-          <div><span id="mission-label"></span> · Turn <span class="num" id="turn-num">1</span> · <span id="reinf"></span></div>
+          <div class="foot-meta"><span id="mission-label"></span><span class="sep"> · </span>Turn <span class="num" id="turn-num">1</span> · <span id="reinf"></span></div>
         </div>
       </div>
       <aside class="side">
@@ -585,6 +660,7 @@ body{background:var(--ground)}
       <div class="sheet-h"><h2>How to play</h2><button class="btn small" data-close="modal-help">Close</button></div>
       <div class="help">
         <p><b>Two actions per unit.</b> Moving costs one. A long move (dim tiles) costs both. Firing, Overwatch, and most powers end the unit's turn.</p>
+        <p><b>On a touchscreen,</b> the first tap previews — the path, who it wakes, the hit chance — and a second tap on the same spot confirms. Tapping one of your own mutants selects them straight away.</p>
         <p><b>Read the number.</b> Hover a hostile to see your hit chance. Half cover −20, full cover −40. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
         <p><b>Cover has a side.</b> Shield icons show which direction a unit is protected from. Bright shields protect against the unit you've selected.</p>
         <p><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it.</p>
@@ -1639,8 +1715,16 @@ function renderSide(){
   }
   $('btn-end').disabled=G.phase!=='player'||G.busy; $('btn-end').classList.toggle('pulse',G.phase==='player'&&!G.busy&&alive('player').some(u=>u.side==='player')&&alive('player').every(u=>u.ap<=0||u.ow));
 }
-function select(u){ if(G.phase!=='player'||G.busy) return; if(G.sel!==u){ VO.bark(u,'select',0.35); anim(u,'select'); fxRing(u.x,u.y,'#FFFFFF',0.5); } G.sel=u; G.mode='move'; Audio.select(); renderSide(); setHint(); }
-function setMode(m){ if(!G.sel||G.phase!=='player'||G.busy) return;
+function armHint(u,p,target,hostile){ const again='<span class="tap">Tap again to confirm.</span>';
+  if(G.mode==='move'||G.mode==='shoot'){ if(hostile){ if(!inRange(u,target)) return `<b>No shot</b> — ${target.name} is out of range or line of sight.`; const h=hitChance(u,target); return `<b>Fire</b> at ${target.name} — <b>${h.chance}%</b>${h.flanked?' (flanked)':h.cover===2?' vs full cover':h.cover===1?' vs half cover':''}. ${again}`; }
+    if(target) return tooltip(target); if(G.mode==='shoot') return `<b>Fire</b> — tap a hostile.`;
+    const r=reachable(u,u.move*u.ap); const n=r.get(key(p.x,p.y)); if(!n){ G.armed=null; return `<b>Can't reach</b> that tile.`; }
+    const wake=alive('enemy').filter(e=>!e.alert&&dist(p,e)<=SIGHT+0.01&&hasLOS(p,e)).length;
+    return `<b>Move</b> here — ${n.c<=u.move?'1 action':'dash, both actions'}${wake?`. <i style="color:var(--danger);font-style:normal">${wake} unaware hostile${wake>1?'s':''} will see you.</i>`:'.'} ${again}`; }
+  const ab=u.def.ability; const name=G.mode==='setdown'?'Set down':G.mode.startsWith('perk:')?(PERKS[G.mode.slice(5)]||{}).name||'Perk':(ab&&ab.key===G.mode?ab.name:G.mode);
+  return `<b>${name}</b>${target?` on ${target.name}`:' here'}. ${again}`; }
+function select(u){ G.armed=null; if(G.phase!=='player'||G.busy) return; if(G.sel!==u){ VO.bark(u,'select',0.35); anim(u,'select'); fxRing(u.x,u.y,'#FFFFFF',0.5); } G.sel=u; G.mode='move'; Audio.select(); renderSide(); setHint(); }
+function setMode(m){ G.armed=null; if(!G.sel||G.phase!=='player'||G.busy) return;
   if(m==='stabilize'){ const u=G.sel; const d=downedNear(u)[0]; if(!d||u.ap<=0||d.stabilized) return; d.stabilized=true; u.ap-=1; Audio.heal(d.x); anim(u,'cast',{tx:d.x,ty:d.y}); fxRing(d.x,d.y,'#5CD68A',1); fxText(d.x,d.y,'STABLE','#5CD68A',true); log(`${u.name} stabilizes ${d.name}.`,'good'); say('stabilized',d.name); VO.bark(u,'mend',0.8); afterAction(u); return; }
   if(m==='carry'){ const u=G.sel; const d=downedNear(u)[0]; if(!d||u.ap<=0||u.carrying) return; u.carrying=d; d.carried=true; d.x=u.x; d.y=u.y; u.move=Math.max(1,u.move-1); u.ow=false; u.ap-=1; Audio.thud(u.x); fxRing(u.x,u.y,'#3FC1E3',0.8); log(`${u.name} picks up ${d.name}.`,'sys'); VO.bark(u,'move',0.8); afterAction(u); return; }
   if(m==='overwatch'){ const u=G.sel; if(u.ap<=0||u.ow||u.def.noAttack||u.carrying) return; u.ow=true; u.ap=0; Audio.overwatch(u.x); VO.bark(u,'ow',0.6); fxRing(u.x,u.y,'#F2B33D',0.9); log(`${u.name} goes on overwatch.`,'sys'); afterAction(u); return; }
@@ -1778,6 +1862,9 @@ const R3 = (()=>{
   if(!window.THREE) return null;
   const T3=window.THREE; const gl=$('gl'); const labels=$('labels');
   const renderer=new T3.WebGLRenderer({canvas:gl,antialias:true,alpha:false,powerPreference:'high-performance'}); renderer.setPixelRatio(Math.min(1.75,window.devicePixelRatio||1)); renderer.setSize(gl.width,gl.height,false);
+  // Drawing buffer follows the displayed size (same 1040:700 aspect, so the ortho frustum never changes); labels scale with it.
+  let fitDirty=true; addEventListener('resize',()=>{ fitDirty=true; }); if(window.ResizeObserver) new ResizeObserver(()=>{ fitDirty=true; }).observe($('view'));
+  function fit(){ const w=gl.clientWidth; if(!w) return; fitDirty=false; const dpr=Math.min(w<600?2:1.75,window.devicePixelRatio||1); if(fit.w===w&&fit.dpr===dpr) return; fit.w=w; fit.dpr=dpr; renderer.setPixelRatio(dpr); renderer.setSize(w,Math.round(w*700/1040),false); labels.style.setProperty('--ls',String(w<420?0.6:w<560?0.68:w<760?0.82:1)); }
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=T3.PCFSoftShadowMap; renderer.outputColorSpace=T3.SRGBColorSpace;
   renderer.toneMapping=T3.ACESFilmicToneMapping; renderer.toneMappingExposure=1.42;
   const scene=new T3.Scene(); scene.background=new T3.Color('#0D1319'); scene.fog=new T3.Fog('#0D1319',34,66);
@@ -2116,7 +2203,8 @@ const R3 = (()=>{
   const columnMat=basic({map:TEX.column,color:'#5CD68A',transparent:true,opacity:0.22,side:T3.DoubleSide,depthWrite:false,blending:T3.AdditiveBlending}); const columns=[];
   let frozen=false;
   function render(tReal){
-    if(G.screen!=='game'){ return; }
+    if(G.screen!=='game'){ fitDirty=true; return; }
+    if(fitDirty) fit();
     let t=tReal; if(G.freezeUntil&&tReal<G.freezeUntil){ t=G.freezeT; frozen=true; } else { frozen=false; G.freezeUntil=0; }
     // event light
     if(G.light){ const k=(tReal-G.light.t0)/G.light.dur; if(k>=1){ fxLight.intensity=0; G.light=null; } else { fxLight.position.copy(W(G.light.x,G.light.y,0.8)); fxLight.color.set(G.light.color); fxLight.intensity=Math.min(G.light.intensity,12)*0.22*(1-k); } }
@@ -2220,7 +2308,7 @@ function canvasPos(ev){ if(R3) return R3.pick(ev); const r=canvas.getBoundingCli
 let hoverUnit=null;
 const viewEl=R3?R3.canvas:canvas;
 viewEl.addEventListener('mousemove',ev=>{ G.hover=canvasPos(ev); const hu=G.hover?unitAt(G.hover.x,G.hover.y):null; if(hu!==hoverUnit){ hoverUnit=hu; if(!G.busy) { hu?setHint(tooltip(hu)):setHint(); } } });
-viewEl.addEventListener('mouseleave',()=>{ G.hover=null; hoverUnit=null; if(!G.busy) setHint(); });
+viewEl.addEventListener('mouseleave',()=>{ if(G.touch) return; G.hover=null; hoverUnit=null; if(!G.busy) setHint(); });
 viewEl.addEventListener('contextmenu',ev=>{ ev.preventDefault(); if(G.mode!=='move'){ setMode('move'); } });
 window.addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ for(const id of ['modal-threat','modal-help','modal-confirm','modal-mutant','modal-perk']) if(!$(id).hidden){ $(id).hidden=true; return; } } if(G.screen!=='game') return; if(ev.key==='Escape') setMode('move'); if(ev.key==='Tab'){ ev.preventDefault(); cycle(); } if(ev.key==='Enter'&&!G.busy&&G.phase==='player') endTurn(); if(ev.key==='1') setMode('move'); if(ev.key==='2') setMode('shoot'); if(ev.key==='3'&&G.sel&&G.sel.def.ability) setMode(G.sel.def.ability.key); if(ev.key==='4') setMode('overwatch'); });
 function cycle(){ const ps=alive('player').filter(u=>u.ap>0&&!u.downed); if(!ps.length) return; const i=ps.indexOf(G.sel); select(ps[(i+1)%ps.length]); }
@@ -2230,6 +2318,8 @@ viewEl.addEventListener('click',async ev=>{
   if(target&&target.side==='player'&&!['mend','ward','stim','perk:smoke'].includes(G.mode)){ if(target.def.decoy) return; if(target.downed){ const u0=G.sel; if(u0&&u0.alive&&u0.ap>0&&!u0.downed&&cheb(u0,target)<=1&&!target.stabilized){ setMode('stabilize'); } else setHint(`<b>${target.name}</b> is down${target.stabilized?' but stable':` — bleeding out, ${target.bleed} turn${target.bleed===1?'':'s'}`}. Get adjacent to stabilize or carry; a Mender can revive.`); return; } select(target); return; }
   const u=G.sel; if(!u||!u.alive||u.ap<=0) return;
   const hostile=target&&(target.side==='enemy'||target.side==='obj');
+  // Touch: the first tap previews (path, who wakes, hit %) and the second tap on the same tile commits. Mouse users get hover for free.
+  if(G.touch){ const a=G.armed; const same=a&&a.x===p.x&&a.y===p.y&&a.mode===G.mode&&a.sel===u; if(!same){ G.armed={x:p.x,y:p.y,mode:G.mode,sel:u}; G.hover=p; hoverUnit=target||null; setHint(armHint(u,p,target,hostile)); return; } G.armed=null; }
   if(G.mode==='perk:smoke'){ if(dist(u,p)>6.01){ setHint('<b>Too far</b> — the canister reaches 6 tiles.'); return; } G.perkUsed.add('smoke'); G.smoke=new Set(); Audio.thud(p.x); anim(u,'cast',{tx:p.x,ty:p.y});
     for(let y=p.y-1;y<=p.y+1;y++) for(let x=p.x-1;x<=p.x+1;x++){ if(!inb(x,y)||tile(x,y)===T.WALL) continue; G.smoke.add(key(x,y)); fxPuff(x,y,'#b8c2cc',1.1,2200); fxSmoke(x,y,4); }
     log(`${u.name} pops smoke — anyone inside is −30 to hit until your next turn.`,'good'); G.mode='move'; renderSide(); setHint(); return; }
@@ -2315,6 +2405,7 @@ function afterAction(u){
 }
 $('btn-end').onclick=()=>{ Audio.endTurn(); endTurn(); };
 document.addEventListener('click',ev=>{ const b=ev.target.closest('button'); if(b&&!b.disabled&&!b.classList.contains('ucard')) Audio.ui(); },true);
+document.addEventListener('pointerdown',ev=>{ G.touch=ev.pointerType==='touch'; },{capture:true});
 document.addEventListener('pointerdown',()=>{ Audio.unlock(); if(G.screen!=='game') Audio.music.set('menu',{act:Math.min(2,Math.floor(nextMissionIdx()/5))}); },{once:true});
 
 /* ---------- Turn flow ---------- */

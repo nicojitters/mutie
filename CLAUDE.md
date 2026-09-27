@@ -168,6 +168,25 @@ capture FX by freezing game time (`G.freezeUntil=now()+1e7; G.freezeT=<fx.t0>+of
 - Perf reference (swiftshader, 1240×900): old renderer ~90 ms/frame, this one ~215. Figures ≈120 of that; use `diag2.mjs`
   (ablation variants) before adding cost.
 
+## Mobile (2026-09-27 pass)
+- The file now starts with `<!doctype html>`, charset, **viewport** and theme-color metas. The raw deploy (mutie.lol) had none, so phones
+  rendered a 980px desktop layout scaled down; the artifact host injects its own wrapper, where a doctype inside `<body>` is ignored and a
+  second viewport meta is harmless. `<html>/<head>/<body>` are still deliberately absent.
+- CSS block `/* MOBILE */` at the end of the stylesheet. Phones (`max-width:760px`): `body[data-screen="game"]` is `overflow:hidden;
+  height:100dvh` and `#screen-game`/`.game-grid` become a flex column — board on top (sky cropped with negative margins inside
+  `.view{overflow:hidden}`), HUD below with `.side{overflow-y:auto}`; panel order is turnline → actions → squad (a horizontal strip) → log.
+  Move/Fire/Overwatch drop their description text on phones; the power and perk buttons keep theirs. Landscape phones
+  (`max-height:520px`): board left, HUD right, canvas sized by `max-height`. Every card grid uses `minmax(0,1fr)` — a `<button>` grid item
+  in Chromium reports a huge min-content, and a plain `1fr` let the briefing widen the layout viewport to 443px.
+- Renderer: `fit()` (in `R3`) sets the drawing buffer to the displayed size × dpr (≤1.75, ≤2 on small boards) on resize — same 1040:700
+  aspect, so the ortho frustum is untouched — and writes `--ls` on `#labels`; all board overlays (`.lab`, `.pct`, `.shield`, `.ftext`) size
+  themselves with `calc(Npx*var(--ls))`. Phones render ~360px wide instead of 1040×1.75.
+- Touch: `G.touch` is set from `pointerType` on every pointerdown. On touch, the board click handler arms a tile (`G.armed`) on the first
+  tap — sets `G.hover` so the path/wake preview draws and `armHint()` explains cost/hit% with "Tap again to confirm" — and commits on the
+  second tap of the same tile in the same mode; tapping your own mutant selects immediately. `select()`/`setMode()` clear `G.armed`.
+  Synthetic `mouseleave` after a touch is ignored (it would wipe the preview). `test16.mjs` drives this with Playwright touch emulation
+  (iPhone 13); `shotmobile.mjs` screenshots every screen at iPhone 13 portrait/landscape and SE and reports viewport blow-outs.
+
 ## Audio
 Everything is procedural WebAudio in the `Audio` module: master → sfx / ambient buses; every event sound takes a map
 x and is stereo-placed via `pan(x)`; pitches get ±6% variance. Voices: UI, deploy swell, turn stings, footsteps
@@ -232,7 +251,8 @@ a per-browser convenience, not a save system (Phase 8 still owns real persistenc
 - `window.MUTIE` — debug API used by the test harness.
 
 ## Conventions
-- Keep everything in one file. Inline CSS/JS; no external assets except Google Fonts.
+- Keep everything in one file. Inline CSS/JS; no external assets except Google Fonts. Check phones (`node shotmobile.mjs`) as well as
+  desktop before publishing — anything that can widen the layout viewport (nowrap text, `1fr` grids of buttons) breaks every screen at once.
 - Colors are tokens on `:root`. The look is a single committed dark "field ops" theme on purpose.
 - The artifact host wraps the file in its own `<html>/<head>/<body>`; do not add those tags.
 - Every mechanic that affects a roll must be visible on screen before the player commits.

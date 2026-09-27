@@ -277,6 +277,9 @@ canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;curso
 .pct.hi{color:var(--accent)} .pct.lo{color:var(--danger)}
 .pct small{display:block;font-size:calc(8px*var(--ls));color:var(--danger);letter-spacing:.06em}
 .pct.dim{color:rgba(228,236,242,.4);background:transparent;font-size:calc(10px*var(--ls))}
+.pct.ok{color:var(--heal)} .pct.ok small{color:var(--heal)}
+.pct.exp{border:1px solid rgba(255,107,98,.55);box-shadow:0 0 10px rgba(255,107,98,.35)} .pct.exp small{color:rgba(255,190,186,.9)}
+.pct.exp.ok{border-color:rgba(92,214,138,.5);box-shadow:0 0 10px rgba(92,214,138,.3)}
 .shield{position:absolute;width:calc(10px*var(--ls));height:calc(12px*var(--ls));transform:translate(-50%,-50%);pointer-events:none} .shield svg{width:100%;height:100%;display:block}
 .ftext{position:absolute;transform:translate(-50%,-50%);font-weight:700;font-size:calc(13px*var(--ls));pointer-events:none;text-shadow:0 0 4px #000,0 0 2px #000;animation:floatUp .9s forwards;white-space:nowrap}
 .ftext.big{font-size:calc(20px*var(--ls))}
@@ -289,6 +292,8 @@ canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;curso
 .field-foot .hint b{color:var(--accent);font-weight:600}
 .field-foot .hint .tip{color:var(--ink)}
 .field-foot .hint .tip i{font-style:normal;color:var(--aug)}
+.field-foot .hint .risk{font-style:normal;color:var(--danger)} .field-foot .hint .risk b{color:var(--danger)}
+.field-foot .hint .safe{font-style:normal;color:var(--heal)}
 .field-foot .hint .tap{color:var(--gold-hot);font-family:var(--font-display);font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-left:4px}
 
 .side{display:flex;flex-direction:column;gap:10px}
@@ -711,7 +716,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <p><b>Read the number.</b> Hover a hostile to see your hit chance. Half cover −20, full cover −40. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
         <p><b>Cover has a side.</b> Shield icons show which direction a unit is protected from. Bright shields protect against the unit you've selected.</p>
         <p><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it.</p>
-        <p><b>Hostiles start unaware.</b> They wake in groups when a mutant comes within seven tiles in view, or fires on them. Hover a move tile to see who it would wake. Pick your fights.</p>
+        <p><b>Hostiles start unaware.</b> They wake in groups when a mutant comes within seven tiles in view, or fires on them. Hover a move tile to see who it would wake, and every awake hostile that could hit you there shows its odds against you. Pick your fights, and your tiles.</p>
         <p><b>Don't linger.</b> Reinforcements arrive every turn after the mission's timer.</p>
         <p><b>Campaign.</b> Your roster persists between missions in this browser. Survivors earn XP (2 per mission, 1 per kill) and level up; at level 3 you choose one of two permanent upgrades. A mutant who ends a mission under half health sits out the next one. The dead stay dead — they go on the memorial and a new recruit joins their family. The <b>Graft Index</b> rises after every mission and only sabotage, broadcasts and the Surgeon push it back; at 10 the campaign is lost.</p>
         <p><b>Bleed-out.</b> A mutant at 0 HP goes down instead of dying and bleeds for three of your turns. An ally next to them can <b>stabilize</b> (they survive, out of the fight) or <b>carry</b> them (−1 move, no overwatch). A Mender's power brings them back up. Sprinters and Husks will finish a downed mutant if nothing else is in reach. On evac missions, the downed must be carried to the pad or they are left behind. If everyone standing goes down, the mission is lost.</p>
@@ -1473,6 +1478,16 @@ function hitChance(a,d,opt={}){
   return { chance:clamp(Math.round(c),5,95), cover:cov, flanked:hasCover&&cov===0&&!a.melee, marked:!!d.marked&&!a.melee };
 }
 function inRange(a,d){ return dist(a,d)<=a.range+0.01 && (a.melee?dist(a,d)<1.5:hasLOS(a,d)); }
+/* Exposure: what the awake Coalition could do to `u` if it stood on tile p, from where they stand now. Same math as the roll
+   (hitChance/inRange with a probe at p), so the preview and the enemy turn always agree. Melee units count only if adjacent. */
+function exposureAt(u,p){ const probe=Object.assign({},u,{x:p.x,y:p.y}); const th=[];
+  for(const e of alive('enemy')){ if(!e.alert||e.stunned||e.def.noAttack) continue; if(!inRange(e,probe)) continue; const h=hitChance(e,probe); th.push({e,chance:h.chance,flanked:h.flanked,cover:h.cover}); }
+  th.sort((a,b)=>b.chance-a.chance); return {threats:th,n:th.length,best:th.length?th[0].chance:0,flanked:th.some(t=>t.flanked),cover:adjacentCover(probe).length>0}; }
+function exposureHtml(u,p){ const x=exposureAt(u,p); const awake=alive('enemy').some(e=>e.alert);
+  if(!x.n) return `<i class="safe">${awake?'No awake hostile can hit you there.':'Nothing awake has eyes on it.'}</i>`;
+  return `<i class="risk">${x.n} hostile${x.n>1?'s':''} can hit you there — best <b>${x.best}%</b>${x.flanked?' · <b>FLANKED</b>':x.cover?'':' · <b>NO COVER</b>'}</i>`; }
+function moveHint(u,p,n){ const wake=alive('enemy').filter(e=>!e.alert&&dist(p,e)<=SIGHT+0.01&&hasLOS(p,e)).length;
+  return `<b>Move</b> here — ${n.c<=u.move?'1 action':'dash, both actions'}.${wake?` <i class="risk">${wake} unaware hostile${wake>1?'s':''} will see you.</i>`:''} ${exposureHtml(u,p)}`; }
 const jammers=()=>alive('enemy').filter(e=>e.def.verb==='jam');
 const jammed=u=>u.side==='player'&&jammers().some(z=>cheb(z,u)<=(perk('scrambler')?2:3));
 
@@ -1767,8 +1782,7 @@ function armHint(u,p,target,hostile){ const again='<span class="tap">Tap again t
   if(G.mode==='move'||G.mode==='shoot'){ if(hostile){ if(!inRange(u,target)) return `<b>No shot</b> — ${target.name} is out of range or line of sight.`; const h=hitChance(u,target); return `<b>Fire</b> at ${target.name} — <b>${h.chance}%</b>${h.flanked?' (flanked)':h.cover===2?' vs full cover':h.cover===1?' vs half cover':''}. ${again}`; }
     if(target) return tooltip(target); if(G.mode==='shoot') return `<b>Fire</b> — tap a hostile.`;
     const r=reachable(u,u.move*u.ap); const n=r.get(key(p.x,p.y)); if(!n){ G.armed=null; return `<b>Can't reach</b> that tile.`; }
-    const wake=alive('enemy').filter(e=>!e.alert&&dist(p,e)<=SIGHT+0.01&&hasLOS(p,e)).length;
-    return `<b>Move</b> here — ${n.c<=u.move?'1 action':'dash, both actions'}${wake?`. <i style="color:var(--danger);font-style:normal">${wake} unaware hostile${wake>1?'s':''} will see you.</i>`:'.'} ${again}`; }
+    return `${moveHint(u,p,n)} ${again}`; }
   const ab=u.def.ability; const name=G.mode==='setdown'?'Set down':G.mode.startsWith('perk:')?(PERKS[G.mode.slice(5)]||{}).name||'Perk':(ab&&ab.key===G.mode?ab.name:G.mode);
   return `<b>${name}</b>${target?` on ${target.name}`:' here'}. ${again}`; }
 /* ---------- POV: over-the-shoulder targeting ----------
@@ -1850,7 +1864,7 @@ function setHint(t){
     if(pv.kind==='ally'){ h.innerHTML=`<b>${u.def.ability.name}</b> on <b>${nm}</b>${it.ok?'':' — not valid right now'}.${nav} <b>Move</b> pulls back to the map.`; return; }
     if(TARGETED[m]==='enemy'){ h.innerHTML=`<b>${u.def.ability.name}</b> → <b>${nm}</b>${it.ok?'':' — out of reach'}.${nav}`; return; }
     h.innerHTML=it.ok?`<b>${nm}</b> — <b>${it.h.chance}%</b>${it.h.flanked?' flanked':it.h.cover===2?' vs full cover':it.h.cover===1?' vs half cover':''}, ${u.dmg[0]}–${u.dmg[1]} dmg.${t.side==='enemy'&&!t.alert?' Firing wakes their pod.':''}${nav} <b>Move</b> pulls back to the map.`:`<b>${nm}</b> — no shot from here.${nav} <b>Move</b> to reposition.`; return; }
-  if(m==='move') h.innerHTML=`<b>Move</b> — click a highlighted tile. Bright = 1 action, dim = dash (both actions).`;
+  if(m==='move'){ const p=G.hover; if(p&&!unitAt(p.x,p.y)){ const n=reachable(u,u.move*u.ap).get(key(p.x,p.y)); if(n){ h.innerHTML=moveHint(u,p,n); return; } } h.innerHTML=`<b>Move</b> — click a highlighted tile. Bright = 1 action, dim = dash (both actions). Hover a tile to see who could hit you there.`; }
   else if(m==='shoot') h.innerHTML=`<b>Fire</b> — click a hostile or a relay. Hover to see hit chance.`;
   else if(m==='blast') h.innerHTML=`<b>Pulse Blast</b> — click a target tile within 5. Hits everything in the 3×3, allies included. Wrecks crates.`;
   else if(m==='smash') h.innerHTML=`<b>Seismic Smash</b> — click an adjacent hostile.`;
@@ -2356,6 +2370,10 @@ const R3 = (()=>{
     for(const l of labPool.values()) l.used=false; for(const l of pctPool.values()) l.used=false; shieldUsed=0;
     { const live=new Set(G.units.map(u=>u.id)); for(const [id,g] of units){ if(!live.has(id)){ unitGroup.remove(g); units.delete(id); } } for(const [id,d] of dying){ if(!live.has(id)){ unitGroup.remove(d.g); dying.delete(id); } } }
     const sel=G.sel, playerPhase=G.phase==='player'&&!G.busy&&!G.over;
+    // move preview: reachable set once per frame, and the exposure of the hovered tile (drives the enemy labels below)
+    const moveR=(sel&&sel.alive&&playerPhase&&sel.ap>0&&G.mode==='move')?reachable(sel,sel.move*sel.ap):null;
+    const expo=(moveR&&G.hover&&!unitAt(G.hover.x,G.hover.y)&&moveR.has(key(G.hover.x,G.hover.y)))?exposureAt(sel,G.hover):null;
+    const expoBy=expo?new Map(expo.threats.map(t=>[t.e.id,t])):null;
     for(const u of G.units){
       let g=units.get(u.id);
       if(!u.alive){ if(g&&!dying.has(u.id)){ dying.set(u.id,{g,t0:t}); units.delete(u.id); } continue; }
@@ -2389,7 +2407,8 @@ const R3 = (()=>{
       // hit chance labels
       if((u.side==='enemy'||u.side==='obj')&&sel&&sel.alive&&playerPhase&&sel.ap>0&&!sel.def.noAttack&&(G.mode==='move'||G.mode==='shoot')){
         const pl=pctFor(u.id); const pp=project(g.position.x+COLS/2-0.5,g.position.z+ROWS/2-0.5,-0.05);
-        if(inRange(sel,u)){ const h=hitChance(sel,u); const html2=`${h.chance}%${h.flanked?'<small>FLANKED</small>':''}`; pl.el.className='pct '+(h.chance>=65?'hi':h.chance>=40?'':'lo'); if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } }
+        if(expoBy){ const th=expoBy.get(u.id); if(th){ const html2=`${th.chance}%<small>${th.flanked?'FLANKS YOU':'AT YOU'}</small>`; pl.el.className='pct lo exp'; if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } } else pl.used=false; }
+        else if(inRange(sel,u)){ const h=hitChance(sel,u); const html2=`${h.chance}%${h.flanked?'<small>FLANKED</small>':''}`; pl.el.className='pct '+(h.chance>=65?'hi':h.chance>=40?'':'lo'); if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } }
         else if(G.mode==='shoot'){ const html2=dist(sel,u)>sel.range?'RANGE':'NO LOS'; pl.el.className='pct dim'; if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } } else { pl.used=false; }
         if(pl.used){ pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; } }
     }
@@ -2410,7 +2429,11 @@ const R3 = (()=>{
       jamPlanes.forEach((jp,i)=>{ const z=zs[i]; jp.visible=!!z; if(z){ jp.material.opacity=0.16+0.04*Math.sin(t/300); jp.rotation.z=t/6000; jp.position.copy(W(z.x,z.y,0.02)); } }); }
     if(G.smoke){ for(const k of G.smoke){ const [sx,sy]=k.split(',').map(Number); put(sx,sy,'#8f9aa6',0); } }
     if(sel&&sel.alive&&playerPhase&&sel.ap>0){
-      if(G.mode==='move'){ const r=reachable(sel,sel.move*sel.ap); for(const nd_ of r.values()) put(nd_.x,nd_.y,nd_.c<=sel.move?'#3FC1E3':'#1E5F70',0);
+      if(G.mode==='move'){ const r=moveR||reachable(sel,sel.move*sel.ap); for(const nd_ of r.values()) put(nd_.x,nd_.y,nd_.c<=sel.move?'#3FC1E3':'#1E5F70',0);
+        if(expo){ // exposure summary floats over the hovered tile; the tile itself tints by verdict
+          put(G.hover.x,G.hover.y,expo.n?(expo.flanked||!expo.cover?'#FF6B62':'#E0A040'):'#5CD68A',2);
+          const pl=pctFor('exptile'); const pp=project(G.hover.x,G.hover.y+0.5,0.02); const html2=expo.n?`${expo.n} CAN HIT<small>${expo.flanked?'FLANKED · ':expo.cover?'':'NO COVER · '}best ${expo.best}%</small>`:`SAFE<small>${expo.cover?'in cover':'no one has eyes'}</small>`;
+          pl.el.className='pct exp '+(expo.n?'lo':'ok'); if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; }
         if(G.hover&&r.has(key(G.hover.x,G.hover.y))){ const pth=pathTo(r,G.hover.x,G.hover.y); let prev=W(sel.x,sel.y,0.06); for(const s of pth){ const nx=W(s.x,s.y,0.06); const segLen=prev.distanceTo(nx); const steps=Math.max(1,Math.round(segLen/0.34)); for(let i=1;i<=steps&&nd<96;i++){ const pt=prev.clone().lerp(nx,i/steps); m4.compose(pt,q,dsc); pathDots.setMatrixAt(nd,m4); nd++; } prev=nx; }
           for(const e of alive('enemy')){ if(!e.alert&&dist(G.hover,e)<=SIGHT+0.01&&hasLOS(G.hover,e)){ const pl=pctFor('wake'+e.id); const pp=project(e.x,e.y,1.6); pl.el.className='pct lo'; if(pl.html!=='WILL SEE YOU'){ pl.el.innerHTML='WILL SEE YOU'; pl.html='WILL SEE YOU'; } pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; } } } }
       else if(G.mode==='blast'||G.mode==='blink'){ const R=sel.def.ability.range; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ if(dist(sel,{x,y})<=R+0.01&&(G.mode==='blast'||(!solid(x,y)&&!unitAt(x,y)))) put(x,y,G.mode==='blast'?'#8a6a2a':'#6a4fa0',0); }
@@ -2444,7 +2467,8 @@ const R3 = (()=>{
 function canvasPos(ev){ if(R3) return R3.pick(ev); const r=canvas.getBoundingClientRect(); const sx=canvas.width/r.width, sy=canvas.height/r.height; const x=Math.floor((ev.clientX-r.left)*sx/TILE), y=Math.floor((ev.clientY-r.top)*sy/TILE); return inb(x,y)?{x,y}:null; }
 let hoverUnit=null;
 const viewEl=R3?R3.canvas:canvas;
-viewEl.addEventListener('mousemove',ev=>{ G.hover=canvasPos(ev); const hu=G.hover?unitAt(G.hover.x,G.hover.y):null; if(hu!==hoverUnit){ hoverUnit=hu; if(!G.busy) { hu?setHint(tooltip(hu)):setHint(); } } });
+viewEl.addEventListener('mousemove',ev=>{ const prev=G.hover; G.hover=canvasPos(ev); const hu=G.hover?unitAt(G.hover.x,G.hover.y):null; const movedTile=!prev!==!G.hover||(prev&&G.hover&&(prev.x!==G.hover.x||prev.y!==G.hover.y));
+  if(hu!==hoverUnit){ hoverUnit=hu; if(!G.busy) { hu?setHint(tooltip(hu)):setHint(); } } else if(movedTile&&!hu&&!G.busy&&G.mode==='move'&&G.screen==='game'&&G.phase==='player') setHint(); });
 viewEl.addEventListener('mouseleave',()=>{ if(G.touch) return; G.hover=null; hoverUnit=null; if(!G.busy) setHint(); });
 viewEl.addEventListener('contextmenu',ev=>{ ev.preventDefault(); if(G.mode!=='move'){ setMode('move'); } });
 window.addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ for(const id of ['modal-threat','modal-help','modal-confirm','modal-mutant','modal-perk']) if(!$(id).hidden){ $(id).hidden=true; return; } } if(G.screen!=='game') return; if(ev.key==='Escape') setMode('move'); if(ev.key==='Tab'){ ev.preventDefault(); cycle(); } if(ev.key==='Enter'&&!G.busy&&G.phase==='player') endTurn(); if(ev.key==='ArrowRight'||ev.key==='e'||ev.key==='E'){ povCycle(1); } if(ev.key==='ArrowLeft'||ev.key==='q'||ev.key==='Q'){ povCycle(-1); } if(ev.key==='v'||ev.key==='V') toggleView(); if(ev.key===' '&&G.povView==='pov'){ ev.preventDefault(); povGo(); } if(ev.key==='1') setMode('move'); if(ev.key==='2') setMode('shoot'); if(ev.key==='3'&&G.sel&&G.sel.def.ability) setMode(G.sel.def.ability.key); if(ev.key==='4') setMode('overwatch'); });
@@ -2779,6 +2803,9 @@ function draw(){
       if(h.flanked){ ctx.fillStyle='#FF6B62'; ctx.font='700 9px "Chakra Petch",sans-serif'; ctx.fillText('FLANKED',cx,ly+22); } }
     else if(G.mode==='shoot'){ ctx.fillStyle='rgba(228,236,242,0.35)'; ctx.font='600 10px "Chakra Petch",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(dist(sel,u)>sel.range?'RANGE':'NO LOS',cx,cy+26); }
   }
+  if(sel&&sel.alive&&playerPhase&&sel.ap>0&&G.mode==='move'&&G.hover&&!unitAt(G.hover.x,G.hover.y)&&reachable(sel,sel.move*sel.ap).has(key(G.hover.x,G.hover.y))){ const x=exposureAt(sel,G.hover); const cx=G.hover.x*TILE+TILE/2, cy=G.hover.y*TILE+TILE/2;
+    for(const th of x.threats){ const ex=th.e.x*TILE+TILE/2, ey=th.e.y*TILE+TILE/2; ctx.strokeStyle='rgba(255,107,98,0.35)'; ctx.lineWidth=1; ctx.setLineDash([2,4]); ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(cx,cy); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle='#FF6B62'; ctx.font='700 9px "Chakra Petch",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(`${th.chance}% AT YOU`,ex,ey+30); }
+    const label=x.n?`${x.n} CAN HIT · ${x.best}%${x.flanked?' · FLANKED':x.cover?'':' · NO COVER'}`:'SAFE'; ctx.font='600 10px "Chakra Petch",sans-serif'; const w=ctx.measureText(label).width+10; ctx.fillStyle='rgba(13,19,25,0.92)'; rr(cx-w/2,cy-30,w,15,3); ctx.fill(); ctx.fillStyle=x.n?'#FF6B62':'#5CD68A'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,cx,cy-22); }
   if(sel&&sel.alive&&playerPhase&&G.mode==='move'&&G.hover&&alive('enemy').some(e=>!e.alert)){ const r=reachable(sel,sel.move*sel.ap); if(r.has(key(G.hover.x,G.hover.y))){ const wake=alive('enemy').filter(e=>!e.alert&&dist(G.hover,e)<=SIGHT+0.01&&hasLOS(G.hover,e)); for(const e of wake){ ctx.strokeStyle='rgba(224,82,75,0.7)'; ctx.lineWidth=2; ctx.setLineDash([3,3]); ctx.strokeRect(e.x*TILE+2,e.y*TILE+2,TILE-4,TILE-4); ctx.setLineDash([]); ctx.fillStyle='#E0524B'; ctx.font='700 8px "Chakra Petch",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('WILL SEE YOU',e.x*TILE+TILE/2,e.y*TILE+6); } } }
   if(G.hover&&playerPhase){ ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=1; ctx.strokeRect(G.hover.x*TILE+1.5,G.hover.y*TILE+1.5,TILE-3,TILE-3); }
   G.fx=G.fx.filter(f=>t-f.t0<f.d);
@@ -2798,5 +2825,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
+window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

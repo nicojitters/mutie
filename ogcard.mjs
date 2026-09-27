@@ -37,7 +37,7 @@ h1{margin:0;font-family:"Chakra Petch";font-weight:700;font-size:168px;line-heig
 .chip{font-family:"Chakra Petch";font-weight:700;font-size:15px;letter-spacing:.14em;text-transform:uppercase;padding:9px 14px;border:1px solid rgba(138,77,255,.55);background:rgba(13,7,24,.78);color:#C9A8FF;backdrop-filter:blur(6px)}
 </style></head><body>
 <div class="bg"></div><div class="veil"></div><div class="glow"></div><div class="glow2"></div>
-<div class="wrap"><div class="eyebrow">Field operations · Program Graft</div><h1>MUTIE</h1><div class="tag">Outgunned. Not outplayed.</div>
+<div class="wrap"><div class="eyebrow">Field operations · Program Graft</div><h1>MUTIE</h1><div class="tag">Feared and hunted, the fight for survival starts with 3</div>
 <div class="sub">Turn-based mutant tactics in your browser. Cover, flanking and clashing powers — <b>every shot shows its odds</b> before you commit.</div></div>
 <div class="url">Play free at <b>mutie.lol</b></div>
 <div class="chips"><span class="chip">10-mission campaign</span><span class="chip">Phone &amp; desktop</span><span class="chip">No install</span></div>

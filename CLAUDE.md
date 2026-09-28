@@ -409,6 +409,28 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   clears with `exposed`), `killUnit` leech. Marks from the Ganglion count as setups (`SETUP_WORDS.mark`). `test33.mjs` covers harvest,
   fitting/moving, and every hook. Old saves migrate (`CAMP.grafts=[]`).
 
+## Enemy design pass (2026-09-27, Cameron's brief: enemies that break the default plan, AI that punishes waiting, mix over count)
+- **Grenadier** (`ENEMY.g`, `ai:'grenadier'`, `verb:'salvo'`, aug "ordnance arm", heavy gun model/sound). `salvoTarget(e)` picks the 3×3
+  within range 7 (no LOS) holding the most standing mutants — **minimum two**, never on a hostile — and `plantSalvo(e)` pushes
+  `{x,y,by,turn}` onto `G.salvos` (INCOMING float, Control line `salvo`). `resolveSalvos()` runs at the top of the Coalition phase
+  (after `checkContact`, before activations): `SALVO_DMG=3` to every non-captive, non-downed unit in the area, no roll, armor applies,
+  crates wrecked; cancelled with a log line if `by` is dead. One painted salvo per Grenadier at a time; with no pair to hit it falls
+  back to its pistol. Board: the 3×3 pulses red (`put(...,3)`) with a `pctFor('salvo'+i)` label (INCOMING / CANCELLED), the 2D
+  fallback draws a dashed box; `inSalvo(p)` feeds a warning into `moveHint` and the Blink hint; the player-turn banner names who is
+  standing in the red. Placed in M4 (`proving`), M6 (`harvest`), M8 (`clinic`) maps, the M5/M7 reinforcement lists and side-op tier 1–2
+  pools (cost 2).
+- **Husk → `ai:'flanker'`**: score = hit chance ×1.2 + 45 if the shot is flanked, own cover ×2 only, distance ×2. It blinks behind you.
+- **Marksman → lane**: with no shot it always takes overwatch (`lane`, cover or not) and its reaction fire has no −15 (`steadied` in
+  the breakdown, `hitChance`). It is exempt from the pressure rule below.
+- **Pressure (anti-turtle)**: `e.idle` counts consecutive activations without a shot (reset on shoot/plant). In the tile scoring,
+  `idle≥1` on a `PRESSURE` archetype adds +40 (+10/idle) for any shot and strips most of the own-cover weight; the no-shot overwatch
+  branch is allowed only while `e.idle≤1` (log says "it will come for you next turn"); after that the unit advances by **path
+  distance** (`distMap(target,self)` BFS — Euclidean advance used to press against walls) and at `idle≥2` it dashes (both actions,
+  log "done waiting", Control line `pressure` once). Bulwarks, Sprinters (rusher) and the Marksman keep their own behaviour.
+- Sims (naive bot, after the pass): M1 8/8 · M2 6/8 · M3 5/6 · M4 0/4 in 4.8 turns (the previous build also wiped M4, in 7 — the
+  bot clusters and wakes every pod; the "22-turn slog" note below is stale). `test34.mjs` covers paint → land → cancel, the flanker,
+  the lane and the pressure sequence (hold one turn → dash through the gap → shoot).
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with
@@ -452,14 +474,14 @@ a per-browser convenience, not a save system (Phase 8 still owns real persistenc
   `shield` (absorbs), `brace` (full cover for allies + armor), `suppressed` (−25 aim, no reaction fire, cleared at
   your next turn), `taunt` (enemy must target that unit), decoy units (`def.decoy`, excluded from evac/squad counts).
   Passive keys read in code: overcharge (Blast kill refunds a charge), hotshot, steady, dense, anchor, regen, slippery, momentum, aegis, fieldmedic, triage.
-- `ENEMY` — Trooper, Marksman, Sprinter, Juggernaut (stat roles) + verb enemies: Spotter `mark`, Bulwark `wall`,
-  Jammer `jam`, Siphon `drain` (−1 action next turn), Husk `phase` (teleport move, ignores overwatch), The Surgeon
+- `ENEMY` — Trooper, Sprinter, Juggernaut (stat roles), Marksman (overwatch lane) + verb enemies: Spotter `mark`, Bulwark `wall`,
+  Jammer `jam`, Siphon `drain` (−1 action next turn), Husk `phase` (teleport move, ignores overwatch, flanks), Grenadier `salvo`, The Surgeon
   `command` (boss: +1 armor aura, grafts up to 3 Husks from 2 turns after she wakes). `aug` tags drive the threat file.
 - `VIP` — the unarmed captive (Wren) for Rescue missions; side flips `captive` → `player` when freed.
 - Relays are units with `side:'obj'` (100% hit, block movement, not LOS).
 - `MISSIONS` — hand-built maps as string arrays. Legend: `.` floor, `#` wall, `=` half cover, `O` full cover,
   `P` player spawn, `E` evac tile, `C` hold console, `X` relay/vat (`objLabel`), `V` captive (`captiveNames`),
-  enemies `t m p j o w z q h S`. Fields: `objective`, `reinforceAt` (>50 = none), `reinforce[]`, `evacAt`,
+  enemies `t m p j o w z q h g S`. Fields: `objective`, `reinforceAt` (>50 = none), `reinforce[]`, `evacAt`,
   `deadline`, `holdTurns`, `evacAfterHold`, `act`, `intro`, `debrief`, `brief`.
 - `hasLOS` (Bulwark units block like pillars), `adjacentCover` (friendly Bulwarks count as full cover),
   `coverAgainst`, `protects`, `hitChance` (marks +20, reaction −15, Phaser −20 more), `inRange`, `jammed` — the combat math. Change these carefully;

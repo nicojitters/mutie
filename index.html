@@ -761,6 +761,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <p><b>Cover has a side.</b> Shield icons show which direction a unit is protected from. Bright shields protect against the unit you've selected.</p>
         <p><b>Combos.</b> Set a hostile up and let a different mutant finish it: <b>Exposed</b> (thrown out of cover by a Concussive Burst, or its crate wrecked by a Blast or a drum) means no cover against anyone until your next turn; <b>Shredded</b> means Smash or Blast stripped armor for good; <b>Stunned</b> hostiles are +30 to hit. Smash or Phase Strike on a stunned or exposed target is an <b>Execute</b> (+2). Pins and taunts count as setups too. A finish by someone other than the setter is a COMBO — +1 XP to both.</p>
 <p><b>Each family sees the board its own way.</b> A Blaster hovering a Blast tile reads what it would do (hits · kills · wrecks · exposes). A Phaser in Blink sees gold tiles — the ones that flank their target. A Mender's ally strip shows who is in danger right now and what the power leaves them at. A Bruiser's Smash card says when it shreds armor or executes.</p>
+<p><b>The Coalition does not wait.</b> An awake hostile with no shot holds an overwatch lane for one turn, then it comes for you — through the gap, around the wall — and after two dry turns it dashes. Marksmen are the exception: they hold their lane, and their reaction fire has no penalty. Husks blink to your flank. A Grenadier paints a 3×3 on any two of you standing together (no line of sight needed); it lands at the start of the next Coalition turn unless the Grenadier is dead by then. Spread out.</p>
 <p><b>Grafts.</b> Every Coalition augment was grown from mutant tissue. Win a mission after killing a new kind of unit and its graft comes home; fit it to one mutant from their sheet at base (one per mutant — moving it is the choice). Ten to recover, from Ceramic Weave to the Surgeon's Hand.</p>
         <p><b>Fuel drums</b> (the ones with the hazard band) are full cover for anyone — until someone shoots one. Any hit sets it off: 4 damage to everything beside it, armor ignored, crates wrecked, neighbouring drums chain. Bait a pod behind one, or don't stand next to one yourself.</p>
         <p><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it. <b>Hunker</b> is the other way to spend a turn you can't shoot well: −20 to be hit and no crits against you until your next turn. A 30% shot, overwatch, hunker, or a move — all four are real answers.</p>
@@ -901,7 +902,7 @@ function genMission(seed,tier,objective){
   // guarantee a crate near the spawn block
   { let near=false; for(let y=sy-1;y<=sy+3;y++) for(let x=2;x<=4;x++) if(at(x,y)==='=') near=true; if(!near){ for(let t=0;t<30&&!near;t++){ const x=ri(3,4), y=ri(sy-1,sy+3); if(at(x,y)==='.'){ set(x,y,'='); near=true; } } } }
   // enemies as pods on the right half
-  const pools=[['t','t','m','o'],['t','m','o','p','q','w'],['t','m','o','p','q','w','z','h','j']]; const cost={t:1,m:1,o:1,p:1,q:2,w:2,z:2,h:2,j:2};
+  const pools=[['t','t','m','o'],['t','m','o','p','q','w','g'],['t','m','o','p','q','w','z','h','j','g']]; const cost={t:1,m:1,o:1,p:1,q:2,w:2,z:2,h:2,j:2,g:2};
   let budget=4+tier*2+ri(0,1); const pool=pools[Math.min(2,tier)]; const roster=[]; let guard=0; while(budget>0&&guard++<50){ const c=pick(pool); if(cost[c]<=budget){ roster.push(c); budget-=cost[c]; } }
   if(!roster.includes('t')) roster.push('t');
   const podCount=Math.min(3,Math.max(2,Math.round(roster.length/2.5))); const pods=Array.from({length:podCount},()=>[]); roster.forEach((c,i)=>pods[i%podCount].push(c));
@@ -932,7 +933,7 @@ const ENEMY = {
   t:{ id:'trooper',    name:'Trooper',    hp:6,  aim:55, move:4, dmg:[2,3], range:7, armor:0, glyph:'t', color:'#E0524B', shape:'circle',  ai:'grunt',
       desc:'Standard infantry. Unmodified — for now.' },
   m:{ id:'marksman',   name:'Marksman',   hp:5,  aim:72, move:3, dmg:[2,4], range:9, armor:0, glyph:'m', color:'#F07A72', shape:'diamond', ai:'sniper', aug:'ocular',
-      desc:'Ocular augment. Long reach, keeps its distance. Break its line of sight.' },
+      desc:'Ocular augment. Long reach, keeps its distance, and never wastes a turn: with no shot it holds a lane on overwatch, and its reaction fire has no aim penalty. The red shading is the lane. Break its line of sight or cross it with a Blink.' },
   p:{ id:'sprinter',   name:'Sprinter',   hp:7,  aim:70, move:6, dmg:[2,3], range:1, armor:0, glyph:'p', color:'#C93A44', shape:'tri',     ai:'rusher', melee:true, aug:'legs',
       desc:'Leg augments. Closes 6 tiles and strikes. Overwatch is made for this.' },
   j:{ id:'juggernaut', name:'Juggernaut', hp:12, aim:55, move:3, dmg:[3,4], range:5, armor:1, glyph:'j', color:'#A33B3B', shape:'square',  ai:'brute', aug:'plating',
@@ -945,8 +946,10 @@ const ENEMY = {
       desc:'Neural dampener. Mutant powers within 3 tiles are disabled. Kill it first.', verb:'jam' },
   q:{ id:'siphon',     name:'Siphon',     hp:8,  aim:60, move:5, dmg:[1,2], range:4, armor:1, glyph:'q', color:'#4FD1C5', shape:'drop',    ai:'stalker', aug:'grafted siphon',
       desc:'Grafted siphon. Every hit it lands drains one of the target’s actions next turn. Kill it before it touches you; Mend restores.', verb:'drain' },
-  h:{ id:'husk',       name:'Husk',       hp:8,  aim:60, move:4, dmg:[2,3], range:6, armor:0, glyph:'h', color:'#9BE7FF', shape:'spark',   ai:'grunt', aug:'grafted tissue',
-      desc:'Grown from harvested mutant tissue. Blinks instead of walking: ignores paths, cover lines and overwatch. Your own tool, turned on you. Kill it fast.', verb:'phase' },
+  h:{ id:'husk',       name:'Husk',       hp:8,  aim:60, move:4, dmg:[2,3], range:6, armor:0, glyph:'h', color:'#9BE7FF', shape:'spark',   ai:'flanker', aug:'grafted tissue',
+      desc:'Grown from harvested mutant tissue. Blinks 4 tiles instead of walking — through walls, past overwatch — and takes your flank. It does not care about its own cover. Kill it fast.', verb:'phase' },
+  g:{ id:'grenadier',  name:'Grenadier',  hp:7,  aim:50, move:3, dmg:[1,2], range:7, armor:0, glyph:'g', color:'#FF8C3A', shape:'square',  ai:'grenadier', aug:'ordnance arm',
+      desc:'Ordnance arm, grown from Blaster tissue. Paints a 3×3 target on any two or more mutants standing together within 7 — no line of sight needed. The salvo lands at the start of the next Coalition turn: 3 damage to everything inside, ignores cover, wrecks crates. Spread out, or kill it before it lands.', verb:'salvo' },
   S:{ id:'surgeon',    name:'The Surgeon',hp:18, aim:65, move:3, dmg:[3,4], range:6, armor:2, glyph:'S', color:'#FF5FA2', shape:'crown',   ai:'brute', aug:'everything',
       desc:'Colonel Voss, in a body she built herself. Armor 2. Hostiles beside her gain +1 armor. From turn 3 she grafts a new Husk onto the field each turn, up to three.', verb:'command', boss:true },
 };
@@ -969,6 +972,8 @@ const LINES={
   shippedAll:['Transport is gone and we got no one. Pull back.'],
   hold:['Signal is holding. Keep a body on that console.'],
   holdDone:['Transmission complete. Every screen they own just saw it.'],
+  salvo:['Ordnance arm. That is a Blaster\'s tissue in that thing. Spread out — it lands next turn.','Salvo painted. Nobody stands in the red. Or kill the arm before it fires.'],
+  pressure:['They\'re done waiting. Here they come.','They know where you are and they\'re tired of it. Pick your ground.'],
   summon:['She just grew another one. Do not let this become a war of attrition — go for her.'],
   downed:['{n} is down but breathing. Three turns. Get someone to them or lose them.','{n} is bleeding out. Stabilize or carry — decide now.'],
   stabilized:['{n} is stable. Out of the fight, but coming home.'],
@@ -1052,7 +1057,7 @@ const MISSIONS = [
       '.P....=.....#...',
       '.P..O.....=.#.t.',
       '.P....=.....#...',
-      '......###.....m.',
+      '......###....gm.',
       '..=.......w.j...',
       '.....O....o.....',
       '..=...###..=....',
@@ -1060,7 +1065,7 @@ const MISSIONS = [
       '......=.....#.z.',
       '................',
     ]},
-  { id:'exfil', act:0, name:'Black Site Exfil', objective:'extract', reinforceAt:4, reinforce:['t','p','t','q'], evacAt:5,
+  { id:'exfil', act:0, name:'Black Site Exfil', objective:'extract', reinforceAt:4, reinforce:['t','g','p','q'], evacAt:5,
     desc:'You have the augmentation files. The pad on the far side opens on turn 5 and the Coalition lands beside it every turn from 4. Kills are optional. Leaving is not.',
     enemies:'1 Trooper · 1 Marksman · 1 Sprinter · 1 Spotter · 1 Siphon', brief:'Survive until the evac pad opens, then get everyone onto it.',
     intro:'You have the files. Every alarm on the site is live. Do not fight for ground you are about to leave.',
@@ -1091,13 +1096,13 @@ const MISSIONS = [
       '.P....=.....#...',
       '......###....q..',
       '..=.......=..o..',
-      '.........O...m..',
+      '.........O...mg.',
       '.=....=......#..',
       '..O.........t#V.',
       '......=.....#...',
       '.....p..........',
     ]},
-  { id:'openair', act:1, name:'Open Air', objective:'hold', reinforceAt:4, reinforce:['t','h','p'], holdTurns:3,
+  { id:'openair', act:1, name:'Open Air', objective:'hold', reinforceAt:4, reinforce:['g','h','p'], holdTurns:3,
     desc:'A Coalition broadcast console in a walled booth. Stand on it three turns to push the Graft files to every screen in the city. The first Husks answer the alarm.',
     enemies:'2 Troopers · 1 Marksman · 1 Spotter · 1 Husk', brief:'Hold the console for 3 turns (end 3 of your turns with a mutant standing on it).',
     intro:'The console is in the booth at the top of the plaza. Every turn you end on it, the files go out a little further. They will send everything they have.',
@@ -1130,7 +1135,7 @@ const MISSIONS = [
       '..=.....=.......',
       '....###.....w.h.',
       '..........z.....',
-      '.....=....X...m.',
+      '.....=....X..gm.',
       '................',
     ]},
   /* ---------- ACT III — THE SURGEON ---------- */
@@ -1567,7 +1572,7 @@ function hitChance(a,d,opt={}){
   c-= cov===2?40:cov===1?20:0; if(cov) parts.push([cov===2?'full cover':'half cover',cov===2?-40:-20]); if(d.exposed&&!a.melee) parts.push(['exposed',null]);
   if(d.stunned){ c+=30; parts.push(['stunned',30]); }
   if(d.marked&&!a.melee){ c+=20; parts.push(['marked',20]); }
-  if(opt.reaction){ if(a.def.passiveKey!=='steady'&&!(a.side==='player'&&perk('steady'))){ c-=15; parts.push(['reaction',-15]); } if(d.def.passiveKey==='slippery'){ c-=20; parts.push(['slippery',-20]); } }
+  if(opt.reaction){ if(a.def.id==='marksman') parts.push(['steadied',null]); else if(a.def.passiveKey!=='steady'&&!(a.side==='player'&&perk('steady'))){ c-=15; parts.push(['reaction',-15]); } if(d.def.passiveKey==='slippery'){ c-=20; parts.push(['slippery',-20]); } }
   if(d.hunker){ c-=20; parts.push(['hunkered',-20]); }
   if(a.side==='enemy'&&d.side==='player'&&G.smoke&&G.smoke.has(key(d.x,d.y))){ c-=30; parts.push(['smoke',-30]); }
   if(a.side==='player'&&d.side==='enemy'&&perk('ambush')&&(opt.ambush||!d.alert)){ c+=25; parts.push(['ambush',25]); }
@@ -1654,9 +1659,9 @@ function threatZone(e){ const sig=`${G.turn}|${e.x},${e.y}|${e.move}|${e.range}|
   TZ.set(e.id,{sig,set}); return set; }
 /* Overwatch crossings along a path: which hostiles on overwatch would get a reaction shot at some step, and at what odds. */
 function pathThreats(u,path){ if(F(u,'gGhost')) return []; const ows=alive('enemy').filter(e=>e.alert&&e.ow&&!e.melee&&!e.suppressed&&!e.stunned); const out=[]; for(const e of ows){ let best=null; for(const st of path){ const probe=Object.assign({},u,{x:st.x,y:st.y}); if(inRange(e,probe)){ const c=hitChance(e,probe,{reaction:true}).chance; if(!best||c>best.chance) best={e,chance:c,step:st}; } } if(best) out.push(best); } return out; }
-function moveHint(u,p,n,r){ const wake=alive('enemy').filter(e=>!e.alert&&dist(p,e)<=SIGHT+0.01&&hasLOS(p,e)).length;
+function moveHint(u,p,n,r){ const salvo=inSalvo(p)?` <i class="risk"><b>Salvo lands here</b> at the start of their turn — ${SALVO_DMG} dmg.</i>`:''; const wake=alive('enemy').filter(e=>!e.alert&&dist(p,e)<=SIGHT+0.01&&hasLOS(p,e)).length;
   const ow=r?pathThreats(u,pathTo(r,p.x,p.y)):[]; const owTxt=ow.length?` <i class="risk">Crosses overwatch — ${ow.map(o=>`${o.e.def.name} ${o.chance}%`).join(', ')}.</i>`:'';
-  return `<b>Move</b> here — ${n.c<=u.move?'1 action':'dash, both actions'}.${owTxt}${wake?` <i class="risk">${wake} unaware hostile${wake>1?'s':''} will see you.</i>`:''} ${exposureHtml(u,p)}`; }
+  return `<b>Move</b> here — ${n.c<=u.move?'1 action':'dash, both actions'}.${salvo}${owTxt}${wake?` <i class="risk">${wake} unaware hostile${wake>1?'s':''} will see you.</i>`:''} ${exposureHtml(u,p)}`; }
 const jammers=()=>alive('enemy').filter(e=>e.def.verb==='jam');
 const jammed=u=>u.side==='player'&&!F(u,'gNull')&&jammers().some(z=>cheb(z,u)<=(perk('scrambler')?2:3));
 
@@ -1694,7 +1699,7 @@ function makeCaptive(x,y,name){ const u=makeUnit(VIP,'captive',x,y,name||NAMES.v
 function startMission(idx,op){
   const base=idx<0?SIDE:MISSIONS[idx]; G.perks=equippedPerks(); G.adapt=adaptFor(CAMP.doom,base.act); MADJ=adjustMission(base,idx,G.perks,G.adapt); G.perkUsed=new Set(); G.medevacUsed=false; G.smoke=null; G.boost=false;
   const m=MX(idx); G.missionIdx=idx; G.grid=[]; G.units=[]; G.turn=1; G.phase='player'; G.sel=null; G.mode='move'; G.fx=[]; G.over=false; G.busy=false;
-  G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.actcam=null; G.setups=new Map(); G.stats={shots:0,hits:0,dmg:0,combos:0}; G.campApplied=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
+  G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.actcam=null; G.setups=new Map(); G.salvos=[]; G.saidSalvo=false; G.saidPressure=false; G.killedTypes=new Set(); G.stats={shots:0,hits:0,dmg:0,combos:0}; G.campApplied=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
   G.objState={relays:0,relaysTotal:0,freed:0,captivesTotal:0,shipped:false,holdCount:0,summons:0,evacOpen:!(m.evacAt||m.evacAfterHold)};
   const spawns=[]; let relayN=0, capN=0;
   const drums=drumSet(m);
@@ -2093,7 +2098,7 @@ function setHint(t){
   else if(m==='shoot') h.innerHTML=`<b>${(u.def.attack&&u.def.attack.name)||'Fire'}</b> — click a hostile or a relay. Hover to see hit chance.`;
   else if(m==='blast'){ const p=G.hover; if(p&&dist(u,p)<=u.def.ability.range+0.01) h.innerHTML=blastHtml(u,p); else h.innerHTML=`<b>Pulse Blast</b> — click a target tile within 5. Hits everything in the 3×3, allies included. Wrecks crates and exposes whoever was hiding behind them. Hover a tile to see what it would do.`; }
   else if(m==='smash') h.innerHTML=`<b>Seismic Smash</b> — click an adjacent hostile.`;
-  else if(m==='blink'){ const p=G.hover; const ft=flankTiles(u); if(blinkOk(u,p)) h.innerHTML=`<b>Blink</b> here — 1 action, you can still shoot.${flankNote(u,p,ft)} ${exposureHtml(u,p)}`; else h.innerHTML=`<b>Blink</b> — click any open tile within 6. No line of sight needed.${ft.t&&ft.set.size?` <i class="gold">Gold tiles flank ${ft.t.def.name}.</i>`:ft.t?` No tile in reach flanks ${ft.t.def.name}.`:''} Hover a tile to see who could hit you there.`; }
+  else if(m==='blink'){ const p=G.hover; const ft=flankTiles(u); if(blinkOk(u,p)) h.innerHTML=`<b>Blink</b> here — 1 action, you can still shoot.${inSalvo(p)?` <i class="risk"><b>Salvo lands here</b> — ${SALVO_DMG} dmg.</i>`:''}${flankNote(u,p,ft)} ${exposureHtml(u,p)}`; else h.innerHTML=`<b>Blink</b> — click any open tile within 6. No line of sight needed.${ft.t&&ft.set.size?` <i class="gold">Gold tiles flank ${ft.t.def.name}.</i>`:ft.t?` No tile in reach flanks ${ft.t.def.name}.`:''} Hover a tile to see who could hit you there.`; }
   else if(m==='mend') h.innerHTML=`<b>Mend</b> — click a wounded or marked ally within 5.`;
   else if(m==='concuss') h.innerHTML=`<b>Concussive Burst</b> — click a hostile in view within 6. Knocks them back and breaks overwatch.`;
   else if(m==='suppress') h.innerHTML=`<b>Suppressing Arc</b> — fires on every hostile in view within 4. Click anywhere on the map to confirm.`;
@@ -2203,7 +2208,7 @@ async function shoot(a,d,opt={}){
   if(a.side==='enemy'&&G.actcam&&!opt.reaction){ const dd=dist(a,d); G.actcam={x:(a.x+d.x)/2,y:(a.y+d.y)/2,zoom:dd>6?1.12:dd>3?1.24:1.36,pull:0.7}; }
   if(a.side==='player'){ G.stats.shots++; if(hit) G.stats.hits++; G.stats.rolls=(G.stats.rolls||0)+1; G.stats.rollExp=(G.stats.rollExp||0)+h.chance/100; if(hit) G.stats.rollHits=(G.stats.rollHits||0)+1; const D=diff(); if(hit) a.focus=0; else if(D.focusStep) a.focus=Math.min(D.focusCap,(a.focus||0)+D.focusStep); }
   else if(a.side==='enemy'&&d.side==='player'){ G.stats.eRolls=(G.stats.eRolls||0)+1; G.stats.eExp=(G.stats.eExp||0)+h.chance/100; if(hit) G.stats.eHits=(G.stats.eHits||0)+1; }
-  const kind=a.def.id==='marksman'?'marksman':(a.def.id==='juggernaut'||a.def.boss||a.def.id==='bulwark')?'heavy':(a.def.id==='spotter'||a.def.id==='jammer'||a.def.id==='siphon')?'pistol':'rifle';
+  const kind=a.def.id==='marksman'?'marksman':(a.def.id==='juggernaut'||a.def.boss||a.def.id==='bulwark'||a.def.id==='grenadier')?'heavy':(a.def.id==='spotter'||a.def.id==='jammer'||a.def.id==='siphon')?'pistol':'rifle';
   if(opt.reaction) Audio.reaction(a.x);
   fxTracer(a,d,atk?atk.color:'#FFB3AE',atk?atk.kind:'bullet'); if(atk&&atk.kind==='wave'){ fxRing(a.x,a.y,atk.color,0.7); shake(3); } if(a.melee) Audio.lunge(a.x); else Audio.shoot(a.x,atk?atk.sfx:kind); await wait(atk&&atk.kind==='wave'?260:200);
   const covTxt=h.flanked?' (flanked)':h.cover===2?' vs full cover':h.cover===1?' vs half cover':''; const mk=h.marked?' [marked]':'';
@@ -2620,7 +2625,7 @@ const R3 = (()=>{
     if(!d.noAttack&&!d.melee&&!isE&&!isCap){ // mutant: no gun — emitter hands (glowing palm cores, forearm rings in the attack colour)
       const ac=(d.attack&&d.attack.color)||u.color; for(const E of [AL.elbow,AR.elbow]){ const ring=new T3.Mesh(geo.torus,glowM(ac,1.2)); ring.scale.setScalar(0.16); ring.rotation.x=Math.PI/2; ring.position.y=-0.1; E.add(ring); const core=new T3.Mesh(geo.sph,glowM(ac,1.8)); core.scale.setScalar(0.028); core.position.set(0,-0.175,0.02); E.add(core); }
       const mz=new T3.Sprite(new T3.SpriteMaterial({map:TEX.flash,color:ac,transparent:true,blending:T3.AdditiveBlending,depthWrite:false,toneMapped:false})); mz.scale.setScalar(0.3); mz.position.set(0,-0.18,0.03); mz.visible=false; AR.elbow.add(mz); g.userData.muzzle=mz; g.userData.kind=(d.attack&&d.attack.kind)||'bolt'; }
-    else if(!d.noAttack&&!d.melee){ const kind=d.id==='marksman'?'marksman':(d.id==='juggernaut'||d.boss)?'heavy':(d.id==='spotter'||d.id==='jammer'||d.id==='siphon'||d.id==='bulwark')?'pistol':'rifle'; const len=kind==='marksman'?0.72:kind==='pistol'?0.24:kind==='heavy'?0.52:0.44; const gun=makeGun(kind,len,isE?'#ff8a70':u.color); gun.position.set(0,-0.15,0.02); gun.quaternion.setFromRotationMatrix(new T3.Matrix4().makeBasis(new T3.Vector3(-1,0,0),new T3.Vector3(0,0,1),new T3.Vector3(0,1,0))); AR.elbow.add(gun); g.userData.gun=gun; g.userData.gunLen=len; g.userData.kind=kind;
+    else if(!d.noAttack&&!d.melee){ const kind=d.id==='marksman'?'marksman':(d.id==='juggernaut'||d.boss||d.id==='grenadier')?'heavy':(d.id==='spotter'||d.id==='jammer'||d.id==='siphon'||d.id==='bulwark')?'pistol':'rifle'; const len=kind==='marksman'?0.72:kind==='pistol'?0.24:kind==='heavy'?0.52:0.44; const gun=makeGun(kind,len,isE?'#ff8a70':u.color); gun.position.set(0,-0.15,0.02); gun.quaternion.setFromRotationMatrix(new T3.Matrix4().makeBasis(new T3.Vector3(-1,0,0),new T3.Vector3(0,0,1),new T3.Vector3(0,1,0))); AR.elbow.add(gun); g.userData.gun=gun; g.userData.gunLen=len; g.userData.kind=kind;
       const mz=new T3.Sprite(new T3.SpriteMaterial({map:TEX.flash,color:'#FFE9A8',transparent:true,blending:T3.AdditiveBlending,depthWrite:false,toneMapped:false})); mz.scale.setScalar(0.22); mz.position.set(0,0.012,gun.userData.muzzleZ); mz.visible=false; gun.add(mz); g.userData.muzzle=mz; }
     else if(d.melee&&d.id==='sprinter'){ for(const E of [AL.elbow,AR.elbow]){ const blade=new T3.Mesh(geo.rbS,metalM('#b8c2cc',{roughness:0.25})); blade.scale.set(0.015,0.34,0.05); blade.position.set(0,-0.22,0.03); E.add(blade); const edge=new T3.Mesh(geo.rbS,glowM('#ff8a70',1.4)); edge.scale.set(0.006,0.3,0.02); edge.position.set(0,-0.24,0.06); E.add(edge); } }
     switch(d.id){
@@ -2828,6 +2833,10 @@ const R3 = (()=>{
       if(ze){ const zc=ze.melee?'#5A2A22':'#5A1E28'; for(const k of threatZone(ze)){ const [zx,zy]=k.split(',').map(Number); if(zx===ze.x&&zy===ze.y) continue; put(zx,zy,zc,-1); } } }
     // reinforcement edge: two turns out, the right-edge arrival zone breathes red
     { const m=MX(G.missionIdx); const left=m.reinforceAt-G.turn; if(m.reinforceAt<50&&left<=2&&G.phase==='player'){ const pulse=0.5+0.5*Math.sin(t/420); const zc=new T3.Color('#3A1418').lerp(new T3.Color('#8A2E34'),pulse).getStyle(); for(let y=0;y<ROWS;y++) for(let x=COLS-3;x<COLS;x++){ if(!solid(x,y)&&!unitAt(x,y)) put(x,y,zc,-2); } } }
+    // painted salvos: the 3×3 pulses hot red and carries an INCOMING label until it lands (or its Grenadier dies)
+    if(G.salvos&&G.salvos.length){ const pulse=0.5+0.5*Math.sin(t/260); const zc=new T3.Color('#7A1E14').lerp(new T3.Color('#FF4D2E'),pulse).getStyle();
+      G.salvos.forEach((sv,i)=>{ for(let y=sv.y-SALVO_R;y<=sv.y+SALVO_R;y++) for(let x=sv.x-SALVO_R;x<=sv.x+SALVO_R;x++){ if(inb(x,y)&&!solid(x,y)) put(x,y,zc,3); }
+        const pl=pctFor('salvo'+i); const pp=project(sv.x,sv.y+0.5,0.02); const html2=sv.by.alive?`INCOMING<small>${SALVO_DMG} dmg · 3×3 · next Coalition turn</small>`:`CANCELLED<small>Grenadier down</small>`; pl.el.className='pct exp '+(sv.by.alive?'lo':'ok'); if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; }); }
     if(sel&&sel.alive&&playerPhase&&sel.ap>0){
       if(G.mode==='move'){ const r=moveR||reachable(sel,sel.move*sel.ap); const tm=alive('enemy').some(e=>e.alert)?threatAfterMove(sel,[...r.values()]):null;
         for(const nd_ of r.values()){ const th=tm?(tm.get(key(nd_.x,nd_.y))||0):0; const dash=nd_.c>sel.move; put(nd_.x,nd_.y,th===0?(dash?'#1E5F70':'#3FC1E3'):th<=2?(dash?'#6E4E1C':'#E0A040'):(dash?'#6E2A26':'#FF6B62'),0); }
@@ -3012,6 +3021,7 @@ async function endTurn(){
   if(checkEnd()) return;
   for(const e of alive('enemy')) e.ow=false;
   await checkContact();
+  await resolveSalvos(); if(G.over) return;
   const order=alive('enemy').filter(e=>e.alert).sort((a,b)=>aiPriority(a)-aiPriority(b));
   let lastCam=null;
   for(const e of order){ if(G.over||!e.alive) continue;
@@ -3033,7 +3043,7 @@ async function endTurn(){
   for(const u of alive('player')) u.blinkAim=0; if(G.smoke){ G.smoke=null; log('The smoke clears.','sys'); } G.boost=false;
   { const m=MX(G.missionIdx); if(m.evacAt&&!G.objState.evacOpen&&G.turn>=m.evacAt){ G.objState.evacOpen=true; Audio.evacOpen(); banner('Evac pad open','good'); say('evacOpen'); for(const k of G.evac){ const [x,y]=k.split(',').map(Number); fxRing(x,y,'#5CD68A',1); } } }
   for(const e of alive('enemy')){ e.ap=2; }
-  G.sel=active()[0]||alive('player').find(u=>!u.downed)||null; banner('Your turn','player'); Audio.turn(); Audio.music.phase('player'); VO.controlBark('turn'); renderSide(); setHint();
+  G.sel=active()[0]||alive('player').find(u=>!u.downed)||null; if((G.salvos||[]).some(sv=>sv.by.alive)){ const inIt=active().filter(u=>inSalvo(u)); setTimeout(()=>banner(inIt.length?`Salvo incoming — ${inIt.map(u=>u.name).join(', ')} in the red`:'Salvo incoming','enemy'),900); } banner('Your turn','player'); Audio.turn(); Audio.music.phase('player'); VO.controlBark('turn'); renderSide(); setHint();
   if(alive('player').some(u=>!u.def.noAttack&&u.hp<=3)) setTimeout(()=>Audio.heartbeat(),500);
   if(alive('player').some(u=>u.cd===0&&u.def.ability&&!u.def.noAttack&&u.readyPing)) setTimeout(()=>Audio.ready(),350); for(const u of alive('player')) u.readyPing=false;
   if(checkEnd()) return;
@@ -3042,14 +3052,45 @@ async function endTurn(){
 const aiPriority=e=>({spotter:0,jammer:1,bulwark:2}[e.def.ai]??3);
 function reinforceSpot(){ const cands=[]; for(let y=0;y<ROWS;y++) for(let x=COLS-1;x>=COLS-3;x--){ if(!solid(x,y)&&!unitAt(x,y)){ const np=nearestPlayer({x,y}); if(np.d>=4) cands.push({x,y}); } } return cands.length?cands[rnd(0,cands.length-1)]:null; }
 
+/* ---------- Salvo (Grenadier) ----------
+   plantSalvo: paint the 3×3 within range 7 that holds the most standing mutants (no LOS needed, never on a tile with a hostile).
+   It lands at the start of the next Coalition turn in resolveSalvos — 3 dmg to everything inside, no roll, armor applies, crates
+   wrecked — unless the Grenadier that painted it is dead. G.salvos is drawn on the board and warned about in every move hint. */
+const SALVO_DMG=3, SALVO_R=1;
+const inSalvo=p=>(G.salvos||[]).some(sv=>Math.abs(sv.x-p.x)<=SALVO_R&&Math.abs(sv.y-p.y)<=SALVO_R);
+function salvoTarget(e){ let best=null; const ps=alive('player').filter(p=>!p.downed&&!p.carried&&!p.def.decoy);
+  for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ if(dist(e,{x,y})>e.range+0.01) continue; if(solid(x,y)&&!(tile(x,y)===T.HALF)) continue;
+    const inA=u=>Math.abs(u.x-x)<=SALVO_R&&Math.abs(u.y-y)<=SALVO_R; const n=ps.filter(inA).length; if(!n) continue; if(alive('enemy').some(inA)) continue;
+    const dec=alive('player').filter(u=>u.def.decoy&&inA(u)).length; const hurt=ps.filter(inA).reduce((a,u)=>a+(u.maxHp-u.hp),0);
+    if(n<2) continue; // one mutant alone is never worth a salvo — spreading out neutralises it
+    const sc=n*100+dec*20+hurt*2-dist(e,{x,y}); if(!best||sc>best.sc) best={x,y,n,sc}; } return best; }
+async function plantSalvo(e){ const t=salvoTarget(e); if(!t) return false; G.salvos=G.salvos||[]; G.salvos.push({x:t.x,y:t.y,by:e,turn:G.turn});
+  anim(e,'fire',{tx:t.x,ty:t.y}); Audio.mark(e.x); fxTracer(e,{x:t.x,y:t.y},'#FF8C3A'); fxRing(t.x,t.y,'#FF4D2E',1.4); fxText(t.x,t.y-0.3,'INCOMING','#FF4D2E','huge'); flash('#FF4D2E',0.25,140); light(t.x,t.y,'#FF4D2E',6,600);
+  log(`${e.name} paints a salvo on ${t.n} of you — it lands at the start of the next Coalition turn. Spread out.`,'aug'); if(!G.saidSalvo){ G.saidSalvo=true; say('salvo'); } VO.coalition('mark',1,0.4);
+  await wait(500); return true; }
+async function resolveSalvos(){ const list=G.salvos||[]; if(!list.length) return; G.salvos=[];
+  for(const sv of list){ if(!sv.by.alive){ log(`The salvo never comes — its Grenadier is down.`,'good'); fxText(sv.x,sv.y,'CANCELLED','#5CD68A'); continue; }
+    G.actcam={x:sv.x,y:sv.y,zoom:1.3,pull:0.7}; await wait(380); anim(sv.by,'fire',{tx:sv.x,ty:sv.y}); Audio.charge(sv.by.x); await wait(260);
+    Audio.blast(sv.x); fxRing(sv.x,sv.y,'#FF8C3A',1.7); fxFlash(sv.x,sv.y,'#FFB37A',1.8); shake(14); light(sv.x,sv.y,'#FF8C3A',12,450); flash('#FF8C3A',0.35,120); fxSpark(sv.x,sv.y,'#FFB37A',24,{speed:2.2,up:1.8,life:700,size:0.07});
+    const victims=G.units.filter(v=>v.alive&&v.side!=='captive'&&!v.carried&&!v.downed&&Math.abs(v.x-sv.x)<=SALVO_R&&Math.abs(v.y-sv.y)<=SALVO_R); let crates=0;
+    for(let y=sv.y-SALVO_R;y<=sv.y+SALVO_R;y++) for(let x=sv.x-SALVO_R;x<=sv.x+SALVO_R;x++){ if(tile(x,y)===T.HALF){ G.grid[y][x]=T.FLOOR; fxDebris(x,y); crates++; } }
+    log(`Salvo lands — ${victims.length} caught${crates?`, ${crates} crate${crates>1?'s':''} destroyed`:''}.`,'kill');
+    for(const v of victims){ log(`Salvo hits ${v.name} for ${SALVO_DMG}.`,'hit'); applyDamage(v,SALVO_DMG,sv.by,{}); if(v.side==='player'&&v.alive) VO.bark(v,'hit',0.3); }
+    await wait(500); if(checkEnd()) return; } }
+
 /* ---------- Enemy AI ---------- */
+/* Path distance map from a target (BFS over floor; every unit except the target and `self` blocks), so an advancing enemy
+   walks around walls instead of pressing its face against the nearest one. */
+function distMap(target,self){ const seen=new Map([[key(target.x,target.y),0]]); const q=[{x:target.x,y:target.y,c:0}];
+  while(q.length){ const cur=q.shift(); for(const d of DIRS){ const nx=cur.x+d.x, ny=cur.y+d.y; if(!inb(nx,ny)||solid(nx,ny)) continue; const occ=unitAt(nx,ny); if(occ&&occ!==self&&occ!==target) continue; const k=key(nx,ny); if(seen.has(k)) continue; seen.set(k,cur.c+1); q.push({x:nx,y:ny,c:cur.c+1}); } } return seen; }
 function nearestPlayer(from){ let best=null,bd=1e9; for(const p of alive('player')){ const d=dist(from,p); if(d<bd){bd=d;best=p;} } return {unit:best,d:bd}; }
 function bestTargetFrom(e,pos){ const probe=Object.assign({},e,{x:pos.x,y:pos.y}); let best=null; for(const p of alive('player')){ if(p.downed||p.carried) continue; if(!inRange(probe,p)) continue; const h=hitChance(probe,p); let score=h.chance+(p.maxHp-p.hp)*4+(p.hp<=Math.max(...e.dmg)?25:0); if(e.taunt&&e.taunt.alive){ score+= p===e.taunt?200:-200; } if(p.def.decoy) score+=60; if(!best||score>best.score) best={p,h,score}; } return best; }
 function coverScore(pos,threats){ let s=0; const probe={x:pos.x,y:pos.y,side:'enemy'}; for(const p of threats){ if(!hasLOS(p,probe)) { s+=1.5; continue; } const c=coverAgainst(probe,p); s+= c===2?2: c===1?1: -1.5; } return s; }
 function alliesAdjacent(pos,self){ return alive('enemy').filter(a=>a!==self&&cheb(a,pos)<=1).length; }
 function playersWithin(pos,r){ return alive('player').filter(p=>cheb(p,pos)<=r).length; }
+const PRESSURE=['grunt','brute','stalker','flanker','sniper','spotter','jammer','grenadier'];
 async function enemyAct(e){
-  const players=alive('player'); if(!players.length) return;
+  const players=alive('player'); if(!players.length) return; const idle=e.idle||0;
   const phase=e.def.verb==='phase';
   const reach=(phase||e.rooted)?new Map():reachable(e,e.move); reach.set(key(e.x,e.y),{x:e.x,y:e.y,c:0,from:null});
   if(phase&&!e.rooted){ for(let y=e.y-e.move;y<=e.y+e.move;y++) for(let x=e.x-e.move;x<=e.x+e.move;x++){ if(!inb(x,y)||solid(x,y)||unitAt(x,y)) continue; reach.set(key(x,y),{x,y,c:1,from:null}); } }
@@ -3066,20 +3107,27 @@ async function enemyAct(e){
       case 'bulwark': score=-np.d*4+alliesAdjacent(pos,e)*14+(tgt?tgt.h.chance*0.4:0)+(np.d<=2?-10:0); break;
       case 'jammer': score=playersWithin(pos,3)*32+coverScore(pos,players)*8-np.d*3+(np.d<=1?-15:0); break;
       case 'stalker': score=(tgt?tgt.h.chance*1.3+(tgt.p.drained?-30:0):0)+coverScore(pos,players)*6-np.d*6; break;
+      case 'flanker': score=(tgt?tgt.h.chance*1.2+(tgt.h.flanked?45:0):0)+coverScore(pos,players)*2-np.d*2; break;
+      case 'grenadier': { const st=salvoTarget(Object.assign({},e,{x:pos.x,y:pos.y})); score=(st?st.n*40:0)+coverScore(pos,players)*10+(np.d<4?-40:np.d<6?-8:6); break; }
       default: score=(tgt?tgt.h.chance:0)+coverScore(pos,players)*12-np.d*3;
     }
+    // pressure: a unit that has waited a turn without a shot stops valuing its own cover and starts valuing any shot
+    if(idle>=1&&PRESSURE.includes(e.def.ai)){ score+= tgt?40+idle*10:0; if(coverScore(pos,players)>0) score-=coverScore(pos,players)*(idle>=2?9:6); }
     if(c.c>0) score-=2;
     if(!best||score>best.score) best={c,pos,tgt,score};
   }
   if(best.c.c>0){ if(phase){ fxRing(e.x,e.y,'#9BE7FF',0.9); e.x=best.pos.x; e.y=best.pos.y; if(G.actcam) G.actcam={x:e.x,y:e.y,zoom:1.28}; anim(e,'blinkIn'); fxRing(e.x,e.y,'#9BE7FF',0.9); Audio.huskBlink(e.x); VO.husk(); await wait(260); } else { await doMove(e,pathTo(reach,best.pos.x,best.pos.y)); } e.ap-=1; await wait(120); if(!e.alive) return; }
   if(e.def.verb==='mark'){ const vis=players.filter(p=>hasLOS(e,p)&&dist(e,p)<=8&&!p.marked).sort((a,b)=>(a.hp-b.hp))[0]; if(vis){ vis.marked=true; anim(e,'fire',{tx:vis.x,ty:vis.y}); Audio.mark(e.x); VO.coalition('mark',1,0.5); setTimeout(()=>VO.event(vis,'marked'),900); fxTracer(e,vis,'#FF9A6B'); fxRing(vis.x,vis.y,'#FF6B62',0.9); fxText(vis.x,vis.y,'MARKED','#FF6B62'); log(`${e.name} marks ${vis.name} — hostiles +20 to hit.`,'aug'); e.ap=0; await wait(450); renderSide(); return; } }
   if(e.def.verb==='jam'&&playersWithin(e,3)>0){ Audio.jam(e.x); fxRing(e.x,e.y,'#C77DFF',1.2); flash('#C77DFF',0.3,140); light(e.x,e.y,'#C77DFF',5,400); VO.coalition('jam',1,0.4); const j=alive('player').find(p=>jammed(p)&&!p.def.noAttack); if(j&&!j.voJam){ j.voJam=true; setTimeout(()=>VO.event(j,'jammed'),700); } }
+  if(e.def.verb==='salvo'&&!(G.salvos||[]).some(sv=>sv.by===e)){ if(await plantSalvo(e)){ e.idle=0; e.ap=0; return; } }
   const tgt=bestTargetFrom(e,{x:e.x,y:e.y});
-  if(tgt){ await shoot(e,tgt.p); e.ap=0; return; }
+  if(tgt){ await shoot(e,tgt.p); e.idle=0; e.ap=0; return; }
+  e.idle=idle+1;
   if(e.melee||e.def.verb==='phase'){ const victim=alive('player').find(p=>p.downed&&!p.carried&&cheb(p,e)<=1); if(victim){ anim(e,'lunge',{tx:victim.x,ty:victim.y}); Audio.lunge(e.x); await wait(200); log(`${e.name} executes ${victim.name}.`,'kill'); killUnit(victim,e); e.ap=0; await wait(300); return; } }
   // no shot this turn: cover a lane when a mutant is within reach but out of sight, otherwise close the distance
-  if(e.ap>0&&!e.melee&&e.def.verb!=='wall'&&adjacentCover(e).length&&alive('player').some(p=>!p.downed&&dist(e,p)<=e.range+3&&!hasLOS(e,p))){ e.ow=true; e.ap=0; Audio.overwatch(e.x); log(`${e.name} takes an overwatch position.`,'miss'); await wait(200); return; }
-  if(e.ap>0&&!phase){ const np=nearestPlayer(e); if(np.unit){ const r2=reachable(e,e.move); let bt=null,bd=1e9; for(const n of r2.values()){ const d=dist(n,np.unit); if(d<bd){bd=d;bt=n;} } if(bt&&bd<dist(e,np.unit)){ await doMove(e,pathTo(r2,bt.x,bt.y)); e.ap-=1; } } }
+  const lane=e.def.id==='marksman';
+  if(e.ap>0&&!e.melee&&e.def.verb!=='wall'&&(lane||(adjacentCover(e).length&&e.idle<=1))&&alive('player').some(p=>!p.downed&&dist(e,p)<=e.range+3&&!hasLOS(e,p))){ e.ow=true; e.ap=0; Audio.overwatch(e.x); log(`${e.name} ${lane?'holds its lane on overwatch':'takes an overwatch position'}${!lane?' — it will come for you next turn':''}.`,'miss'); await wait(200); return; }
+  if(e.ap>0&&!phase){ const np=nearestPlayer(e); if(np.unit){ const dash=e.idle>=2&&e.ap>=2&&!lane; const r2=reachable(e,e.move*(dash?2:1)); const dm=distMap(np.unit,e); const pd=n=>{ const v=dm.get(key(n.x,n.y)); return v==null?900+dist(n,np.unit):v; }; const here=pd(e); let bt=null,bd=1e9; for(const n of r2.values()){ const d=pd(n)+(coverAgainst(n,np.unit)?-0.4:0); if(d<bd){bd=d;bt=n;} } if(bt&&bd<here-0.5){ if(dash&&!G.saidPressure){ G.saidPressure=true; say('pressure'); } if(dash) log(`${e.name} is done waiting — it closes in.`,'aug'); await doMove(e,pathTo(r2,bt.x,bt.y)); e.ap-=dash?2:1; } } }
   await wait(120);
 }
 
@@ -3177,6 +3225,7 @@ function draw(){
   if(G.smoke){ for(const k of G.smoke){ const [sx,sy]=k.split(',').map(Number); ctx.fillStyle=`rgba(184,194,204,${0.28+0.08*Math.sin(t/250+sx)})`; ctx.fillRect(sx*TILE+1,sy*TILE+1,TILE-2,TILE-2); } }
   // jammer fields
   for(const z of jammers()){ const cx=z.x*TILE+TILE/2, cy=z.y*TILE+TILE/2; ctx.fillStyle='rgba(199,125,255,0.07)'; ctx.fillRect((z.x-3)*TILE,(z.y-3)*TILE,TILE*7,TILE*7); ctx.strokeStyle=`rgba(199,125,255,${0.35+0.15*Math.sin(t/300)})`; ctx.setLineDash([6,5]); ctx.lineWidth=1.5; ctx.strokeRect((z.x-3)*TILE+1,(z.y-3)*TILE+1,TILE*7-2,TILE*7-2); ctx.setLineDash([]); }
+  for(const sv of (G.salvos||[])){ const W_=SALVO_R*2+1; ctx.fillStyle=sv.by.alive?'rgba(255,77,46,0.28)':'rgba(92,214,138,0.15)'; ctx.fillRect((sv.x-SALVO_R)*TILE,(sv.y-SALVO_R)*TILE,TILE*W_,TILE*W_); ctx.strokeStyle=sv.by.alive?'#FF4D2E':'#5CD68A'; ctx.lineWidth=2; ctx.setLineDash([6,4]); ctx.strokeRect((sv.x-SALVO_R)*TILE+1,(sv.y-SALVO_R)*TILE+1,TILE*W_-2,TILE*W_-2); ctx.setLineDash([]); ctx.fillStyle=sv.by.alive?'#FF4D2E':'#5CD68A'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.fillText(sv.by.alive?'INCOMING':'CANCELLED',sv.x*TILE+TILE/2,(sv.y-SALVO_R)*TILE-3); }
   if(sel&&sel.alive&&playerPhase&&sel.ap>0){
     if(G.mode==='move'){ const r=reachable(sel,sel.move*sel.ap); for(const n of r.values()){ ctx.fillStyle=n.c<=sel.move?'rgba(63,193,227,0.26)':'rgba(63,193,227,0.10)'; ctx.fillRect(n.x*TILE+2,n.y*TILE+2,TILE-4,TILE-4); ctx.strokeStyle=n.c<=sel.move?'rgba(63,193,227,0.55)':'rgba(63,193,227,0.22)'; ctx.lineWidth=1; ctx.strokeRect(n.x*TILE+2.5,n.y*TILE+2.5,TILE-5,TILE-5); }
       if(G.hover&&r.has(key(G.hover.x,G.hover.y))){ const p=pathTo(r,G.hover.x,G.hover.y); ctx.strokeStyle='rgba(63,193,227,0.8)'; ctx.lineWidth=2; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(sel.x*TILE+TILE/2,sel.y*TILE+TILE/2); for(const q of p) ctx.lineTo(q.x*TILE+TILE/2,q.y*TILE+TILE/2); ctx.stroke(); ctx.setLineDash([]); } }

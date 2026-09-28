@@ -977,7 +977,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
   </div>
   <div id="modal-help" class="overlay modal" hidden>
     <div class="sheet help-sheet">
-      <div class="sheet-h"><h2>How to play</h2><span style="display:flex;gap:6px;align-items:center"><button class="btn small" id="detail-toggle" title="Lean keeps the board to what changes your next decision; every number is still one hover or POV card away. Key D in a mission.">Board detail: Lean</button><button class="btn small" data-close="modal-help">Close</button></span></div>
+      <div class="sheet-h"><h2>How to play</h2><span style="display:flex;gap:6px;align-items:center"><button class="btn small" id="look-toggle" title="Visual style prototypes: Standard · Pixel units (pixel-art figures on the 3D board) · Pixel (whole scene) · Comic (ink, bands, halftone). Key L in a mission. Needs WebGL2.">Look: Standard</button><button class="btn small" id="detail-toggle" title="Lean keeps the board to what changes your next decision; every number is still one hover or POV card away. Key D in a mission.">Board detail: Lean</button><button class="btn small" data-close="modal-help">Close</button></span></div>
       <div class="seg help-tabs" id="help-tabs"><button data-t="basics" aria-pressed="true">Basics</button><button data-t="combat" aria-pressed="false">Combat</button><button data-t="enemy" aria-pressed="false">The Coalition</button><button data-t="camp" aria-pressed="false">Campaign</button><button data-t="opts" aria-pressed="false">Options</button></div>
       <div class="help" id="help-body">
         <p data-t="basics"><b>Two actions per unit.</b> Moving costs one. A long move (dim tiles) costs both. Firing, Overwatch, and most powers end the unit's turn. Powers recharge on a cooldown — except <b>Pulse Blast</b>, which is three charges per mission: throw one at a lone trooper and that is a grenade you will not have later.</p>
@@ -1006,7 +1006,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <p data-t="camp"><b>Side ops</b> are generated strikes: a random sector, objective and Coalition element scaled to where you are in the campaign. They use your roster like any mission — XP, wounds and deaths all count — and a win pushes the Graft Index back by two. Every sector has a code you can replay.</p>
         <p data-t="camp"><b>Twelve mutants, four families.</b> You start with the three you pick. Another named mutant joins after each campaign mission you clear, until all twelve are on the roster. Every Blaster, Bruiser, Phaser and Mender shares its family's role, but each mutant has a different power and passive. Two Blasters are not the same Blaster. Take three per mission.</p>
         <p data-t="opts"><b>Voice</b> uses your browser's built-in speech voices; the cast sounds different on every machine. Every spoken line also appears in Comms. Toggle it in the top bar.</p>
-        <p class="keys" data-t="basics"><kbd>1</kbd> Move · <kbd>2</kbd> Attack · <kbd>3</kbd> Power · <kbd>4</kbd> Overwatch · <kbd>5</kbd> Hunker · <kbd>D</kbd> board detail · <kbd>Tab</kbd> next unit · <kbd>Enter</kbd> end turn · <kbd>Esc</kbd> / right-click cancel</p>
+        <p class="keys" data-t="basics"><kbd>1</kbd> Move · <kbd>2</kbd> Attack · <kbd>3</kbd> Power · <kbd>4</kbd> Overwatch · <kbd>5</kbd> Hunker · <kbd>D</kbd> board detail · <kbd>L</kbd> look · <kbd>Tab</kbd> next unit · <kbd>Enter</kbd> end turn · <kbd>Esc</kbd> / right-click cancel</p>
       </div>
     </div>
   </div>
@@ -2644,7 +2644,7 @@ function light(x,y,color,intensity=6,dur=350){ G.light={x,y,color,intensity,t0:n
    SETTINGS (localStorage mutie.settings, per device): speed normal|fast|snap, endGuard. tempo() scales every scripted pause, the
    insertion, banners and the kill cam; Snap also drops the enemy action-cam glides. Holding Shift in the Coalition phase = Snap. */
 const BADGE_CAP=2;
-const SETTINGS=(()=>{ let s={speed:'normal',endGuard:true,detail:'lean'}; try{ const raw=localStorage.getItem('mutie.settings'); if(raw) s=Object.assign(s,JSON.parse(raw)); }catch(e){} return s; })();
+const SETTINGS=(()=>{ let s={speed:'normal',endGuard:true,detail:'lean',look:'standard'}; try{ const raw=localStorage.getItem('mutie.settings'); if(raw) s=Object.assign(s,JSON.parse(raw)); }catch(e){} return s; })();
 function saveSettings(){ try{ localStorage.setItem('mutie.settings',JSON.stringify(SETTINGS)); }catch(e){} }
 const SPEEDS={normal:{name:'Speed ×1',f:1},fast:{name:'Speed ×2',f:0.5},snap:{name:'Speed ×4',f:0.25}};
 const tempo=()=>((G.ffwd&&G.phase==='enemy')?0.25:(SPEEDS[SETTINGS.speed]||SPEEDS.normal).f);
@@ -2803,23 +2803,59 @@ const R3 = (()=>{
   const BLOOM=(()=>{ if(!renderer.capabilities.isWebGL2) return null; let on=true; let glow=!matchMedia('(max-width:760px)').matches&&!matchMedia('(pointer:coarse)').matches; let w=0,h=0;
     const sceneRT=new T3.WebGLRenderTarget(4,4,{type:T3.HalfFloatType,samples:4,depthBuffer:true}); sceneRT.texture.colorSpace=T3.LinearSRGBColorSpace;
     const mk=()=>new T3.WebGLRenderTarget(4,4,{type:T3.HalfFloatType,depthBuffer:false}); const rtA=mk(), rtB=mk();
+    /* LOOK prototypes (R3.style): 'standard' | 'pixunit' (pixel-art units over the 3D board) | 'pixel' (whole scene pixelated) | 'comic'
+       (toon bands, halftone shadows, ink outlines). All post-process on the same scene; nothing about the game changes. */
+    const nearestRT=()=>{ const r=new T3.WebGLRenderTarget(4,4,{type:T3.HalfFloatType,depthBuffer:true}); r.texture.minFilter=r.texture.magFilter=T3.NearestFilter; r.texture.generateMipmaps=false; r.texture.colorSpace=T3.LinearSRGBColorSpace; return r; };
+    const figRT=nearestRT(), lowRT=nearestRT();
+    const inkRT=new T3.WebGLRenderTarget(4,4,{type:T3.HalfFloatType,depthBuffer:true}); inkRT.texture.colorSpace=T3.LinearSRGBColorSpace; inkRT.depthTexture=new T3.DepthTexture(4,4); inkRT.depthTexture.type=T3.UnsignedIntType;
+    const depthOnly=new T3.MeshBasicMaterial({colorWrite:false}); const clr=new T3.Color(); let style='standard';
+    const PXU=()=>Math.max(2,Math.round(2.5*renderer.getPixelRatio())), PXS=()=>Math.max(2,Math.round(3*renderer.getPixelRatio()));
     const qcam=new T3.OrthographicCamera(-1,1,1,-1,0,1); const qs=new T3.Scene(); const quad=new T3.Mesh(new T3.PlaneGeometry(2,2)); quad.frustumCulled=false; qs.add(quad);
     const vs='varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}';
     const bright=new T3.ShaderMaterial({uniforms:{t:{value:null},th:{value:1.0},knee:{value:0.35}},vertexShader:vs,depthTest:false,depthWrite:false,fragmentShader:'uniform sampler2D t;uniform float th,knee;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb;float l=max(c.r,max(c.g,c.b));float s=clamp(l-th+knee,0.,2.*knee);s=s*s/(4.*knee+1e-4);float f=max(s,l-th)/max(l,1e-4);gl_FragColor=vec4(c*f,1.);}'});
     const blur=new T3.ShaderMaterial({uniforms:{t:{value:null},dir:{value:new T3.Vector2()}},vertexShader:vs,depthTest:false,depthWrite:false,fragmentShader:'uniform sampler2D t;uniform vec2 dir;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb*0.227;c+=texture2D(t,vUv+dir*1.384).rgb*0.316;c+=texture2D(t,vUv-dir*1.384).rgb*0.316;c+=texture2D(t,vUv+dir*3.230).rgb*0.070;c+=texture2D(t,vUv-dir*3.230).rgb*0.070;gl_FragColor=vec4(c,1.);}'});
-    const comp=new T3.ShaderMaterial({uniforms:{t:{value:null},b:{value:null},k:{value:0.85},ex:{value:1}},vertexShader:vs,depthTest:false,depthWrite:false,toneMapped:false,fragmentShader:`uniform sampler2D t,b;uniform float k,ex;varying vec2 vUv;
+    const comp=new T3.ShaderMaterial({uniforms:{t:{value:null},b:{value:null},f:{value:null},dp:{value:null},k:{value:0.85},ex:{value:1},mode:{value:0},res:{value:new T3.Vector2(1,1)},fres:{value:new T3.Vector2(1,1)},nf:{value:new T3.Vector2(0.1,100)},ortho:{value:1},dpr:{value:1}},vertexShader:vs,depthTest:false,depthWrite:false,toneMapped:false,fragmentShader:`uniform sampler2D t,b,f,dp;uniform float k,ex,ortho,dpr;uniform int mode;uniform vec2 res,fres,nf;varying vec2 vUv;
       vec3 rrt(vec3 v){vec3 a=v*(v+0.0245786)-0.000090537;vec3 b2=v*(0.983729*v+0.4329510)+0.238081;return a/b2;}
       vec3 aces(vec3 c){const mat3 I=mat3(vec3(0.59719,0.07600,0.02840),vec3(0.35458,0.90834,0.13383),vec3(0.04823,0.01566,0.83777));const mat3 O=mat3(vec3(1.60475,-0.10208,-0.00327),vec3(-0.53108,1.10813,-0.07276),vec3(-0.07367,-0.00605,1.07602));c*=ex/0.6;c=I*c;c=rrt(c);c=O*c;return clamp(c,0.,1.);}
       vec3 srgb(vec3 c){return mix(pow(c,vec3(1./2.4))*1.055-0.055,c*12.92,vec3(lessThanEqual(c,vec3(0.0031308))));}
-      void main(){vec3 c=texture2D(t,vUv).rgb+texture2D(b,vUv).rgb*k;gl_FragColor=vec4(srgb(aces(c)),1.);}`}); comp.userData.k=0.85;
+      vec3 tm(vec3 c){return srgb(aces(c));}
+      float lum(vec3 c){return dot(c,vec3(.299,.587,.114));}
+      float bayer(vec2 p){ vec2 i=mod(floor(p),4.); float x=i.x, y=i.y; float m=mod(x,2.)*2.+mod(y,2.); float a=(m==0.?0.:m==1.?2.:m==2.?3.:1.); float x2=floor(x/2.), y2=floor(y/2.); float m2=x2*2.+y2; float b2=(m2==0.?0.:m2==1.?2.:m2==2.?3.:1.); return (a*4.+b2+0.5)/16.; }
+      vec3 post(vec3 c,float L,float d){ c=mix(vec3(lum(c)),c,1.18); return clamp(floor(c*L+0.5+d)/L,0.,1.); }
+      float lind(vec2 uv){ float z=texture2D(dp,uv).r; if(ortho>0.5) return nf.x+z*(nf.y-nf.x); float nd=z*2.-1.; return 2.*nf.x*nf.y/(nf.y+nf.x-nd*(nf.y-nf.x)); }
+      void main(){
+        vec3 c=tm(texture2D(t,vUv).rgb+texture2D(b,vUv).rgb*k);
+        if(mode==1){ vec2 px=floor(vUv*fres); float d=(bayer(px)-0.5)*0.32*smoothstep(0.04,0.16,lum(c)); c=post(c,7.,d);
+          float l0=lum(c); vec2 o=1./fres; float lr=lum(tm(texture2D(t,vUv+vec2(o.x,0.)).rgb)), lu=lum(tm(texture2D(t,vUv+vec2(0.,o.y)).rgb)); if(max(lr,lu)-l0>0.28) c*=0.55; }
+        else if(mode==2){ vec2 px=floor(vUv*fres); vec2 fu=(px+0.5)/fres; vec4 fg=texture2D(f,fu);
+          if(fg.a>0.02){ vec3 fc=tm(fg.rgb/fg.a*1.45); fc=post(fc,6.,(bayer(px)-0.5)*0.22); if(fg.a>0.85||mod(px.x+px.y,2.)<1.) c=fc; }
+          else { vec2 o=1./fres; float n=max(max(texture2D(f,fu+vec2(o.x,0.)).a,texture2D(f,fu-vec2(o.x,0.)).a),max(texture2D(f,fu+vec2(0.,o.y)).a,texture2D(f,fu-vec2(0.,o.y)).a)); if(n>0.5) c=vec3(0.035,0.02,0.06); } }
+        else if(mode==3){ vec2 o=1.25*dpr/res; float z=lind(vUv); float zl=lind(vUv-vec2(o.x,0.)), zr=lind(vUv+vec2(o.x,0.)), zu=lind(vUv+vec2(0.,o.y)), zd=lind(vUv-vec2(0.,o.y));
+          float lap=abs(zl+zr+zu+zd-4.*z)/max(z,0.5); float eD=smoothstep(0.004,0.012,lap);
+          float ll=lum(tm(texture2D(t,vUv-vec2(o.x,0.)).rgb)), lr=lum(tm(texture2D(t,vUv+vec2(o.x,0.)).rgb)), lu=lum(tm(texture2D(t,vUv+vec2(0.,o.y)).rgb)), ld=lum(tm(texture2D(t,vUv-vec2(0.,o.y)).rgb));
+          float eL=smoothstep(0.22,0.4,length(vec2(lr-ll,lu-ld)));
+          float l=lum(c); float q=l<0.09?0.05:l<0.22?0.15:l<0.42?0.32:l<0.68?0.56:0.86; vec3 c2=c*(q/max(l,0.02)); c2=mix(vec3(lum(c2)),c2,1.4); c2=clamp(c2,0.,1.);
+          if(l<0.2){ float cs=4.5*dpr; vec2 g=mat2(0.7071,-0.7071,0.7071,0.7071)*gl_FragCoord.xy/cs; vec2 cell=fract(g)-0.5; float r=mix(0.46,0.08,clamp(l/0.2,0.,1.)); if(length(cell)<r) c2*=0.6; }
+          c=mix(c2,vec3(0.05,0.03,0.08),max(eD,eL*0.85)); }
+        gl_FragColor=vec4(c,1.);}`}); comp.userData.k=0.85;
     const pass=(m,target)=>{ quad.material=m; renderer.setRenderTarget(target); renderer.render(qs,qcam); };
-    const size=()=>{ const s=new T3.Vector2(); renderer.getDrawingBufferSize(s); if(s.x===w&&s.y===h) return; w=s.x; h=s.y; sceneRT.setSize(w,h); rtA.setSize(Math.max(1,w>>2),Math.max(1,h>>2)); rtB.setSize(Math.max(1,w>>2),Math.max(1,h>>2)); };
+    const size=()=>{ const s=new T3.Vector2(); renderer.getDrawingBufferSize(s); if(s.x===w&&s.y===h) return; w=s.x; h=s.y; sceneRT.setSize(w,h); { const pu=PXU(), ps=PXS(); figRT.setSize(Math.ceil(w/pu),Math.ceil(h/pu)); lowRT.setSize(Math.ceil(w/ps),Math.ceil(h/ps)); inkRT.depthTexture.image.width=w; inkRT.depthTexture.image.height=h; inkRT.setSize(w,h); } rtA.setSize(Math.max(1,w>>2),Math.max(1,h>>2)); rtB.setSize(Math.max(1,w>>2),Math.max(1,h>>2)); };
     // can this device actually render into a half-float MSAA target? If not, fall back to the direct path rather than go black.
     { size(); const g2=renderer.getContext(); renderer.setRenderTarget(sceneRT); const ok=g2.checkFramebufferStatus(g2.FRAMEBUFFER)===g2.FRAMEBUFFER_COMPLETE; renderer.setRenderTarget(null); if(!ok) return null; }
     return { get on(){ return on; }, set on(v){ on=!!v; }, get glow(){ return glow; }, set glow(v){ glow=!!v; }, size,
-      render(sc,cam){ size(); renderer.setRenderTarget(sceneRT); renderer.render(sc,cam);
-        if(glow){ bright.uniforms.t.value=sceneRT.texture; pass(bright,rtA); const px=1/rtA.width, py=1/rtA.height; for(let i=0;i<2;i++){ blur.uniforms.t.value=rtA.texture; blur.uniforms.dir.value.set(px*(1+i),0); pass(blur,rtB); blur.uniforms.t.value=rtB.texture; blur.uniforms.dir.value.set(0,py*(1+i)); pass(blur,rtA); } }
-        comp.uniforms.t.value=sceneRT.texture; comp.uniforms.b.value=rtA.texture; comp.uniforms.k.value=glow?comp.userData.k:0; comp.uniforms.ex.value=renderer.toneMappingExposure; pass(comp,null); },
+      get style(){ return style; }, set style(v){ style=['pixunit','pixel','comic'].includes(v)?v:'standard'; },
+      floorFix(){ const fm=floorMesh.inst&&floorMesh.inst.material; if(!fm) return; if(fm.userData.rm===undefined){ fm.userData.rm=fm.roughnessMap||null; fm.userData.bm=fm.bumpMap||null; } const want=style==='comic'?null:fm.userData.rm; if(fm.roughnessMap!==want){ fm.roughnessMap=want; fm.needsUpdate=true; } },
+      render(sc,cam){ size(); this.floorFix(); let src=sceneRT; let mode=0;
+        if(style==='pixel'){ renderer.setRenderTarget(lowRT); renderer.render(sc,cam); src=lowRT; mode=1; comp.uniforms.fres.value.set(lowRT.width,lowRT.height); }
+        else if(style==='comic'){ renderer.setRenderTarget(inkRT); renderer.render(sc,cam); src=inkRT; mode=3; comp.uniforms.dp.value=inkRT.depthTexture; comp.uniforms.nf.value.set(cam.near,cam.far); comp.uniforms.ortho.value=cam.isOrthographicCamera?1:0; }
+        else if(style==='pixunit'){ tagLayers(sc); cam.layers.set(0); renderer.setRenderTarget(sceneRT); renderer.render(sc,cam);
+          const sm=renderer.shadowMap.autoUpdate, bg=sc.background, ca=renderer.getClearAlpha(); renderer.getClearColor(clr); renderer.shadowMap.autoUpdate=false; sc.background=null; renderer.setClearColor(0x000000,0);
+          renderer.setRenderTarget(figRT); renderer.clear(true,true,true); renderer.autoClear=false; cam.layers.set(2); sc.overrideMaterial=depthOnly; renderer.render(sc,cam); sc.overrideMaterial=null; cam.layers.set(1); renderer.render(sc,cam);
+          renderer.autoClear=true; sc.background=bg; renderer.setClearColor(clr,ca); renderer.shadowMap.autoUpdate=sm; cam.layers.mask=3; mode=2; comp.uniforms.f.value=figRT.texture; comp.uniforms.fres.value.set(figRT.width,figRT.height); }
+        else { renderer.setRenderTarget(sceneRT); renderer.render(sc,cam); }
+        comp.uniforms.mode.value=mode; comp.uniforms.res.value.set(w,h); comp.uniforms.dpr.value=renderer.getPixelRatio();
+        if(glow){ bright.uniforms.t.value=src.texture; pass(bright,rtA); const px=1/rtA.width, py=1/rtA.height; for(let i=0;i<2;i++){ blur.uniforms.t.value=rtA.texture; blur.uniforms.dir.value.set(px*(1+i),0); pass(blur,rtB); blur.uniforms.t.value=rtB.texture; blur.uniforms.dir.value.set(0,py*(1+i)); pass(blur,rtA); } }
+        comp.uniforms.t.value=src.texture; comp.uniforms.b.value=rtA.texture; comp.uniforms.k.value=glow?comp.userData.k:0; comp.uniforms.ex.value=renderer.toneMappingExposure; pass(comp,null); },
       tune(o){ if(o.threshold!==undefined) bright.uniforms.th.value=o.threshold; if(o.knee!==undefined) bright.uniforms.knee.value=o.knee; if(o.strength!==undefined) comp.userData.k=o.strength; } }; })();
   renderer.toneMapping=T3.ACESFilmicToneMapping; renderer.toneMappingExposure=1.42;
   const scene=new T3.Scene(); scene.background=new T3.Color('#0D1319'); scene.fog=new T3.Fog('#0D1319',34,66);
@@ -2830,7 +2866,7 @@ const R3 = (()=>{
   /* POV: a perspective camera over the selected mutant's shoulder, looking at the current target. The map stays orthographic;
      the swap is seamless because a perspective camera 170 units out with a ~4° lens frames the board exactly like the ortho view,
      and from there it dollies in. `active` is whichever camera draws this frame; pick/project/shake all use it. */
-  const pcam=new T3.PerspectiveCamera(46,aspect,0.1,320); let active=camera;
+  const pcam=new T3.PerspectiveCamera(46,aspect,0.1,320); let active=camera; camera.layers.enable(1); pcam.layers.enable(1);
   const POV={blend:0,pos:new T3.Vector3(),look:new T3.Vector3(),fov:46,init:false,farD:170,last:0};
   const FOG0={near:34,far:66}; let curL=null;
   function povGoal(){ const pv=G.pov; const u=pv&&pv.unit; if(!u||!u.alive) return null; const g=units.get(u.id); const up=g?g.position.clone():W(u.x,u.y,0); up.y=0;
@@ -2871,7 +2907,7 @@ const R3 = (()=>{
   placeCamera();
   // ---- light rig (retuned per theme in buildStatics) ----
   const hemi=new T3.HemisphereLight(0xbfd4e6,0x1a2230,0.7); scene.add(hemi);
-  const sun=new T3.DirectionalLight(0xfff1dc,1.4); sun.position.set(-8,14,6); sun.castShadow=true; sun.shadow.mapSize.set(1536,1536); const sc=sun.shadow.camera; sc.left=-11; sc.right=11; sc.top=8.5; sc.bottom=-8.5; sc.near=1; sc.far=40; sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.025; sun.shadow.radius=3; scene.add(sun); scene.add(sun.target);
+  const sun=new T3.DirectionalLight(0xfff1dc,1.4); sun.position.set(-8,14,6); sun.castShadow=true; sun.shadow.mapSize.set(1536,1536); const sc=sun.shadow.camera; sc.left=-11; sc.right=11; sc.top=8.5; sc.bottom=-8.5; sc.near=1; sc.far=40; sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.025; sun.shadow.radius=3; sun.shadow.camera.layers.enable(1); scene.add(sun); scene.add(sun.target);
   const fill=new T3.DirectionalLight(0x3fc1e3,0.3); fill.position.set(10,6,-8); scene.add(fill);
   const rimL=new T3.DirectionalLight(0xffffff,0.35); rimL.position.set(5,7,-14); scene.add(rimL);
   const W=(x,y,h=0)=>new T3.Vector3(x-COLS/2+0.5,h,y-ROWS/2+0.5);
@@ -3051,6 +3087,11 @@ const R3 = (()=>{
   const geo={ rb:rbox(1,1,1,0.12), rbS:rbox(1,1,1,0.06), tile:new T3.PlaneGeometry(COLS,ROWS), plane:new T3.PlaneGeometry(0.94,0.94), unit:new T3.PlaneGeometry(1,1), sph:new T3.SphereGeometry(1,20,14), box:new T3.BoxGeometry(1,1,1), cyl:new T3.CylinderGeometry(1,1,1,14), torus:new T3.TorusGeometry(0.42,0.035,8,32), ring:new T3.PlaneGeometry(0.9,0.9), ringFx:new T3.RingGeometry(0.6,0.7,32),
     wall:new T3.BoxGeometry(1,1.15,1), crate:rbox(0.78,0.5,0.78,0.04), crateS:rbox(0.5,0.34,0.5,0.03), thigh:new T3.CapsuleGeometry(0.066,0.14,3,10), shin:new T3.CapsuleGeometry(0.056,0.13,3,10), uarm:new T3.CapsuleGeometry(0.05,0.13,3,10), farm:new T3.CapsuleGeometry(0.046,0.13,3,10), sandbag:new T3.CapsuleGeometry(0.11,0.26,3,8) };
   const floorMesh={inst:null};
+  /* pixel-unit look: figure bodies live on layer 1 (drawn into a low-res target), opaque static geometry also on layer 2 (depth-only
+     occluders for that target), lights on every layer. Cameras and the sun's shadow camera see 0|1, so the standard look is unchanged. */
+  function tagLayers(sc){ statics.traverse(o=>{ if(o.userData._l2) return; o.userData._l2=1; if(o.isMesh&&!o.material.transparent&&o!==floorMesh.inst&&o.geometry.type!=='PlaneGeometry') o.layers.enable(2); });
+    unitGroup.traverse(o=>{ if(o.isMesh&&o.layers.mask!==2&&(o.userData.dimmed||(!o.material.transparent&&o.material.depthWrite!==false))) o.layers.set(1); });
+    sc.traverse(o=>{ if(o.isLight&&o.layers.mask!==0xffffffff) o.layers.enableAll(); }); }
   // ---- statics: floor, platform, walls, cover, objective props, backdrop ----
   const motes={pts:null,vel:[]};
   function aoDecal(x,y,s,a=0.5){ const m=new T3.Mesh(geo.unit,basic({map:TEX.shadow,transparent:true,opacity:Math.min(1,a*1.3),depthWrite:false})); m.rotation.x=-Math.PI/2; m.scale.setScalar(s); m.position.copy(W(x,y,0.006)); return m; }
@@ -3429,7 +3470,7 @@ const R3 = (()=>{
     if(BLOOM&&BLOOM.on) BLOOM.render(scene,active); else { renderer.setRenderTarget(null); renderer.render(scene,active); }
   }
   gl.hidden=false; $('board').hidden=true;
-  return { render, pick, canvas:gl, floatText, _scene:scene, _units:units, _camState:()=>({zoom:camera.zoom,off:camTarget.distanceTo(CENTER)}), bloom:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.glow=v; return BLOOM.glow; }, rtPath:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.on=v; return BLOOM.on; }, bloomTune:(o)=>BLOOM&&BLOOM.tune(o), povState:()=>({blend:POV.blend,cam:active===pcam?'pov':'map',pos:pcam.position.toArray().map(v=>+v.toFixed(2))}) };
+  return { render, pick, canvas:gl, floatText, _scene:scene, _units:units, _camState:()=>({zoom:camera.zoom,off:camTarget.distanceTo(CENTER)}), bloom:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.glow=v; return BLOOM.glow; }, rtPath:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.on=v; return BLOOM.on; }, bloomTune:(o)=>BLOOM&&BLOOM.tune(o), style:(v)=>{ if(!BLOOM) return 'standard'; if(v!==undefined){ BLOOM.style=v; BLOOM.on=true; } return BLOOM.style; }, povState:()=>({blend:POV.blend,cam:active===pcam?'pov':'map',pos:pcam.position.toArray().map(v=>+v.toFixed(2))}) };
 })();
 
 /* ---------- One-screen layout: size the board to the box it has (desktop fit mode) ---------- */
@@ -3444,7 +3485,7 @@ viewEl.addEventListener('mousemove',ev=>{ const prev=G.hover; G.hover=canvasPos(
   if(hu!==hoverUnit){ hoverUnit=hu; if(!G.busy) { hu?setHint(tooltip(hu)):setHint(); } } else if(movedTile&&!hu&&!G.busy&&(G.mode==='move'||G.mode==='blink')&&G.screen==='game'&&G.phase==='player') setHint(); });
 viewEl.addEventListener('mouseleave',()=>{ if(G.touch) return; G.hover=null; hoverUnit=null; if(!G.busy) setHint(); });
 viewEl.addEventListener('contextmenu',ev=>{ ev.preventDefault(); if(G.mode!=='move'){ setMode('move'); } });
-window.addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ for(const id of ['modal-threat','modal-help','modal-confirm','modal-mutant','modal-perk','modal-diff','modal-resume']) if(!$(id).hidden){ $(id).hidden=true; return; } } if(G.screen!=='game') return; if(ev.key==='Shift'){ G.ffwd=true; return; } if((ev.key===' '||ev.key==='Escape')&&skipBeat()){ ev.preventDefault(); return; } if((ev.key==='z'||ev.key==='Z')&&!ev.metaKey&&!ev.ctrlKey){ undoMove(); return; } if(ev.key==='Escape') setMode('move'); if(ev.key==='Tab'){ ev.preventDefault(); cycle(); } if(ev.key==='Enter'&&!G.busy&&G.phase==='player') requestEndTurn(); if(ev.key==='ArrowRight'||ev.key==='e'||ev.key==='E'){ povCycle(1); } if(ev.key==='ArrowLeft'||ev.key==='q'||ev.key==='Q'){ povCycle(-1); } if(ev.key==='v'||ev.key==='V') toggleView(); if(ev.key===' '&&G.povView==='pov'){ ev.preventDefault(); povGo(); } if(ev.key==='1') setMode('move'); if(ev.key==='2') setMode('shoot'); if(ev.key==='3'&&G.sel&&G.sel.def.ability) setMode(G.sel.def.ability.key); if(ev.key==='4') setMode('overwatch'); if(ev.key==='5') setMode('hunker'); if(ev.key==='d'||ev.key==='D') toggleDetail(); });
+window.addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ for(const id of ['modal-threat','modal-help','modal-confirm','modal-mutant','modal-perk','modal-diff','modal-resume']) if(!$(id).hidden){ $(id).hidden=true; return; } } if(G.screen!=='game') return; if(ev.key==='Shift'){ G.ffwd=true; return; } if((ev.key===' '||ev.key==='Escape')&&skipBeat()){ ev.preventDefault(); return; } if((ev.key==='z'||ev.key==='Z')&&!ev.metaKey&&!ev.ctrlKey){ undoMove(); return; } if(ev.key==='Escape') setMode('move'); if(ev.key==='Tab'){ ev.preventDefault(); cycle(); } if(ev.key==='Enter'&&!G.busy&&G.phase==='player') requestEndTurn(); if(ev.key==='ArrowRight'||ev.key==='e'||ev.key==='E'){ povCycle(1); } if(ev.key==='ArrowLeft'||ev.key==='q'||ev.key==='Q'){ povCycle(-1); } if(ev.key==='v'||ev.key==='V') toggleView(); if(ev.key===' '&&G.povView==='pov'){ ev.preventDefault(); povGo(); } if(ev.key==='1') setMode('move'); if(ev.key==='2') setMode('shoot'); if(ev.key==='3'&&G.sel&&G.sel.def.ability) setMode(G.sel.def.ability.key); if(ev.key==='4') setMode('overwatch'); if(ev.key==='5') setMode('hunker'); if(ev.key==='d'||ev.key==='D') toggleDetail(); if((ev.key==='l'||ev.key==='L')&&!ev.metaKey&&!ev.ctrlKey) cycleLook(); });
 { let sw=null; viewEl.addEventListener('pointerdown',ev=>{ sw=ev.pointerType==='touch'?{x:ev.clientX,y:ev.clientY,t:now()}:null; });
   viewEl.addEventListener('pointerup',ev=>{ if(!sw) return; const dx=ev.clientX-sw.x, dy=ev.clientY-sw.y; sw=null; if(Math.abs(dx)>48&&Math.abs(dy)<Math.abs(dx)*0.6&&G.povView==='pov'&&G.pov){ G.swiped=now(); povCycle(dx<0?1:-1); } });
   viewEl.addEventListener('pointercancel',()=>{ sw=null; }); }
@@ -3613,6 +3654,11 @@ $('nav-speed').onclick=()=>{ const order=['normal','fast','snap']; SETTINGS.spee
 $('nav-speed').textContent=SPEEDS[SETTINGS.speed].name;
 function toggleDetail(){ SETTINGS.detail=SETTINGS.detail==='full'?'lean':'full'; saveSettings(); $('detail-toggle').textContent=`Board detail: ${SETTINGS.detail==='full'?'Full':'Lean'}`; if(G.screen==='game') banner(`Board detail: ${SETTINGS.detail==='full'?'full':'lean'}`,'player'); Audio.select(); }
 $('detail-toggle').textContent=`Board detail: ${SETTINGS.detail==='full'?'Full':'Lean'}`; $('detail-toggle').onclick=toggleDetail;
+/* Look prototypes (R3.style). Per device, like speed. The 2D fallback and devices without WebGL2 stay Standard. */
+const LOOKS=[['standard','Standard'],['pixunit','Pixel units'],['pixel','Pixel'],['comic','Comic']];
+function applyLook(){ const got=R3&&R3.style?R3.style(SETTINGS.look):'standard'; const L=LOOKS.find(l=>l[0]===got)||LOOKS[0]; $('look-toggle').textContent=`Look: ${L[1]}`; return L; }
+function cycleLook(){ const i=LOOKS.findIndex(l=>l[0]===SETTINGS.look); SETTINGS.look=LOOKS[(i+1)%LOOKS.length][0]; saveSettings(); const L=applyLook(); if(G.screen==='game') banner(`Look: ${L[1]}`,'player'); Audio.select(); }
+$('look-toggle').onclick=cycleLook; applyLook();
 document.addEventListener('click',ev=>{ const b=ev.target.closest('button'); if(b&&!b.disabled&&!b.classList.contains('ucard')) Audio.ui(); },true);
 document.addEventListener('pointerdown',ev=>{ G.touch=ev.pointerType==='touch'; },{capture:true});
 document.addEventListener('pointerdown',()=>{ Audio.unlock(); if(G.screen!=='game') Audio.music.set('menu',{act:Math.min(2,Math.floor(nextMissionIdx()/5))}); },{once:true});
@@ -3975,5 +4021,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,hubTab,helpTopic,fitBoard,showEpilogue,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,blastPreview,flankTiles,allyResult,GRAFTS,setGraft,graftHolder,finish,renderHub,openMutant,waveTurn,fireAt,igniteAround,moment,bonded,partnersOf,openFallen,openBriefing,rushGraft,treatWound,renderNextUp,sideOffers,launchSide,MASTERIES,offerUpgrade,GEN,genFor,PROG,MODS,logLegacy,heldRoster,newCampaign,pickDifficulty,CONDS,condFor,variantMap,recruitOrderFor,freshCampaign,sightR,SETTINGS,tempo,skipBeat,undoMove,requestEndTurn,saveMission,loadMissionSave,resumeMission,offerResume,clearMissionSave,coalitionPhase,threatAfterMove,threatMoveAt,pathThreats,threatZone,anim,fxTracer,flankedBy,owZone,isDecisive,hitDir,renderSide,medalResult,soClose,closestCall,assignElites,makeElite,ELITE_TRAITS,commanderRecord,recordMission,renderRecord,tlmSummary:(r)=>telemetrySummary(r),TLM:()=>TLM,downloadTlm,ASC,ascN,nextUpLines,PAR,MEDALS,medalHtml,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
+window.MUTIE={G,cycleLook,applyLook,fxRing,fxFlash,fxSpark,fxPuff,light,hubTab,helpTopic,fitBoard,showEpilogue,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,blastPreview,flankTiles,allyResult,GRAFTS,setGraft,graftHolder,finish,renderHub,openMutant,waveTurn,fireAt,igniteAround,moment,bonded,partnersOf,openFallen,openBriefing,rushGraft,treatWound,renderNextUp,sideOffers,launchSide,MASTERIES,offerUpgrade,GEN,genFor,PROG,MODS,logLegacy,heldRoster,newCampaign,pickDifficulty,CONDS,condFor,variantMap,recruitOrderFor,freshCampaign,sightR,SETTINGS,tempo,skipBeat,undoMove,requestEndTurn,saveMission,loadMissionSave,resumeMission,offerResume,clearMissionSave,coalitionPhase,threatAfterMove,threatMoveAt,pathThreats,threatZone,anim,fxTracer,flankedBy,owZone,isDecisive,hitDir,renderSide,medalResult,soClose,closestCall,assignElites,makeElite,ELITE_TRAITS,commanderRecord,recordMission,renderRecord,tlmSummary:(r)=>telemetrySummary(r),TLM:()=>TLM,downloadTlm,ASC,ascN,nextUpLines,PAR,MEDALS,medalHtml,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

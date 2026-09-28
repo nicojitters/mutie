@@ -700,6 +700,25 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   inner panels scroll. Desktop 1024×768 → 1920×1080: every screen and sheet fits with no inner scroll except the log; 800×600 fits the
   page with a few inner scrolls.
 
+## Look prototypes (2026-09-28, Cameron: "make the most of the visuals" — pixel units on a 3D board, plus alternatives)
+Switchable post styles on the RT path, nothing about the game changes: `R3.style('standard'|'pixunit'|'pixel'|'comic')`, `SETTINGS.look`
+(per device), "Look:" button in How to play, key **L**. Needs the RT path (`BLOOM`); the 2D fallback and non-WebGL2 stay Standard.
+- **pixunit** — pixel-art figures over the smooth 3D board. Figure bodies (opaque meshes under `unitGroup`, incl. unaware-dimmed ones) go
+  to layer 1, opaque statics also get layer 2, lights get every layer (`tagLayers`, run each frame in this mode). Main pass renders layer 0
+  (board, rings, AO/contact decals, FX, and — via `sun.shadow.camera.layers` 0|1 — the figures' shadows); then `figRT` (nearest, 1/`PXU`
+  = 2.5 css px per texel) gets a depth-only pass of layer 2 (occluders) and the layer-1 figures on a transparent clear. Composite: figure
+  colour ×1.45, saturated, posterized to 6 levels with a light Bayer dither; alpha < 0.85 (dimmed unaware) draws as a checkerboard; a
+  1-texel dark outline where a transparent texel touches the figure. Cameras carry layers 0|1 always, so Standard is unchanged.
+- **pixel** — the whole scene into `lowRT` (1/`PXS` = 3 css px), nearest, 7-level posterize with Bayer dither (faded out in the darks),
+  a darkening where a neighbour is much brighter (cheap edge).
+- **comic** — `inkRT` with a `DepthTexture`: ink where the depth Laplacian (relative to depth; ortho and perspective linearized) or a
+  luminance Sobel jumps; five toon bands that keep hue; +40% saturation; 45° halftone dots in the darkest two bands; the floor's roughness
+  map is switched off in this mode (`floorFix`) because wet-patch speculars band into blobs.
+- `shotlook.mjs` (STYLES=…) stages M1 (squad spread, a pair of Troopers 5 tiles out) and captures map / POV / a zoomed, frozen Blast per
+  style → `look_<style>_<shot>.png`; run one style per process in the background (≈1 min each under swiftshader).
+- Known: the Blast FX itself is small at every style; pixunit figures get chunky in POV close-ups (fixed texel size, by design); pixel
+  mode's dither on the textured floor reads noisy.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

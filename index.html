@@ -305,7 +305,7 @@ canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;curso
 .field-foot .hint .tip{color:var(--ink)}
 .field-foot .hint .tip i{font-style:normal;color:var(--aug)}
 .field-foot .hint .risk{font-style:normal;color:var(--danger)} .field-foot .hint .risk b{color:var(--danger)}
-.field-foot .hint .safe{font-style:normal;color:var(--heal)}
+.field-foot .hint .safe{font-style:normal;color:var(--heal)} .field-foot .hint .warn{font-style:normal;color:var(--gold-hot)}
 .field-foot .hint .tap{color:var(--gold-hot);font-family:var(--font-display);font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-left:4px}
 
 .side{display:flex;flex-direction:column;gap:10px}
@@ -1545,9 +1545,9 @@ function inRange(a,d){ return dist(a,d)<=a.range+0.01 && (a.melee?dist(a,d)<1.5:
 function exposureAt(u,p){ const probe=Object.assign({},u,{x:p.x,y:p.y}); const th=[];
   for(const e of alive('enemy')){ if(!e.alert||e.stunned||e.def.noAttack) continue; if(!inRange(e,probe)) continue; const h=hitChance(e,probe); th.push({e,chance:h.chance,flanked:h.flanked,cover:h.cover}); }
   th.sort((a,b)=>b.chance-a.chance); return {threats:th,n:th.length,best:th.length?th[0].chance:0,flanked:th.some(t=>t.flanked),cover:adjacentCover(probe).length>0}; }
-function exposureHtml(u,p){ const x=exposureAt(u,p); const awake=alive('enemy').some(e=>e.alert);
-  if(!x.n) return `<i class="safe">${awake?'No awake hostile can hit you there.':'Nothing awake has eyes on it.'}</i>`;
-  return `<i class="risk">${x.n} hostile${x.n>1?'s':''} can hit you there — best <b>${x.best}%</b>${x.flanked?' · <b>FLANKED</b>':x.cover?'':' · <b>NO COVER</b>'}</i>`; }
+function exposureHtml(u,p){ const x=exposureAt(u,p); const awake=alive('enemy').some(e=>e.alert); const mv=awake?threatMoveAt(u,p):0; const after=mv>x.n?` <i class="${x.n?'risk':'warn'}">${mv} could reach a shot after moving.</i>`:'';
+  if(!x.n) return `<i class="safe">${awake?'No awake hostile can hit you there now.':'Nothing awake has eyes on it.'}</i>${after}`;
+  return `<i class="risk">${x.n} hostile${x.n>1?'s':''} can hit you there now — best <b>${x.best}%</b>${x.flanked?' · <b>FLANKED</b>':x.cover?'':' · <b>NO COVER</b>'}.</i>${after}`; }
 /* Where Phase Strike puts you: the nearest open orthogonal tile beside the target (same rule the strike uses). */
 function landingSpot(u,target){ let spot=null,bd=1e9; for(const d of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){ const x=target.x+d.x,y=target.y+d.y; if(inb(x,y)&&!solid(x,y)&&!unitAt(x,y)){ const dd=dist(u,{x,y}); if(dd<bd){bd=dd;spot={x,y};} } } return spot; }
 const blinkOk=(u,p)=>p&&!solid(p.x,p.y)&&!unitAt(p.x,p.y)&&dist(u,p)<=u.def.ability.range+0.01;
@@ -1558,8 +1558,21 @@ function previewTile(u,hover){ const m=G.mode; if(!u) return null;
   if(m==='blink'){ return blinkOk(u,hover)?hover:null; }
   if(m==='phasestrike'){ let t=hover?unitAt(hover.x,hover.y):null; if(!(t&&t.side==='enemy')&&G.povView==='pov'&&G.pov&&G.pov.unit===u&&G.pov.target&&G.pov.target.side==='enemy') t=G.pov.target; if(t&&t.side==='enemy'&&t.alive&&dist(u,t)<=6.01) return landingSpot(u,t); }
   return null; }
-function moveHint(u,p,n){ const wake=alive('enemy').filter(e=>!e.alert&&dist(p,e)<=SIGHT+0.01&&hasLOS(p,e)).length;
-  return `<b>Move</b> here — ${n.c<=u.move?'1 action':'dash, both actions'}.${wake?` <i class="risk">${wake} unaware hostile${wake>1?'s':''} will see you.</i>`:''} ${exposureHtml(u,p)}`; }
+/* Next-turn threat: every tile an awake hostile could stand on after its move (Husks: any free tile within reach; rooted/stunned
+   stay put), then "could it shoot p from there". Answers the question exposureAt can't: enemies move before they fire.
+   Cached on a board signature so the whole reachable footprint costs one computation per state, not one per frame. */
+let TM={key:null,map:null};
+function enemyReach(e){ const out=[{x:e.x,y:e.y}]; if(e.rooted||e.stunned) return out; if(e.def.verb==='phase'){ for(let y=e.y-e.move;y<=e.y+e.move;y++) for(let x=e.x-e.move;x<=e.x+e.move;x++){ if(inb(x,y)&&!solid(x,y)&&!unitAt(x,y)) out.push({x,y}); } } else { for(const n of reachable(e,e.move).values()) out.push({x:n.x,y:n.y}); } return out; }
+function threatAfterMove(u,tiles){ const sig=`${G.turn}|${u.id}|${u.x},${u.y}|${tiles.map(t=>t.x+','+t.y).join(' ')}|`+alive('enemy').map(e=>e.id+':'+e.x+','+e.y+(e.alert?'a':'')+(e.stunned?'s':'')+(e.rooted?'r':'')).join(';')+'|'+G.grid.map(r=>r.join('')).join('');
+  if(TM.key===sig) return TM.map; const out=new Map(); const es=alive('enemy').filter(e=>e.alert&&!e.stunned&&!e.def.noAttack).map(e=>({e,Q:enemyReach(e)}));
+  for(const p of tiles){ const probe=Object.assign({},u,{x:p.x,y:p.y}); let n=0; for(const {e,Q} of es){ for(const q of Q){ if(inRange(Object.assign({},e,{x:q.x,y:q.y}),probe)){ n++; break; } } } out.set(key(p.x,p.y),n); }
+  TM={key:sig,map:out}; return out; }
+const threatMoveAt=(u,p)=>threatAfterMove(u,[p]).get(key(p.x,p.y))||0;
+/* Overwatch crossings along a path: which hostiles on overwatch would get a reaction shot at some step, and at what odds. */
+function pathThreats(u,path){ const ows=alive('enemy').filter(e=>e.alert&&e.ow&&!e.melee&&!e.suppressed&&!e.stunned); const out=[]; for(const e of ows){ let best=null; for(const st of path){ const probe=Object.assign({},u,{x:st.x,y:st.y}); if(inRange(e,probe)){ const c=hitChance(e,probe,{reaction:true}).chance; if(!best||c>best.chance) best={e,chance:c,step:st}; } } if(best) out.push(best); } return out; }
+function moveHint(u,p,n,r){ const wake=alive('enemy').filter(e=>!e.alert&&dist(p,e)<=SIGHT+0.01&&hasLOS(p,e)).length;
+  const ow=r?pathThreats(u,pathTo(r,p.x,p.y)):[]; const owTxt=ow.length?` <i class="risk">Crosses overwatch — ${ow.map(o=>`${o.e.def.name} ${o.chance}%`).join(', ')}.</i>`:'';
+  return `<b>Move</b> here — ${n.c<=u.move?'1 action':'dash, both actions'}.${owTxt}${wake?` <i class="risk">${wake} unaware hostile${wake>1?'s':''} will see you.</i>`:''} ${exposureHtml(u,p)}`; }
 const jammers=()=>alive('enemy').filter(e=>e.def.verb==='jam');
 const jammed=u=>u.side==='player'&&jammers().some(z=>cheb(z,u)<=(perk('scrambler')?2:3));
 
@@ -1890,7 +1903,7 @@ function armHint(u,p,target,hostile){ const again='<span class="tap">Tap again t
   if(G.mode==='move'||G.mode==='shoot'){ if(hostile){ if(!inRange(u,target)) return `<b>No shot</b> — ${target.name} is out of range or line of sight.`; const h=hitChance(u,target); return `<b>Fire</b> at ${target.name} — <b>${h.chance}%</b>${h.flanked?' (flanked)':h.cover===2?' vs full cover':h.cover===1?' vs half cover':''}. ${again}`; }
     if(target) return tooltip(target); if(G.mode==='shoot') return `<b>Fire</b> — tap a hostile.`;
     const r=reachable(u,u.move*u.ap); const n=r.get(key(p.x,p.y)); if(!n){ G.armed=null; return `<b>Can't reach</b> that tile.`; }
-    return `${moveHint(u,p,n)} ${again}`; }
+    return `${moveHint(u,p,n,r)} ${again}`; }
   const ab=u.def.ability; const name=G.mode==='setdown'?'Set down':G.mode.startsWith('perk:')?(PERKS[G.mode.slice(5)]||{}).name||'Perk':(ab&&ab.key===G.mode?ab.name:G.mode);
   const pt=(G.mode==='blink'||G.mode==='phasestrike')?previewTile(u,p):null;
   return `<b>${name}</b>${target?` on ${target.name}`:' here'}.${pt?' '+(G.mode==='phasestrike'?'On landing: ':'')+exposureHtml(u,pt):''} ${again}`; }
@@ -1977,7 +1990,7 @@ function setHint(t){
     if(pv.kind==='ally'){ h.innerHTML=`<b>${u.def.ability.name}</b> on <b>${nm}</b>${it.ok?'':' — not valid right now'}.${nav} <b>Move</b> pulls back to the map.`; return; }
     if(TARGETED[m]==='enemy'){ const sp=(m==='phasestrike'&&it.ok)?landingSpot(u,t):null; h.innerHTML=`<b>${u.def.ability.name}</b> → <b>${nm}</b>${it.ok?'':' — out of reach'}.${sp?' On landing: '+exposureHtml(u,sp):''}${nav}`; return; }
     if(it.ok){ const si=t.side==='obj'?null:shotInfo(u,t); const kt=si?killTag(si):''; h.innerHTML=`<b>${nm}</b> — <b>${it.h.chance}%</b>${it.h.flanked?' flanked':it.h.cover===2?' vs full cover':it.h.cover===1?' vs half cover':''}, ${si?(si.lo===si.hi?si.lo:si.lo+'–'+si.hi):u.dmg[0]+'–'+u.dmg[1]} dmg${si&&si.armor?' after '+si.armor+' armor':''}${kt?` — <b>${kt.toLowerCase()}</b>`:''}.${it.h.parts&&it.h.parts.length>1?` <span class="why">${fmtParts(it.h)}</span>`:''}${t.side==='enemy'&&!t.alert?' Firing wakes their pod.':''}${nav}`; } else h.innerHTML=`<b>${nm}</b> — no shot from here.${nav} <b>Move</b> to reposition.`; return; }
-  if(m==='move'){ const p=G.hover; if(p&&!unitAt(p.x,p.y)){ const n=reachable(u,u.move*u.ap).get(key(p.x,p.y)); if(n){ h.innerHTML=moveHint(u,p,n); return; } } h.innerHTML=G.touch?`<b>Move</b> — tap a highlighted tile to preview it (who wakes, who could hit you there), tap again to go.`:`<b>Move</b> — click a highlighted tile. Bright = 1 action, dim = dash (both actions). Hover a tile to see who could hit you there.`; }
+  if(m==='move'){ const p=G.hover; if(p&&!unitAt(p.x,p.y)){ const r=reachable(u,u.move*u.ap); const n=r.get(key(p.x,p.y)); if(n){ h.innerHTML=moveHint(u,p,n,r); return; } } h.innerHTML=G.touch?`<b>Move</b> — tap a highlighted tile to preview it (who wakes, who could hit you there), tap again to go.`:`<b>Move</b> — click a highlighted tile. Bright = 1 action, dim = dash (both actions). Hover a tile to see who could hit you there.`; }
   else if(m==='shoot') h.innerHTML=`<b>Fire</b> — click a hostile or a relay. Hover to see hit chance.`;
   else if(m==='blast') h.innerHTML=`<b>Pulse Blast</b> — click a target tile within 5. Hits everything in the 3×3, allies included. Wrecks crates.`;
   else if(m==='smash') h.innerHTML=`<b>Seismic Smash</b> — click an adjacent hostile.`;
@@ -2622,6 +2635,7 @@ const R3 = (()=>{
     const expoAt=selOk?(G.mode==='move'?((G.hover&&!unitAt(G.hover.x,G.hover.y)&&moveR.has(key(G.hover.x,G.hover.y)))?G.hover:null):previewTile(sel,G.hover)):null;
     const expo=expoAt?exposureAt(sel,expoAt):null;
     const expoBy=expo?new Map(expo.threats.map(t=>[t.e.id,t])):null;
+    if(expoBy&&G.mode==='move'&&moveR){ for(const o of pathThreats(sel,pathTo(moveR,expoAt.x,expoAt.y))){ if(!expoBy.has(o.e.id)) expoBy.set(o.e.id,{e:o.e,chance:o.chance,flanked:false,ow:true}); else expoBy.get(o.e.id).owChance=o.chance; } }
     for(const u of G.units){
       let g=units.get(u.id);
       if(!u.alive){ if(g&&!dying.has(u.id)){ dying.set(u.id,{g,t0:t}); units.delete(u.id); } continue; }
@@ -2656,7 +2670,7 @@ const R3 = (()=>{
       // hit chance labels
       if((u.side==='enemy'||u.side==='obj')&&sel&&sel.alive&&playerPhase&&sel.ap>0&&!sel.def.noAttack&&(G.mode==='move'||G.mode==='shoot'||expoBy)){
         const pl=pctFor(u.id); const pp=project(g.position.x+COLS/2-0.5,g.position.z+ROWS/2-0.5,-0.05);
-        if(expoBy){ const th=expoBy.get(u.id); if(th){ const html2=`${th.chance}%<small>${th.flanked?'FLANKS YOU':'AT YOU'}</small>`; pl.el.className='pct lo exp'; if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } } else pl.used=false; }
+        if(expoBy){ const th=expoBy.get(u.id); if(th){ const html2=`${th.chance}%<small>${th.ow?'OVERWATCH ON PATH':(th.flanked?'FLANKS YOU':'AT YOU')+(th.owChance?` · OW ${th.owChance}% ON PATH`:'')}</small>`; pl.el.className='pct lo exp'; if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } } else pl.used=false; }
         else if(inRange(sel,u)){ const si=shotInfo(sel,u); const h=si.h; const kt=killTag(si); const html2=`${h.chance}%<small>${[h.flanked?'FLANKED':'',`${si.lo===si.hi?si.lo:si.lo+'–'+si.hi} dmg`,kt].filter(Boolean).join(' · ')}</small>`; pl.el.className='pct '+(h.chance>=65?'hi':h.chance>=40?'':'lo'); if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } }
         else if(G.mode==='shoot'){ const html2=dist(sel,u)>sel.range?'RANGE':'NO LOS'; pl.el.className='pct dim'; if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } } else { pl.used=false; }
         if(pl.used){ pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; } }
@@ -2678,7 +2692,8 @@ const R3 = (()=>{
       jamPlanes.forEach((jp,i)=>{ const z=zs[i]; jp.visible=!!z; if(z){ jp.material.opacity=0.11+0.03*Math.sin(t/300); jp.rotation.z=t/6000; jp.position.copy(W(z.x,z.y,0.02)); } }); }
     if(G.smoke){ for(const k of G.smoke){ const [sx,sy]=k.split(',').map(Number); put(sx,sy,'#8f9aa6',0); } }
     if(sel&&sel.alive&&playerPhase&&sel.ap>0){
-      if(G.mode==='move'){ const r=moveR||reachable(sel,sel.move*sel.ap); for(const nd_ of r.values()) put(nd_.x,nd_.y,nd_.c<=sel.move?'#3FC1E3':'#1E5F70',0);
+      if(G.mode==='move'){ const r=moveR||reachable(sel,sel.move*sel.ap); const tm=alive('enemy').some(e=>e.alert)?threatAfterMove(sel,[...r.values()]):null;
+        for(const nd_ of r.values()){ const th=tm?(tm.get(key(nd_.x,nd_.y))||0):0; const dash=nd_.c>sel.move; put(nd_.x,nd_.y,th===0?(dash?'#1E5F70':'#3FC1E3'):th<=2?(dash?'#6E4E1C':'#E0A040'):(dash?'#6E2A26':'#FF6B62'),0); }
         if(G.hover&&r.has(key(G.hover.x,G.hover.y))){ const pth=pathTo(r,G.hover.x,G.hover.y); let prev=W(sel.x,sel.y,0.06); for(const s of pth){ const nx=W(s.x,s.y,0.06); const segLen=prev.distanceTo(nx); const steps=Math.max(1,Math.round(segLen/0.34)); for(let i=1;i<=steps&&nd<96;i++){ const pt=prev.clone().lerp(nx,i/steps); m4.compose(pt,q,dsc); pathDots.setMatrixAt(nd,m4); nd++; } prev=nx; }
           for(const e of alive('enemy')){ if(!e.alert&&dist(G.hover,e)<=SIGHT+0.01&&hasLOS(G.hover,e)){ const pl=pctFor('wake'+e.id); const pp=project(e.x,e.y,1.6); pl.el.className='pct lo'; if(pl.html!=='WILL SEE YOU'){ pl.el.innerHTML='WILL SEE YOU'; pl.html='WILL SEE YOU'; } pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; } } } }
       else if(G.mode==='blast'||G.mode==='blink'){ const R=sel.def.ability.range; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ if(dist(sel,{x,y})<=R+0.01&&(G.mode==='blast'||(!solid(x,y)&&!unitAt(x,y)))) put(x,y,G.mode==='blast'?'#8a6a2a':'#6a4fa0',0); }
@@ -2694,7 +2709,7 @@ const R3 = (()=>{
     }
     if(expo){ // exposure summary floats over the previewed tile (move / blink / phase-strike landing); the tile tints by verdict
       put(expoAt.x,expoAt.y,expo.n?(expo.flanked||!expo.cover?'#FF6B62':'#E0A040'):'#5CD68A',2);
-      const pl=pctFor('exptile'); const pp=project(expoAt.x,expoAt.y+0.5,0.02); const lead=G.mode==='phasestrike'?'LAND · ':G.mode==='blink'?'BLINK · ':''; const html2=expo.n?`${lead}${expo.n} CAN HIT<small>${expo.flanked?'FLANKED · ':expo.cover?'':'NO COVER · '}best ${expo.best}%</small>`:`${lead}SAFE<small>${expo.cover?'in cover':'no one has eyes'}</small>`;
+      const pl=pctFor('exptile'); const pp=project(expoAt.x,expoAt.y+0.5,0.02); const lead=G.mode==='phasestrike'?'LAND · ':G.mode==='blink'?'BLINK · ':''; const mv=threatMoveAt(sel,expoAt); const after=mv>expo.n?` · ${mv} if they move`:''; const html2=expo.n?`${lead}${expo.n} CAN HIT NOW<small>${expo.flanked?'FLANKED · ':expo.cover?'':'NO COVER · '}best ${expo.best}%${after}</small>`:`${lead}SAFE NOW<small>${mv?mv+' if they move':(expo.cover?'in cover':'no one has eyes')}</small>`;
       pl.el.className='pct exp '+(expo.n?'lo':'ok'); if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; }
     hi.count=n; hi.instanceMatrix.needsUpdate=true; if(hi.instanceColor) hi.instanceColor.needsUpdate=true;
     pathDots.count=nd; pathDots.instanceMatrix.needsUpdate=true; pathDots.material.opacity=0.7+0.3*Math.sin(t/180);
@@ -3084,5 +3099,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
+window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,threatAfterMove,threatMoveAt,pathThreats,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

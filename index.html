@@ -750,7 +750,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <p><b>Read the number.</b> Hover a hostile to see your hit chance. Half cover −20, full cover −40. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
         <p><b>Cover has a side.</b> Shield icons show which direction a unit is protected from. Bright shields protect against the unit you've selected.</p>
         <p><b>Fuel drums</b> (the ones with the hazard band) are full cover for anyone — until someone shoots one. Any hit sets it off: 4 damage to everything beside it, armor ignored, crates wrecked, neighbouring drums chain. Bait a pod behind one, or don't stand next to one yourself.</p>
-        <p><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it.</p>
+        <p><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it. <b>Hunker</b> is the other way to spend a turn you can't shoot well: −20 to be hit and no crits against you until your next turn. A 30% shot, overwatch, hunker, or a move — all four are real answers.</p>
         <p><b>Hostiles start unaware.</b> They wake in groups when a mutant comes within seven tiles in view, or fires on them. Hover a move tile to see who it would wake, and every awake hostile that could hit you there shows its odds against you. Pick your fights, and your tiles.</p>
         <p><b>Don't linger.</b> Reinforcements arrive every turn after the mission's timer.</p>
         <p><b>Campaign.</b> Your roster persists between missions in this browser. Survivors earn XP (2 per mission, 1 per kill) and level up; at level 3 you choose one of two permanent upgrades. A mutant who ends a mission under half health sits out the next one. The dead stay dead — they go on the memorial and a new recruit joins their family. The <b>Graft Index</b> rises after every mission and only sabotage, broadcasts and the Surgeon push it back; at 10 the campaign is lost.</p>
@@ -759,7 +759,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <p><b>Side ops</b> are generated strikes: a random sector, objective and Coalition element scaled to where you are in the campaign. They use your roster like any mission — XP, wounds and deaths all count — and a win pushes the Graft Index back by two. Every sector has a code you can replay.</p>
         <p><b>Twelve mutants, four families.</b> You start with three — Vex, Halden and Nix. Another named mutant joins after each campaign mission you clear, until all twelve are on the roster. Every Blaster, Bruiser, Phaser and Mender shares its family's role, but each mutant has a different power and passive. Two Blasters are not the same Blaster. Take three per mission.</p>
         <p><b>Voice</b> uses your browser's built-in speech voices; the cast sounds different on every machine. Every spoken line also appears in Comms. Toggle it in the top bar.</p>
-        <p class="keys"><kbd>1</kbd> Move · <kbd>2</kbd> Fire · <kbd>3</kbd> Power · <kbd>4</kbd> Overwatch · <kbd>Tab</kbd> next unit · <kbd>Enter</kbd> end turn · <kbd>Esc</kbd> / right-click cancel</p>
+        <p class="keys"><kbd>1</kbd> Move · <kbd>2</kbd> Fire · <kbd>3</kbd> Power · <kbd>4</kbd> Overwatch · <kbd>5</kbd> Hunker · <kbd>Tab</kbd> next unit · <kbd>Enter</kbd> end turn · <kbd>Esc</kbd> / right-click cancel</p>
       </div>
     </div>
   </div>
@@ -1306,6 +1306,7 @@ const VO=(()=>{
     hit:{vex:['Hit!','That landed.'],halden:['Got him.','Felt that one.'],nix:['Tagged.','Clean.'],sol:['Hit.','Got them.']},
     miss:{vex:['Damn it.','Missed!'],halden:['Missed.','Come on!'],nix:['No!','Off.'],sol:['Missed. Sorry.','Nothing.']},
     kill:{vex:['Down.','One less.'],halden:['He’s down.','Done.'],nix:['Got ’em.','Down.'],sol:['Target down.','They’re down.']},
+    hunker:['Getting small.','Heads down.','Waiting it out.','Not today.'],
     ow:{vex:['Covering.','Eyes on the lane.'],halden:['Holding here.','Nobody gets past me.'],nix:['Watching.','Waiting on them.'],sol:['Covering the squad.','Watching.']},
     hurt:{vex:['I’m hit!','Ah—that’s bad.'],halden:['Grr—still up.','Took one.'],nix:['Hit! Hit!','Ow—okay, okay.'],sol:['I’m hit.','Somebody— I’m hit.'],wren:['Help!','I’m hit!']},
     low:{vex:['I can’t take another one.'],halden:['I’m running out of me.'],nix:['One more and I’m done.'],sol:['I need cover. Now.'],wren:['Please— get me out.']},
@@ -1515,6 +1516,7 @@ function hitChance(a,d,opt={}){
   c-= cov===2?40:cov===1?20:0;
   if(d.marked&&!a.melee) c+=20;
   if(opt.reaction){ if(a.def.passiveKey!=='steady'&&!(a.side==='player'&&perk('steady'))) c-=15; if(d.def.passiveKey==='slippery') c-=20; }
+  if(d.hunker) c-=20;
   if(a.side==='enemy'&&d.side==='player'&&G.smoke&&G.smoke.has(key(d.x,d.y))) c-=30;
   if(a.side==='player'&&d.side==='enemy'&&perk('ambush')&&(opt.ambush||!d.alert)) c+=25;
   if(a.suppressed) c-=25;
@@ -1826,7 +1828,7 @@ function renderSide(){
   G.units.filter(u=>(u.side==='player'||u.side==='captive')&&!u.def.decoy).forEach(u=>{
     const b=document.createElement('button'); b.className='ucard'+(u.alive?'':' dead')+(u.alive&&u.side==='player'&&!u.def.noAttack&&(u.hp<=3||u.downed)?' low':''); b.setAttribute('aria-pressed',String(G.sel===u)); b.disabled=!u.alive||u.side!=='player'||G.phase!=='player'||G.busy||u.downed;
     const pips=Array.from({length:u.maxHp},(_,i)=>`<i class="${i<u.hp?'':'off'}"></i>`).join('');
-    const st=(u.downed?`<span class="st mark">${u.stabilized?'Stable':'Bleeding '+u.bleed}</span>`:'')+(u.carried?'<span class="st ow">Carried</span>':'')+(u.carrying?`<span class="st ow">Carrying ${u.carrying.name}</span>`:'')+(u.marked?'<span class="st mark">Marked</span>':'')+(jammed(u)?'<span class="st jam">Jammed</span>':'')+((u.drained||u.drainedNow)?'<span class="st drain">Drained</span>':'')+(u.shield>0?`<span class="st shield">Shield ${u.shield}</span>`:'')+(u.brace?'<span class="st brace">Braced</span>':'')+(u.ow?'<span class="st ow">OW</span>':'');
+    const st=(u.downed?`<span class="st mark">${u.stabilized?'Stable':'Bleeding '+u.bleed}</span>`:'')+(u.carried?'<span class="st ow">Carried</span>':'')+(u.carrying?`<span class="st ow">Carrying ${u.carrying.name}</span>`:'')+(u.marked?'<span class="st mark">Marked</span>':'')+(jammed(u)?'<span class="st jam">Jammed</span>':'')+((u.drained||u.drainedNow)?'<span class="st drain">Drained</span>':'')+(u.shield>0?`<span class="st shield">Shield ${u.shield}</span>`:'')+(u.brace?'<span class="st brace">Braced</span>':'')+(u.hunker?'<span class="st shield">Hunkered</span>':'')+(u.ow?'<span class="st ow">OW</span>':'');
     b.innerHTML=`<span class="glyph" style="background:${u.color}">${u.glyph}</span><span><div class="n">${u.name} <span class="r">${u.side==='captive'||u.def.id==='vip'?'Captive':famName(u.def)}${u.alive?'':' · down'}${u.side==='captive'?' · captive':''}</span>${st}</div><div class="hp">${pips}</div></span><span class="ap">${u.side==='player'?`<i class="${u.ap>=1?'':'off'}"></i><i class="${u.ap>=2?'':'off'}"></i>`:''}</span>`;
     b.onclick=()=>{ if(!u.alive||u.side!=='player') return; select(u); }; sq.appendChild(b); });
   $('enemy-count').textContent=`${alive('enemy').length} hostile${alive('enemy').length===1?'':'s'}`;
@@ -1849,6 +1851,7 @@ function renderSide(){
     if(!u.def.noAttack){
       mk('shoot','Fire',`${u.dmg[0]}–${u.dmg[1]} dmg, range ${u.range}. Ends turn.`,{disabled:!can,pressed:G.mode==='shoot',cost:2,cls:'fire'});
       mk('overwatch','Overwatch',`Hold fire. Shoot the first hostile that moves in view (aim −15). Ends turn.`,{disabled:!can||u.ow||!!u.carrying,pressed:u.ow,cost:2});
+      mk('hunker','Hunker',`Get small. −20 to be hit and no crits against you until your next turn. Ends turn.`,{disabled:!can||u.hunker,pressed:u.hunker,cost:2});
       const ab=u.def.ability; const isJam=jammed(u);
       for(const pid of [...(G.perks||[])]){ const P=PERKS[pid]; if(!P||P.kind!=='use') continue; const used=G.perkUsed.has(pid); mk('perk:'+pid,P.name,P.short,{disabled:!can||used||(P.cost&&u.ap<P.cost),pressed:G.mode==='perk:'+pid,cost:P.cost||0,cls:'perk'+(used?' used':''),tag:used?'USED':(P.cost?'':'FREE')}); }
       const isCharge=ab.key==='blast'; const spent=isCharge&&!(u.charges>0);
@@ -1921,6 +1924,7 @@ function select(u){ G.armed=null; if(G.phase!=='player'||G.busy) return; if(G.se
 function setMode(m){ G.armed=null; if(!G.sel||G.phase!=='player'||G.busy) return;
   if(m==='stabilize'){ const u=G.sel; const d=downedNear(u)[0]; if(!d||u.ap<=0||d.stabilized) return; d.stabilized=true; u.ap-=1; Audio.heal(d.x); anim(u,'cast',{tx:d.x,ty:d.y}); fxRing(d.x,d.y,'#5CD68A',1); fxText(d.x,d.y,'STABLE','#5CD68A',true); log(`${u.name} stabilizes ${d.name}.`,'good'); say('stabilized',d.name); VO.bark(u,'mend',0.8); afterAction(u); return; }
   if(m==='carry'){ const u=G.sel; const d=downedNear(u)[0]; if(!d||u.ap<=0||u.carrying) return; u.carrying=d; d.carried=true; d.x=u.x; d.y=u.y; u.move=Math.max(1,u.move-1); u.ow=false; u.ap-=1; Audio.thud(u.x); fxRing(u.x,u.y,'#3FC1E3',0.8); log(`${u.name} picks up ${d.name}.`,'sys'); VO.bark(u,'move',0.8); afterAction(u); return; }
+  if(m==='hunker'){ const u=G.sel; if(u.ap<=0||u.hunker||u.def.noAttack) return; u.hunker=true; u.ap=0; u.ow=false; Audio.thud(u.x); VO.bark(u,'hunker',0.6); fxRing(u.x,u.y,'#AEBFD0',0.9); fxText(u.x,u.y-0.4,'HUNKER','#AEBFD0'); log(`${u.name} hunkers down — −20 to be hit, no crits, until your next turn.`,'sys'); afterAction(u); return; }
   if(m==='overwatch'){ const u=G.sel; if(u.ap<=0||u.ow||u.def.noAttack||u.carrying) return; u.ow=true; u.ap=0; Audio.overwatch(u.x); VO.bark(u,'ow',0.6); fxRing(u.x,u.y,'#F2B33D',0.9); log(`${u.name} goes on overwatch.`,'sys'); afterAction(u); return; }
   if(G.sel.def.noAttack&&m!=='move') return;
   if(m.startsWith('perk:')){ const pid=m.slice(5), u=G.sel; if(!perk(pid)||G.perkUsed.has(pid)||u.downed) return;
@@ -2049,7 +2053,7 @@ async function shoot(a,d,opt={}){
   if(opt.reaction) Audio.reaction(a.x);
   fxTracer(a,d,a.side==='player'?'#9FE8FF':'#FFB3AE'); if(a.melee) Audio.lunge(a.x); else Audio.shoot(a.x,kind); await wait(200);
   const covTxt=h.flanked?' (flanked)':h.cover===2?' vs full cover':h.cover===1?' vs half cover':''; const mk=h.marked?' [marked]':'';
-  if(hit){ let dmg=rnd(a.dmg[0],a.dmg[1]); let crit=false; if(h.flanked){ dmg+=1; if(a.def.passiveKey==='hotshot') dmg+=1; const cc=a.side==='player'?0.25:((G.adapt||[]).includes('frenzy')?0.24:0.12); if(Math.random()<cc){ crit=true; dmg+=a.side==='player'?2:1; } }
+  if(hit){ let dmg=rnd(a.dmg[0],a.dmg[1]); let crit=false; if(h.flanked){ dmg+=1; if(a.def.passiveKey==='hotshot') dmg+=1; const cc=d.hunker?0:(a.side==='player'?0.25:((G.adapt||[]).includes('frenzy')?0.24:0.12)); if(Math.random()<cc){ crit=true; dmg+=a.side==='player'?2:1; } }
     if(a.side==='player'&&G.boost) dmg+=1; if(opt.ambush){ dmg+=1; fxText(d.x,d.y-1.1,'AMBUSH','#F2B33D'); }
     if(crit){ Audio.crit(d.x); fxText(d.x,d.y-0.8,'CRIT','#FFD27A',true); freeze(110); flash('#FFD27A',0.35,80); log(`${a.name} CRITS ${d.name} for ${dmg} — ${h.chance}%${covTxt}${mk}.`,'hit'); } else { Audio.hit(d.x); log(`${a.name} hits ${d.name} for ${dmg} — ${h.chance}%${covTxt}${mk}.`,'hit'); }
     fxSpark(d.x,d.y,d.side==='enemy'?'#FFB3AE':'#9FE8FF',crit?18:10,{speed:crit?1.6:1});
@@ -2545,8 +2549,8 @@ const R3 = (()=>{
     if(moving){ const w=Math.sin(t/70); P.legL.rotation.x=w*0.75; P.legR.rotation.x=-w*0.75; P.kneeL.rotation.x=Math.max(0,-w)*0.9; P.kneeR.rotation.x=Math.max(0,w)*0.9; P.armL.rotation.x=rest.lx-w*0.25; P.armR.rotation.x=rest.rx+w*0.25; bobY=Math.abs(w)*0.05; body.rotation.x=0.08; }
     else if(u.ow){ P.armR.rotation.x=-1.35; P.armL.rotation.x=-1.1; P.armL.rotation.z=0.5; bobY=-0.04; P.head.rotation.y=0.35*Math.sin(t/600); }
     // cover crouch: standing beside cover, an idle unit hunkers behind it (deeper for full cover); eased in and out so stops don't snap
-    { const wantCr=(!moving&&!u.ow&&u.side!=='captive'&&!u.def.noAttack&&!(a&&k<1&&(a.k==='fire'||a.k==='lunge'||a.k==='cast'||a.k==='drop')))?(()=>{ const cov=adjacentCover(u); if(!cov.length) return 0; const f=nearestFoe(u); const rel=f?cov.filter(c=>protects(u,c,f)):cov; const use=rel.length?rel:cov; return use.some(c=>c.val===2)?1:0.62; })():0;
-      const cr=g.userData.cr=(g.userData.cr||0)+(wantCr-(g.userData.cr||0))*(frozen?0:0.12); if(cr>0.01){ const e=cr; P.legL.rotation.x-=0.62*e; P.legR.rotation.x-=0.78*e; P.kneeL.rotation.x+=1.0*e; P.kneeR.rotation.x+=1.15*e; bobY-=0.15*e; body.rotation.x+=0.16*e; P.armR.rotation.x+=0.18*e; P.armL.rotation.x+=0.1*e; P.head.rotation.x=-0.12*e; } }
+    { const wantCr=(!moving&&!u.ow&&u.side!=='captive'&&!u.def.noAttack&&!(a&&k<1&&(a.k==='fire'||a.k==='lunge'||a.k==='cast'||a.k==='drop')))?(u.hunker?1.2:(()=>{ const cov=adjacentCover(u); if(!cov.length) return 0; const f=nearestFoe(u); const rel=f?cov.filter(c=>protects(u,c,f)):cov; const use=rel.length?rel:cov; return use.some(c=>c.val===2)?1:0.62; })()):0; const wantCrN=wantCr;
+      const cr=g.userData.cr=(g.userData.cr||0)+(wantCrN-(g.userData.cr||0))*(frozen?0:0.12); if(cr>0.01){ const e=cr; P.legL.rotation.x-=0.62*e; P.legR.rotation.x-=0.78*e; P.kneeL.rotation.x+=1.0*e; P.kneeR.rotation.x+=1.15*e; bobY-=0.15*e; body.rotation.x+=0.16*e; P.armR.rotation.x+=0.18*e; P.armL.rotation.x+=0.1*e; P.head.rotation.x=-0.12*e; } }
     if(a&&k<1){
       const dirTo=(tx,ty)=>{ const fx=tx-u.x, fy=ty-u.y; if(fx||fy) body.rotation.y=Math.atan2(fx,fy); };
       switch(a.k){
@@ -2616,7 +2620,7 @@ const R3 = (()=>{
       // labels
       const p=project(g.position.x+COLS/2-0.5,g.position.z+ROWS/2-0.5,u.side==='obj'?1.2:(u.def.boss?1.95:1.55)); const l=labFor(u.id);
       const frac=u.hp/u.maxHp; const cls=frac>0.5?'':frac>0.25?'mid':'low';
-      const badges=[u.downed?`<span class="badge mk">${u.stabilized?'Stable':'Bleeding '+u.bleed}</span>`:'',u.carrying?`<span class="badge ow">Carrying ${u.carrying.name}</span>`:'',u.side==='enemy'&&!u.alert?'<span class="badge un">Unaware</span>':'',u.ow?'<span class="badge ow">OW</span>':'',u.marked?'<span class="badge mk">Marked</span>':'',u.side==='player'&&jammed(u)?'<span class="badge jm">Jammed</span>':'',(u.drained||u.drainedNow)?'<span class="badge dr">Drained</span>':'',u.shield>0?`<span class="badge sh">Shield ${u.shield}</span>`:'',u.brace?'<span class="badge br">Braced</span>':'',u.suppressed?`<span class="badge sup">${u.rooted?'Pinned':'Suppressed'}</span>`:'',u.stunned?'<span class="badge sup">Stunned</span>':'',u.blinkAim?`<span class="badge sh">+${u.blinkAim} aim</span>`:'',u.taunt?'<span class="badge sup">Taunted</span>':'',u.def.boss?'<span class="badge boss">The Surgeon</span>':''].join('');
+      const badges=[u.downed?`<span class="badge mk">${u.stabilized?'Stable':'Bleeding '+u.bleed}</span>`:'',u.carrying?`<span class="badge ow">Carrying ${u.carrying.name}</span>`:'',u.side==='enemy'&&!u.alert?'<span class="badge un">Unaware</span>':'',u.ow?'<span class="badge ow">OW</span>':'',u.hunker?'<span class="badge sh">Hunkered</span>':'',u.marked?'<span class="badge mk">Marked</span>':'',u.side==='player'&&jammed(u)?'<span class="badge jm">Jammed</span>':'',(u.drained||u.drainedNow)?'<span class="badge dr">Drained</span>':'',u.shield>0?`<span class="badge sh">Shield ${u.shield}</span>`:'',u.brace?'<span class="badge br">Braced</span>':'',u.suppressed?`<span class="badge sup">${u.rooted?'Pinned':'Suppressed'}</span>`:'',u.stunned?'<span class="badge sup">Stunned</span>':'',u.blinkAim?`<span class="badge sh">+${u.blinkAim} aim</span>`:'',u.taunt?'<span class="badge sup">Taunted</span>':'',u.def.boss?'<span class="badge boss">The Surgeon</span>':''].join('');
       const html=`${u.side!=='obj'?`<div class="name">${u.side==='player'?u.name:u.side==='captive'?u.name+' · captive':u.def.name}</div>`:''}<div class="hpb"><i class="${cls}" style="width:${Math.round(frac*100)}%"></i></div>${u.armor?`<div class="arm">${'<i></i>'.repeat(u.armor)}</div>`:''}${badges?`<div>${badges}</div>`:''}`;
       if(l.html!==html){ l.el.innerHTML=html; l.html=html; } l.el.style.left=p.x+'px'; l.el.style.top=p.y+'px';
       // shields
@@ -2689,7 +2693,7 @@ viewEl.addEventListener('mousemove',ev=>{ const prev=G.hover; G.hover=canvasPos(
   if(hu!==hoverUnit){ hoverUnit=hu; if(!G.busy) { hu?setHint(tooltip(hu)):setHint(); } } else if(movedTile&&!hu&&!G.busy&&G.mode==='move'&&G.screen==='game'&&G.phase==='player') setHint(); });
 viewEl.addEventListener('mouseleave',()=>{ if(G.touch) return; G.hover=null; hoverUnit=null; if(!G.busy) setHint(); });
 viewEl.addEventListener('contextmenu',ev=>{ ev.preventDefault(); if(G.mode!=='move'){ setMode('move'); } });
-window.addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ for(const id of ['modal-threat','modal-help','modal-confirm','modal-mutant','modal-perk','modal-diff']) if(!$(id).hidden){ $(id).hidden=true; return; } } if(G.screen!=='game') return; if(ev.key==='Escape') setMode('move'); if(ev.key==='Tab'){ ev.preventDefault(); cycle(); } if(ev.key==='Enter'&&!G.busy&&G.phase==='player') endTurn(); if(ev.key==='ArrowRight'||ev.key==='e'||ev.key==='E'){ povCycle(1); } if(ev.key==='ArrowLeft'||ev.key==='q'||ev.key==='Q'){ povCycle(-1); } if(ev.key==='v'||ev.key==='V') toggleView(); if(ev.key===' '&&G.povView==='pov'){ ev.preventDefault(); povGo(); } if(ev.key==='1') setMode('move'); if(ev.key==='2') setMode('shoot'); if(ev.key==='3'&&G.sel&&G.sel.def.ability) setMode(G.sel.def.ability.key); if(ev.key==='4') setMode('overwatch'); });
+window.addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ for(const id of ['modal-threat','modal-help','modal-confirm','modal-mutant','modal-perk','modal-diff']) if(!$(id).hidden){ $(id).hidden=true; return; } } if(G.screen!=='game') return; if(ev.key==='Escape') setMode('move'); if(ev.key==='Tab'){ ev.preventDefault(); cycle(); } if(ev.key==='Enter'&&!G.busy&&G.phase==='player') endTurn(); if(ev.key==='ArrowRight'||ev.key==='e'||ev.key==='E'){ povCycle(1); } if(ev.key==='ArrowLeft'||ev.key==='q'||ev.key==='Q'){ povCycle(-1); } if(ev.key==='v'||ev.key==='V') toggleView(); if(ev.key===' '&&G.povView==='pov'){ ev.preventDefault(); povGo(); } if(ev.key==='1') setMode('move'); if(ev.key==='2') setMode('shoot'); if(ev.key==='3'&&G.sel&&G.sel.def.ability) setMode(G.sel.def.ability.key); if(ev.key==='4') setMode('overwatch'); if(ev.key==='5') setMode('hunker'); });
 { let sw=null; viewEl.addEventListener('pointerdown',ev=>{ sw=ev.pointerType==='touch'?{x:ev.clientX,y:ev.clientY,t:now()}:null; });
   viewEl.addEventListener('pointerup',ev=>{ if(!sw) return; const dx=ev.clientX-sw.x, dy=ev.clientY-sw.y; sw=null; if(Math.abs(dx)>48&&Math.abs(dy)<Math.abs(dx)*0.6&&G.povView==='pov'&&G.pov){ G.swiped=now(); povCycle(dx<0?1:-1); } });
   viewEl.addEventListener('pointercancel',()=>{ sw=null; }); }
@@ -2841,7 +2845,7 @@ async function endTurn(){
   { const m=MX(G.missionIdx); if(G.turn>=m.reinforceAt&&!G.over){ const spot=reinforceSpot(); if(spot){ G.actcam={x:spot.x,y:spot.y,zoom:1.22}; await wait(380); const code=(G.reinforced===0&&(G.adapt||[]).includes('vanguard')&&ENEMY.h)?'h':m.reinforce[G.reinforced%m.reinforce.length]; const nu=makeUnit(ENEMY[code],'enemy',spot.x,spot.y); nu.ap=0; nu.alert=true; nu.pod=99; G.units.push(nu); anim(nu,'drop'); setTimeout(()=>{ fxPuff(nu.x,nu.y,'#8a6a5a',0.7,500); Audio.thud(nu.x); shake(5); },420); G.reinforced++; fxRing(spot.x,spot.y,'#E0524B',1.2); Audio.alarm(); Audio.music.spike(0.2); VO.coalition('reinforce',2,1); banner('Reinforcements','enemy'); log(`Coalition reinforcement: ${nu.name} arrives.`,'kill'); if(G.reinforced===1) say('reinforce'); introduceNew([nu]); await wait(600); } } }
   G.actcam=null; G.turn++; G.phase='player'; G.busy=false;
   for(const u of alive('player').filter(p=>p.downed)){ if(u.stabilized) continue; u.bleed--; if(u.bleed<=0){ log(`${u.name} bled out.`,'kill'); say('bledOut',u.name); killUnit(u,null); } else { fxText(u.x,u.y,`BLEEDING ${u.bleed}`,'#FF6B62'); log(`${u.name} is bleeding out — ${u.bleed} turn${u.bleed===1?'':'s'} left.`,'kill'); } }
-  for(const u of alive('player')){ if(u.downed){ u.ap=0; continue; } u.ap=u.drained?1:2; u.drainedNow=u.drained; u.drained=false; u.ow=false; u.marked=false; u.brace=false; if(u.cd>0){ u.cd--; if(u.cd===0){ u.readyPing=true; u.readyFlash=now(); } }
+  for(const u of alive('player')){ if(u.downed){ u.ap=0; continue; } u.ap=u.drained?1:2; u.drainedNow=u.drained; u.drained=false; u.ow=false; u.hunker=false; u.marked=false; u.brace=false; if(u.cd>0){ u.cd--; if(u.cd===0){ u.readyPing=true; u.readyFlash=now(); } }
     if(u.def.passiveKey==='regen'&&u.hp<u.maxHp){ u.hp++; fxText(u.x,u.y,'+1','#5CD68A'); }
     if(u.def.decoy){ u.decoyTurns--; if(u.decoyTurns<=0){ u.alive=false; fxRing(u.x,u.y,'#7FD4FF',1); log(`${u.name} fades.`,'sys'); decoyBoom(u); } } }
   for(const t of alive('player').filter(p=>p.def.passiveKey==='fieldmedic')){ for(const a of alive('player')){ if(a!==t&&!a.def.decoy&&cheb(a,t)<=1&&a.hp<a.maxHp){ a.hp++; fxText(a.x,a.y,'+1','#9BE28B'); } } }
@@ -3008,6 +3012,7 @@ function draw(){
     const dormant=u.side==='enemy'&&!u.alert; if(dormant) ctx.globalAlpha=0.55;
     ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(cx,cy+13,13,5,0,0,Math.PI*2); ctx.fill();
     if(u.ow){ const pulse=0.6+0.4*Math.sin(t/220); ctx.strokeStyle=`rgba(242,179,61,${pulse})`; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,21,0,Math.PI*2); ctx.stroke(); ctx.fillStyle='#F2B33D'; ctx.font='700 9px "Chakra Petch",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('OW',cx,cy-31); }
+    if(u.hunker){ ctx.fillStyle='#AEBFD0'; ctx.font='700 8px "Chakra Petch",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('HUNKERED',cx,cy-31); }
     if(u.marked){ ctx.strokeStyle='#FF6B62'; ctx.lineWidth=2; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.arc(cx,cy,22,-t/500,-t/500+Math.PI*2); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle='#FF6B62'; ctx.font='700 9px "Chakra Petch",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('MARKED',cx,cy+30); }
     if(u===sel){ ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=2; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.arc(cx,cy,19,t/600,t/600+Math.PI*2); ctx.stroke(); ctx.setLineDash([]); }
     const shape=u.side==='enemy'?u.def.shape:(u.side==='captive'?'diamond':'circle');

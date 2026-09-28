@@ -487,6 +487,24 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   Old saves migrate (`samples 0`, `culturing {}`, `intel false`). `test37.mjs` covers samples, culture → rush, treat, side-op rewards,
   intel reveal/consume and the panel.
 
+## Progression & power curve pass (2026-09-27, Cameron's brief: tools arrive often, the ramp is earned, the enemy climbs too)
+- **Levels.** `LEVEL_XP=[0,3,7,12,18]` — L2 +1HP/+5aim, L3 kit fork, L4 +2HP/+5aim **and a family mastery**, L5 +1HP/+5aim.
+- **Masteries** (`MASTERIES[arch]`, 2 each; `entry.mastery`, `pendingMastery`; `offerUpgrade()` serves whichever fork is pending, L3
+  first, and chains to the mastery). Flags in `def.flags`: Blaster **Overpressure** `mOverpressure` (basic attack vs marked/stunned/
+  exposed: +1 and `shred`, previewed in `shotInfo`) · **Long Arc** `mLongArc:2` (Blast `ability.range` +2 in `buildDef`; Concuss reach via
+  `concussRange(u)`) · Bruiser **Unbreakable** (armor +1 `mod`, `mUnbreak` blocks Siphon drain and Spotter marks) · **Momentum**
+  `mMomentum` (Smash kill → `u.ap=1`, once per turn via `u.momentumUsed`) · Phaser **Assassin** `mAssassin` (flanked crit chance 1.0
+  in `shoot`) · **Phase Echo** `mEcho` (Blink doesn't set `movedTurn`; `mod cd −1`) · Mender **Battle Medic** `mMedic` (`t.medAim=10`,
+  `battle medic` part, cleared on the next shot / at turn start) · **Field Hospital** `mHospital` (+1 HP to other allies within 2 of the
+  target) — both via `menderMastery(u,t)` after Mend/Ward/Stim. Surfaces: sheet (preview of the two options before L4), roster chip,
+  arch-card tag, unit panel line, Next up ("mastery waiting" / "N XP from level 4 — mastery"). Old saves migrate.
+- **Generations** (`GEN[act]`, `genFor(m)` — side ops use their tier; `G.gen` set in `startMission` before units exist): Gen II (Act
+  II) +1 HP on every non-boss Coalition unit; Gen III (Act III) +1 HP, +5 aim and every second reinforcement wave spawns a second
+  unit (`reinforceSpot()` again, "lands with them"). Applied in `makeUnit` on top of difficulty and adaptations. Shown as a briefing
+  parameter and as the first row of the adaptations list (with "next act" preview).
+- **Compositions:** Husk moves into M6's reinforcement list (`['h','p','q']`) so Act II opens with the harvest's product; the clinic
+  (M8) gets a second Grenadier. `test38.mjs` covers every mastery hook, L5, the offer modal, generation stats and paired waves.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

@@ -505,6 +505,28 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
 - **Compositions:** Husk moves into M6's reinforcement list (`['h','p','q']`) so Act II opens with the harvest's product; the clinic
   (M8) gets a second Grenadier. `test38.mjs` covers every mastery hook, L5, the offer modal, generation stats and paired waves.
 
+## Difficulty, recoverability & failure pass (2026-09-27, Cameron's brief: no death spirals, failure that teaches, roguelite legacy, modifiers)
+- **Captured, not killed.** In `finish()` on a loss, a downed mutant whose clock hasn't run out (`bleed>0||stabilized`) gets
+  `u.captured` → roster `captured:true, heldFor:0` (record line, Control `captured`). `readyRoster/deployPool/squadNeed/renderArchCards`
+  exclude captives; `heldRoster()` lists them. `sideOffers()` turns offer slots into **rescue ops** (`reward:'rescue'`, `rescueCid`,
+  `rescueName`; one per captive, only slot 0 when Index ≥7 so the rope survives); `launchSide(...,offer)` names the op "Bring X Home"
+  and sets `captiveNames`. Resolution in `finish()` when `m.rescueCid`: win with `freed≥1` → home, `wounded=2`; otherwise harvested
+  (memorial, `by:'harvested — Program Graft'`, mourn). Every other captive's `heldFor` ticks per mission; at 3 they are processed.
+  Dead-end guard: fewer than two free mutants (one under No Replacements) → `makeRecruit` until the floor ("the network sends X").
+- **Post-mortem** (`#res-post`, loss only): counters in `G.stats` — `contactTurn`/`podsWoke[turn]` (`wakePod`), `maxAwake` (top of
+  each Coalition phase), `lowShots/lowHits` (<40% rolled shots), `flankedTaken[name]`, `salvoHits`, `hunkers`, `ows`, `firstDown` —
+  rendered as up to four weighted sentences ("2 pods in one turn, which is the fight you lost", "Halden took 3 flanked hits", …).
+- **Modifiers** (`MODS`, `CAMP.mods`, `mod(id)`, picked in `#modal-diff` under the difficulties; shown in the index bar and briefing):
+  `ironman` — `startMission` writes `CAMP.inMission`; `finish` clears it; `migrateCamp` finding it on load applies Index +2, wounds the
+  squad and sets `CAMP.notice` (shown at the top of Next up). `noRecruits` — no death replacements. `mercy` — first loss per campaign
+  mission (`CAMP.merciful`) costs 0 Index.
+- **Legacy** (`PROG.legacy/wall/legacyPerks/campaignNo`, `CAMP.no`): `logLegacy(outcome)` on campaign loss, Last Light win, or New
+  campaign over a touched save; the hub shows **The Wall** (fallen from earlier campaigns), the menu a history line (`#menu-legacy`),
+  and the difficulty modal offers **Doctrine** — one previously drafted perk to start with (`CAMP.doctrine`). New-campaign confirm text
+  says names move to the Wall.
+- **Comeback rope:** at Index ≥7 `sideOffers()` forces one `index` reward. `test39.mjs` covers wipe → captured → rescue home, mercy,
+  post-mortem, ironman reload, legacy/doctrine and the rope.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

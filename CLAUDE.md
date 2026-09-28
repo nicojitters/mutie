@@ -657,7 +657,7 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   and hint code: exposure, movetint, threatzone, owzone, flanktiles, blastpreview, breakdown, tooltip, wake, salvo, pov). `tlmEvent`
   logs end-turn (actions left) and undo. `telemetrySummary()` → action mix per family, best-odds-picked %, flank taken when offered,
   moves ending exposed while a safe tile existed, overwatch/hunker with a ≥50% shot available, early end turns, think medians, surface
-  use rates, longest thinks. Hub: Commander record note → Download (JSON with summary + rows) / Clear. `test45.mjs`.
+  use rates, longest thinks. Hub: Commander record note → Download (JSON with summary + rows) / Clear. In the claude.ai artifact the save goes through the `downloads` capability (declared on publish; the viewer confirms), elsewhere a blob link. `test45.mjs`.
 - **Strategy probes** (`STRAT=engage|turtle|creep|rush node sim.mjs …`; `stalled` counts missions that hit the loop guard). Findings,
   6 runs each: M1 engage 6/6 (4.8 turns) · creep 6/6 (6.0, safer, slower — Swift pays for speed) · rush 4/6 · turtle 0/4 (overrun in
   ~23 turns). M4 all 0–1/6 (bot vs armor, as before) — turtle 0/6. M2 engage 4/6 · creep 3/6 · rush 0/6. M9 engage 3/6 · creep 1/6 ·

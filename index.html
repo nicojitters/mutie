@@ -762,6 +762,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <p><b>Combos.</b> Set a hostile up and let a different mutant finish it: <b>Exposed</b> (thrown out of cover by a Concussive Burst, or its crate wrecked by a Blast or a drum) means no cover against anyone until your next turn; <b>Shredded</b> means Smash or Blast stripped armor for good; <b>Stunned</b> hostiles are +30 to hit. Smash or Phase Strike on a stunned or exposed target is an <b>Execute</b> (+2). Pins and taunts count as setups too. A finish by someone other than the setter is a COMBO — +1 XP to both.</p>
 <p><b>Each family sees the board its own way.</b> A Blaster hovering a Blast tile reads what it would do (hits · kills · wrecks · exposes). A Phaser in Blink sees gold tiles — the ones that flank their target. A Mender's ally strip shows who is in danger right now and what the power leaves them at. A Bruiser's Smash card says when it shreds armor or executes.</p>
 <p><b>The Coalition does not wait.</b> An awake hostile with no shot holds an overwatch lane for one turn, then it comes for you — through the gap, around the wall — and after two dry turns it dashes. Marksmen are the exception: they hold their lane, and their reaction fire has no penalty. Husks blink to your flank. A Grenadier paints a 3×3 on any two of you standing together (no line of sight needed); it lands at the start of the next Coalition turn unless the Grenadier is dead by then. Spread out.</p>
+<p><b>The clock starts at contact.</b> Reinforcements are called in the first time an awake hostile survives a Coalition turn (or when you start a console transmission); the first wave lands a set number of turns after that, and patrols find you a few turns later regardless. Killing a Spotter takes its uplink with it — one more turn. On industrial and rust maps a detonated drum sets the floor alight: fire spreads for a few turns and burns anyone who starts a turn in it or runs through it, both sides.</p>
 <p><b>Grafts.</b> Every Coalition augment was grown from mutant tissue. Win a mission after killing a new kind of unit and its graft comes home; fit it to one mutant from their sheet at base (one per mutant — moving it is the choice). Ten to recover, from Ceramic Weave to the Surgeon's Hand.</p>
         <p><b>Fuel drums</b> (the ones with the hazard band) are full cover for anyone — until someone shoots one. Any hit sets it off: 4 damage to everything beside it, armor ignored, crates wrecked, neighbouring drums chain. Bait a pod behind one, or don't stand next to one yourself.</p>
         <p><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it. <b>Hunker</b> is the other way to spend a turn you can't shoot well: −20 to be hit and no crits against you until your next turn. A 30% shot, overwatch, hunker, or a move — all four are real answers.</p>
@@ -972,6 +973,8 @@ const LINES={
   shippedAll:['Transport is gone and we got no one. Pull back.'],
   hold:['Signal is holding. Keep a body on that console.'],
   holdDone:['Transmission complete. Every screen they own just saw it.'],
+  calledIn:['That is the call going out. You have a window now, not a mission.','They know. Count the turns.'],
+  fire:['That fuel is going to go where it wants. Keep out of the orange.','Fire on the floor. It spreads. So should you.'],
   salvo:['Ordnance arm. That is a Blaster\'s tissue in that thing. Spread out — it lands next turn.','Salvo painted. Nobody stands in the red. Or kill the arm before it fires.'],
   pressure:['They\'re done waiting. Here they come.','They know where you are and they\'re tired of it. Pick your ground.'],
   summon:['She just grew another one. Do not let this become a war of attrition — go for her.'],
@@ -1659,9 +1662,9 @@ function threatZone(e){ const sig=`${G.turn}|${e.x},${e.y}|${e.move}|${e.range}|
   TZ.set(e.id,{sig,set}); return set; }
 /* Overwatch crossings along a path: which hostiles on overwatch would get a reaction shot at some step, and at what odds. */
 function pathThreats(u,path){ if(F(u,'gGhost')) return []; const ows=alive('enemy').filter(e=>e.alert&&e.ow&&!e.melee&&!e.suppressed&&!e.stunned); const out=[]; for(const e of ows){ let best=null; for(const st of path){ const probe=Object.assign({},u,{x:st.x,y:st.y}); if(inRange(e,probe)){ const c=hitChance(e,probe,{reaction:true}).chance; if(!best||c>best.chance) best={e,chance:c,step:st}; } } if(best) out.push(best); } return out; }
-function moveHint(u,p,n,r){ const salvo=inSalvo(p)?` <i class="risk"><b>Salvo lands here</b> at the start of their turn — ${SALVO_DMG} dmg.</i>`:''; const wake=alive('enemy').filter(e=>!e.alert&&dist(p,e)<=SIGHT+0.01&&hasLOS(p,e)).length;
+function moveHint(u,p,n,r){ const fpath=r?pathTo(r,p.x,p.y).some(fireAt):fireAt(p); const fire=fireAt(p)?` <i class="risk"><b>Burning</b> — ${FIRE_DMG} now and ${FIRE_DMG} more if you're still in it next turn.</i>`:fpath?` <i class="risk">Runs through fire — ${FIRE_DMG}.</i>`:''; const salvo=inSalvo(p)?` <i class="risk"><b>Salvo lands here</b> at the start of their turn — ${SALVO_DMG} dmg.</i>`:''; const wake=alive('enemy').filter(e=>!e.alert&&dist(p,e)<=SIGHT+0.01&&hasLOS(p,e)).length;
   const ow=r?pathThreats(u,pathTo(r,p.x,p.y)):[]; const owTxt=ow.length?` <i class="risk">Crosses overwatch — ${ow.map(o=>`${o.e.def.name} ${o.chance}%`).join(', ')}.</i>`:'';
-  return `<b>Move</b> here — ${n.c<=u.move?'1 action':'dash, both actions'}.${salvo}${owTxt}${wake?` <i class="risk">${wake} unaware hostile${wake>1?'s':''} will see you.</i>`:''} ${exposureHtml(u,p)}`; }
+  return `<b>Move</b> here — ${n.c<=u.move?'1 action':'dash, both actions'}.${fire}${salvo}${owTxt}${wake?` <i class="risk">${wake} unaware hostile${wake>1?'s':''} will see you.</i>`:''} ${exposureHtml(u,p)}`; }
 const jammers=()=>alive('enemy').filter(e=>e.def.verb==='jam');
 const jammed=u=>u.side==='player'&&!F(u,'gNull')&&jammers().some(z=>cheb(z,u)<=(perk('scrambler')?2:3));
 
@@ -1691,6 +1694,30 @@ function makeRelay(x,y,i,label){ return { id:'relay'+i+'_'+Math.random().toStrin
 const DRUM_DMG=4, DRUM_HP=2, DRUM_SHARE=0.45;
 function makeDrum(x,y){ return { def:{id:'drum',name:'Fuel drum',noAttack:true,armor:0,hazard:true,desc:`Shooting it detonates: ${DRUM_DMG} damage to everything beside it, armor ignored. Full cover until then — for anyone.`}, side:'obj', x, y, id:'drum'+x+'_'+y+'_'+Math.random().toString(36).slice(2), name:'Fuel drum', hp:DRUM_HP, maxHp:DRUM_HP, armor:0, alive:true, ap:0, cd:0, glyph:'D', color:'#E0A040', kills:0, immobile:true }; }
 const DRUM_THEMES=new Set(['industrial','rust']);
+/* ---------- Tempo: the reinforcement clock starts at contact ----------
+   The Coalition answers being found, not a calendar. G.called = the turn an awake hostile first survived a Coalition turn (or the
+   console transmission started); the first wave lands `callDelay` turns after that, ceiling `reinforceAt+3` (patrols find you),
+   pushed back one turn per Spotter killed (G.reinfDelay — the uplink). waveTurn() is the one place every timer read goes through. */
+const CEIL_SLACK=3;
+const callDelay=m=>Math.max(2,m.reinforceAt-1);
+const ceilTurn=m=>m.reinforceAt+CEIL_SLACK;
+function waveTurn(m){ m=m||MX(G.missionIdx); if(m.reinforceAt>50) return 999; const base=G.called!=null?Math.min(ceilTurn(m),G.called+callDelay(m)):ceilTurn(m); return base+(G.reinfDelay||0); }
+function registerCall(why){ if(G.called!=null) return; const m=MX(G.missionIdx); if(m.reinforceAt>50) return; G.called=G.turn; Audio.alarm(); banner('Called in','enemy'); log(`${why||'An awake hostile'} calls it in — reinforcements in ${waveTurn(m)-G.turn}.`,'aug'); say('calledIn'); }
+/* ---------- Fire: spreading hazard from detonated drums on industrial / rust maps ----------
+   G.fire: Map tileKey → {life}. Ignited tiles burn 3 turns; while life ≥ 2 a tile spreads to each orthogonal floor neighbour with
+   FIRE_SPREAD chance at the top of the Coalition phase (new tiles life 2, so a blaze burns out on its own). FIRE_DMG to any unit
+   starting its side's turn in fire, and once per move for walking through it. Drums in fire detonate. Both sides pay; enemies
+   route around it. */
+const FIRE_THEMES=DRUM_THEMES, FIRE_DMG=2, FIRE_SPREAD=0.35, FIRE_LIFE=3; let FIRE_T=0;
+const fireAt=p=>!!(G.fire&&G.fire.get(key(p.x,p.y)));
+const fireOk=()=>{ const m=MX(G.missionIdx); return FIRE_THEMES.has(m.theme||MISSION_THEME[m.id]); };
+function ignite(x,y,life){ if(!inb(x,y)||tile(x,y)!==T.FLOOR) return false; const occ=unitAt(x,y); if(occ&&isWall(occ)&&!isDrum(occ)) return false; G.fire=G.fire||new Map(); const k=key(x,y); const cur=G.fire.get(k); if(cur&&cur.life>=life) return false; G.fire.set(k,{life}); fxPuff(x,y,'#FF7A2A',0.5,500); return true; }
+function igniteAround(x,y){ if(!fireOk()) return 0; let n=0; for(let yy=y-1;yy<=y+1;yy++) for(let xx=x-1;xx<=x+1;xx++) if(ignite(xx,yy,FIRE_LIFE)) n++; if(n){ log(`The fuel catches — ${n} tile${n>1?'s':''} burning. It spreads.`,'aug'); if(!G.saidFire){ G.saidFire=true; say('fire'); } } return n; }
+function burnUnit(u,why){ if(!u.alive||u.side==='obj'&&!isDrum(u)) return; if(isDrum(u)){ log(`${u.name} is in the fire.`,'kill'); applyDamage(u,DRUM_HP,null,{ignoreArmor:true}); return; } fxText(u.x,u.y-0.3,'BURNING −'+FIRE_DMG,'#FF7A2A'); fxSpark(u.x,u.y,'#FF9A40',8,{speed:1,up:1.6,life:500,size:0.05}); log(`${u.name} ${why||'is burning'} — ${FIRE_DMG}.`,'hit'); applyDamage(u,FIRE_DMG,null,{ignoreArmor:true}); if(u.side==='player'&&u.alive) VO.bark(u,'hit',0.3); }
+async function spreadFire(){ if(!G.fire||!G.fire.size) return; const grow=[]; for(const [k,f] of G.fire){ if(f.life<2) continue; const [x,y]=k.split(',').map(Number); for(const d of DIRS){ const nx=x+d.x, ny=y+d.y; if(G.fire.has(key(nx,ny))) continue; if(Math.random()<FIRE_SPREAD) grow.push([nx,ny]); } }
+  let n=0; for(const [x,y] of grow) if(ignite(x,y,2)) n++; for(const [k,f] of [...G.fire]){ f.life--; if(f.life<=0){ G.fire.delete(k); const [x,y]=k.split(',').map(Number); fxSmoke(x,y,3); } }
+  if(n) log(`The fire spreads — ${n} more tile${n>1?'s':''}.`,'sys'); if(n||G.fire.size) await wait(250); }
+function burnSide(side){ if(!G.fire||!G.fire.size) return; for(const u of G.units.filter(u=>u.alive&&(u.side===side||(side==='enemy'&&isDrum(u)))&&!u.carried&&fireAt(u))) burnUnit(u,'starts the turn in the fire'); }
 function drumSet(m){ const th=m.theme||MISSION_THEME[m.id]; const out=new Set(); if(!DRUM_THEMES.has(th)) return out; const hs=s=>{ let h=2166136261; for(const c of s){ h^=c.charCodeAt(0); h=Math.imul(h,16777619); } return h>>>0; };
   const os=[]; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++) if(m.map[y][x]==='O') os.push({x,y,h:hs(`${m.id}:${x},${y}`)});
   os.sort((a,b)=>a.h-b.h); const n=os.length?Math.max(1,Math.round(os.length*DRUM_SHARE)):0; for(const o of os.slice(0,n)) out.add(key(o.x,o.y)); return out; }
@@ -1699,7 +1726,7 @@ function makeCaptive(x,y,name){ const u=makeUnit(VIP,'captive',x,y,name||NAMES.v
 function startMission(idx,op){
   const base=idx<0?SIDE:MISSIONS[idx]; G.perks=equippedPerks(); G.adapt=adaptFor(CAMP.doom,base.act); MADJ=adjustMission(base,idx,G.perks,G.adapt); G.perkUsed=new Set(); G.medevacUsed=false; G.smoke=null; G.boost=false;
   const m=MX(idx); G.missionIdx=idx; G.grid=[]; G.units=[]; G.turn=1; G.phase='player'; G.sel=null; G.mode='move'; G.fx=[]; G.over=false; G.busy=false;
-  G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.actcam=null; G.setups=new Map(); G.salvos=[]; G.saidSalvo=false; G.saidPressure=false; G.killedTypes=new Set(); G.stats={shots:0,hits:0,dmg:0,combos:0}; G.campApplied=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
+  G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.actcam=null; G.setups=new Map(); G.salvos=[]; G.saidSalvo=false; G.saidPressure=false; G.killedTypes=new Set(); G.called=null; G.reinfDelay=0; G.fire=new Map(); G.saidFire=false; G.stats={shots:0,hits:0,dmg:0,combos:0}; G.campApplied=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
   G.objState={relays:0,relaysTotal:0,freed:0,captivesTotal:0,shipped:false,holdCount:0,summons:0,evacOpen:!(m.evacAt||m.evacAfterHold)};
   const spawns=[]; let relayN=0, capN=0;
   const drums=drumSet(m);
@@ -1847,7 +1874,7 @@ function openBriefing(i){
   $('b-intro').textContent=m.intro||''; $('b-desc').textContent=m.desc;
   const objNames={eliminate:'Eliminate',sabotage:'Sabotage',rescue:'Rescue',extract:'Extraction',hold:'Hold',assassinate:'Assassination'};
   $('b-obj').innerHTML=`<em>${objNames[m.objective]}</em> — ${m.brief}`;
-  const params=[]; params.push(`<span>Graft Index <b>${CAMP.doom}/10 · ${doomLabel()}</b> · <b>${diff().name}</b></span>`); params.push(m.reinforceAt>50?`<span>Reinforcements: <b>none — she grafts her own</b></span>`:`<span>Reinforcements from <b>turn ${adj.reinforceAt}</b>${adj.reinforceAt!==m.reinforceAt?` <i class="note">(was ${m.reinforceAt})</i>`:''}</span>`);
+  const params=[]; params.push(`<span>Graft Index <b>${CAMP.doom}/10 · ${doomLabel()}</b> · <b>${diff().name}</b></span>`); params.push(m.reinforceAt>50?`<span>Reinforcements: <b>none — she grafts her own</b></span>`:`<span>Reinforcements <b>${callDelay(adj)} turns after contact</b>, patrols by turn ${ceilTurn(adj)}${adj.reinforceAt!==m.reinforceAt?` <i class="note">(base ${m.reinforceAt}${adj.reinforceAt>m.reinforceAt?' — slower':' — faster'})</i>`:''}${m.objective==='eliminate'?' <i class="note">— they keep coming; clear it fast</i>':''}</span>`);
   if(m.evacAt) params.push(`<span>Evac pad opens <b>turn ${adj.evacAt}</b>${adj.evacAt!==m.evacAt?` <i class="note">(was ${m.evacAt})</i>`:''}</span>`); if(m.deadline) params.push(`<span>Transport leaves <b>turn ${adj.deadline}</b>${adj.deadline!==m.deadline?` <i class="note">(was ${m.deadline})</i>`:''}</span>`); if(m.holdTurns) params.push(`<span>Hold the console <b>${m.holdTurns} turns</b>${m.evacAfterHold?', then evac':''}</span>`);
   if(m.captiveNames) params.push(`<span>Captives: <b>${m.captiveNames.join(', ')}</b></span>`); if(m.objLabel) params.push(`<span>Targets: <b>3× ${m.objLabel}</b></span>`.replace('3×',String((m.map.join('').match(/X/g)||[]).length)+'×'));
   $('b-params').innerHTML=params.join('');
@@ -1969,7 +1996,7 @@ function renderSide(){
     b.onclick=()=>{ if(!u.alive||u.side!=='player') return; select(u); }; sq.appendChild(b); });
   $('enemy-count').textContent=`${alive('enemy').length} hostile${alive('enemy').length===1?'':'s'}`;
   $('turn-num').textContent=G.turn;
-  { const m=MX(G.missionIdx); const left=m.reinforceAt-G.turn; const r=$('reinf'); if(m.reinforceAt>50){ r.textContent=m.objective==='assassinate'?'She grafts instead of calling for help':'No reinforcements'; r.style.color=''; } else if(left>0){ r.textContent=`Reinforcements in ${left}${left<=2?' · right edge':''}`; r.style.color=left<=2?'var(--danger)':''; } else { r.textContent='Reinforcements arriving'; r.style.color='var(--danger)'; } }
+  { const m=MX(G.missionIdx); const left=waveTurn(m)-G.turn; const r=$('reinf'); const up=G.reinfDelay?` · uplink down (+${G.reinfDelay})`:''; if(m.reinforceAt>50){ r.textContent=m.objective==='assassinate'?'She grafts instead of calling for help':'No reinforcements'; r.style.color=''; } else if(G.called==null){ r.textContent=`Quiet — nobody has called it in · patrols by turn ${ceilTurn(m)+(G.reinfDelay||0)}`; r.style.color=''; } else if(left>0){ r.textContent=`Called in turn ${G.called} · reinforcements in ${left}${left<=2?' · right edge':''}${up}`; r.style.color=left<=2?'var(--danger)':''; } else { r.textContent='Reinforcements arriving'; r.style.color='var(--danger)'; } }
   const ot=objectiveText(); const oe=$('objective'); oe.innerHTML=ot.html; oe.className='obj'+(ot.done?' done':'');
   const tl=$('turn-label'); tl.textContent=G.phase==='player'?'Your turn':'Coalition turn'; tl.className='t '+G.phase;
   const u=G.sel, act=$('actions'); act.innerHTML='';
@@ -2179,11 +2206,13 @@ function detonate(d,source){ // d is already dead; everything within one tile ta
   const hit=G.units.filter(v=>v.alive&&v!==d&&!v.def.decoy&&cheb(v,d)<=1);
   for(const v of hit){ if(v.side==='enemy'&&!v.alert){ (G.pendingScamper||(G.pendingScamper=[])).push(...wakePod(v.pod)); } log(`Blast catches ${v.name} for ${DRUM_DMG}.`,'hit'); applyDamage(v,DRUM_DMG,source,{ignoreArmor:true}); }
   if(wrecked.length&&source&&source.side==='player') exposeByWreck(wrecked,source);
+  igniteAround(d.x,d.y);
   if(source&&source.side==='player'&&hit.filter(v=>v.side==='enemy'&&!v.alive).length>=2){ setTimeout(()=>{ fxText(d.x,d.y-0.9,'MULTI-KILL','#F2B33D','huge'); Audio.win(); },260); } }
 function decoyBoom(d){ if(!d.boom) return; const hs=alive('enemy').filter(e=>cheb(e,d)<=1); Audio.blast(d.x); fxRing(d.x,d.y,'#7FD4FF',1.6); fxSpark(d.x,d.y,'#7FD4FF',18,{speed:1.8,up:1.4,life:600}); light(d.x,d.y,'#7FD4FF',8,400); shake(8);
   for(const e of hs){ log(`Afterimage detonates — ${e.name} takes ${d.boom}.`,'hit'); applyDamage(e,d.boom,null,{ignoreArmor:true}); } }
 function killUnit(target,source){ target.hp=0; target.alive=false; target.ow=false; target.downed=false; if(target.def&&target.def.decoy&&target.boom) setTimeout(()=>decoyBoom(target),120); if(target.carrying) dropCarried(target); if(target.carried){ const c=G.units.find(u=>u.carrying===target); if(c) c.carrying=null; target.carried=false; }
   if(source) source.kills=(source.kills||0)+1;
+  if(target.side==='enemy'&&target.def.verb==='mark'&&MX(G.missionIdx).reinforceAt<50){ G.reinfDelay=(G.reinfDelay||0)+1; setTimeout(()=>{ fxText(target.x,target.y-0.9,'UPLINK DOWN','#FF9A6B'); },300); log(`Spotter down — its uplink goes with it. Reinforcements delayed a turn.`,'good'); }
   if(target.side==='enemy'){ (G.killedTypes||(G.killedTypes=new Set())).add(target.def.id); if(source&&source.side==='player'&&source.alive&&F(source,'gLeech')&&source.hp<source.maxHp){ const h=Math.min(F(source,'gLeech'),source.maxHp-source.hp); source.hp+=h; anim(source,'healed'); fxText(source.x,source.y,'+'+h,'#4FD1C5'); log(`Siphon Gland — ${source.name} takes ${h} back.`,'good'); } }
   if(source&&source.side==='player'&&target.side==='enemy'&&G.setups){ const st=G.setups.get(target.id); if(st&&st.by!==source&&st.by.alive&&st.turn>=G.turn-1) combo(st.by,source,target,st.kind); G.setups.delete(target.id); }
     if(isDrumDef(target)){ detonate(target,source); return; }
@@ -2227,7 +2256,8 @@ async function shoot(a,d,opt={}){
 }
 async function doMove(u,path){
   let i=0;
-  for(const p of path){ u.x=p.x; u.y=p.y; if(u.carrying){ u.carrying.x=p.x; u.carrying.y=p.y; } if(u.side==='enemy'&&G.actcam) G.actcam={x:u.x,y:u.y,zoom:1.28}; Audio.step(u.x,u.side,i++); fxPuff(u.x,u.y,'#6f7f90',0.28,320); await wait(u.side==='player'?85:60);
+  let burned=false;
+  for(const p of path){ u.x=p.x; u.y=p.y; if(u.carrying){ u.carrying.x=p.x; u.carrying.y=p.y; } if(!burned&&fireAt(p)){ burned=true; burnUnit(u,'runs through the fire'); if(!u.alive) break; } if(u.side==='enemy'&&G.actcam) G.actcam={x:u.x,y:u.y,zoom:1.28}; Audio.step(u.x,u.side,i++); fxPuff(u.x,u.y,'#6f7f90',0.28,320); await wait(u.side==='player'?85:60);
     const foes=F(u,'gGhost')?[]:G.units.filter(w=>w.alive&&w.side!==u.side&&w.side!=='obj'&&w.side!=='captive'&&w.ow&&!w.melee&&w.alert!==false&&!w.suppressed);
     for(const w of foes){ if(!u.alive) break; if(inRange(w,u)){ w.ow=false; fxRing(w.x,w.y,'#F2B33D',0.8); log(`${w.name} reaction fire!`,'sys'); await shoot(w,u,{reaction:true}); renderSide(); } }
     if(!u.alive) break;
@@ -2832,14 +2862,17 @@ const R3 = (()=>{
     { let ze=null; if(playerPhase){ const hu=G.hover?unitAt(G.hover.x,G.hover.y):null; if(hu&&hu.side==='enemy'&&hu.alert&&!hu.def.noAttack) ze=hu; else if(G.povView==='pov'&&G.pov&&G.pov.target&&G.pov.target.side==='enemy'&&G.pov.target.alert) ze=G.pov.target; }
       if(ze){ const zc=ze.melee?'#5A2A22':'#5A1E28'; for(const k of threatZone(ze)){ const [zx,zy]=k.split(',').map(Number); if(zx===ze.x&&zy===ze.y) continue; put(zx,zy,zc,-1); } } }
     // reinforcement edge: two turns out, the right-edge arrival zone breathes red
-    { const m=MX(G.missionIdx); const left=m.reinforceAt-G.turn; if(m.reinforceAt<50&&left<=2&&G.phase==='player'){ const pulse=0.5+0.5*Math.sin(t/420); const zc=new T3.Color('#3A1418').lerp(new T3.Color('#8A2E34'),pulse).getStyle(); for(let y=0;y<ROWS;y++) for(let x=COLS-3;x<COLS;x++){ if(!solid(x,y)&&!unitAt(x,y)) put(x,y,zc,-2); } } }
+    { const m=MX(G.missionIdx); const left=waveTurn(m)-G.turn; if(m.reinforceAt<50&&left<=2&&G.phase==='player'){ const pulse=0.5+0.5*Math.sin(t/420); const zc=new T3.Color('#3A1418').lerp(new T3.Color('#8A2E34'),pulse).getStyle(); for(let y=0;y<ROWS;y++) for(let x=COLS-3;x<COLS;x++){ if(!solid(x,y)&&!unitAt(x,y)) put(x,y,zc,-2); } } }
+    // fire: burning tiles flicker orange and throw the odd ember (visual only — damage lives in burnSide/doMove)
+    if(G.fire&&G.fire.size){ if(t-FIRE_T>420){ FIRE_T=t; let k=0; for(const fk of G.fire.keys()){ if(((k++)+Math.floor(t/420))%3) continue; const [fx_,fy_]=fk.split(',').map(Number); fxSpark(fx_,fy_,'#FF9A40',3,{speed:0.5,up:1.8,gravity:-0.3,life:700,size:0.05}); } }
+      for(const [fk,f] of G.fire){ const [fx_,fy_]=fk.split(',').map(Number); const fl=0.5+0.5*Math.sin(t/90+fx_*3+fy_*7); const zc=new T3.Color(f.life>=2?'#B3401A':'#7A2E14').lerp(new T3.Color('#FF8C2A'),fl).getStyle(); put(fx_,fy_,zc,3); } }
     // painted salvos: the 3×3 pulses hot red and carries an INCOMING label until it lands (or its Grenadier dies)
     if(G.salvos&&G.salvos.length){ const pulse=0.5+0.5*Math.sin(t/260); const zc=new T3.Color('#7A1E14').lerp(new T3.Color('#FF4D2E'),pulse).getStyle();
       G.salvos.forEach((sv,i)=>{ for(let y=sv.y-SALVO_R;y<=sv.y+SALVO_R;y++) for(let x=sv.x-SALVO_R;x<=sv.x+SALVO_R;x++){ if(inb(x,y)&&!solid(x,y)) put(x,y,zc,3); }
         const pl=pctFor('salvo'+i); const pp=project(sv.x,sv.y+0.5,0.02); const html2=sv.by.alive?`INCOMING<small>${SALVO_DMG} dmg · 3×3 · next Coalition turn</small>`:`CANCELLED<small>Grenadier down</small>`; pl.el.className='pct exp '+(sv.by.alive?'lo':'ok'); if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; }); }
     if(sel&&sel.alive&&playerPhase&&sel.ap>0){
       if(G.mode==='move'){ const r=moveR||reachable(sel,sel.move*sel.ap); const tm=alive('enemy').some(e=>e.alert)?threatAfterMove(sel,[...r.values()]):null;
-        for(const nd_ of r.values()){ const th=tm?(tm.get(key(nd_.x,nd_.y))||0):0; const dash=nd_.c>sel.move; put(nd_.x,nd_.y,th===0?(dash?'#1E5F70':'#3FC1E3'):th<=2?(dash?'#6E4E1C':'#E0A040'):(dash?'#6E2A26':'#FF6B62'),0); }
+        for(const nd_ of r.values()){ const th=tm?(tm.get(key(nd_.x,nd_.y))||0):0; const dash=nd_.c>sel.move; if(fireAt(nd_)){ put(nd_.x,nd_.y,'#FF6A1A',0); continue; } put(nd_.x,nd_.y,th===0?(dash?'#1E5F70':'#3FC1E3'):th<=2?(dash?'#6E4E1C':'#E0A040'):(dash?'#6E2A26':'#FF6B62'),0); }
         if(G.hover&&r.has(key(G.hover.x,G.hover.y))){ const pth=pathTo(r,G.hover.x,G.hover.y); let prev=W(sel.x,sel.y,0.06); for(const s of pth){ const nx=W(s.x,s.y,0.06); const segLen=prev.distanceTo(nx); const steps=Math.max(1,Math.round(segLen/0.34)); for(let i=1;i<=steps&&nd<96;i++){ const pt=prev.clone().lerp(nx,i/steps); m4.compose(pt,q,dsc); pathDots.setMatrixAt(nd,m4); nd++; } prev=nx; }
           for(const e of alive('enemy')){ if(!e.alert&&dist(G.hover,e)<=SIGHT+0.01&&hasLOS(G.hover,e)){ const pl=pctFor('wake'+e.id); const pp=project(e.x,e.y,1.6); pl.el.className='pct lo'; if(pl.html!=='WILL SEE YOU'){ pl.el.innerHTML='WILL SEE YOU'; pl.html='WILL SEE YOU'; } pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; } } } }
       else if(G.mode==='blast'||G.mode==='blink'){ const R=sel.def.ability.range; const FT=G.mode==='blink'?flankTiles(sel).set:null; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ if(dist(sel,{x,y})<=R+0.01&&(G.mode==='blast'||(!solid(x,y)&&!unitAt(x,y)))){ const fl=FT&&FT.has(key(x,y)); put(x,y,G.mode==='blast'?'#8a6a2a':fl?'#F2B33D':'#6a4fa0',fl?1:0); } }
@@ -3012,6 +3045,7 @@ async function endTurn(){
   const M=MX(G.missionIdx);
   // hold objective: count this turn if someone ended it on the console
   if(M.objective==='hold'&&G.objState.holdCount<M.holdTurns&&active().some(u=>G.hold.has(key(u.x,u.y)))){ G.objState.holdCount++; Audio.signal(G.objState.holdCount); for(const k of G.hold){ const [x,y]=k.split(',').map(Number); fxRing(x,y,'#5CD68A',1.1); }
+    registerCall('The transmission');
     if(G.objState.holdCount>=M.holdTurns){ Audio.transmit(); log(`Transmission complete (${M.holdTurns}/${M.holdTurns}).`,'good'); say('holdDone'); if(M.evacAfterHold){ G.objState.evacOpen=true; banner('Signal out — evac open','good'); for(const k of G.evac){ const [x,y]=k.split(',').map(Number); fxRing(x,y,'#5CD68A',1); } } else banner('Transmission complete','good'); renderSide(); if(checkEnd()) return; }
     else { log(`Signal ${G.objState.holdCount}/${M.holdTurns}.`,'good'); banner(`Signal ${G.objState.holdCount}/${M.holdTurns}`,'good'); if(G.objState.holdCount===1) say('hold'); } }
   // rescue deadline: the transport leaves with anyone still captive
@@ -3021,6 +3055,7 @@ async function endTurn(){
   if(checkEnd()) return;
   for(const e of alive('enemy')) e.ow=false;
   await checkContact();
+  await spreadFire(); burnSide('enemy'); if(checkEnd()) return;
   await resolveSalvos(); if(G.over) return;
   const order=alive('enemy').filter(e=>e.alert).sort((a,b)=>aiPriority(a)-aiPriority(b));
   let lastCam=null;
@@ -3029,10 +3064,11 @@ async function endTurn(){
     { const far=!lastCam||Math.hypot(e.x-lastCam.x,e.y-lastCam.y)>4; G.actcam={x:e.x,y:e.y,zoom:1.28}; lastCam={x:e.x,y:e.y}; await wait(far?420:220); }
     if(e.stunned){ e.stunned=false; fxText(e.x,e.y-0.6,'STUNNED','#FF7A45'); log(`${e.name} is stunned and does nothing.`,'sys'); await wait(250); continue; } await enemyAct(e); if(checkEnd()){ G.actcam=null; return; } }
   G.actcam=null;
+  if(alive('enemy').some(e=>e.alert)) registerCall();
   // the Surgeon grafts a Husk every turn from turn 2
   for(const boss of alive('enemy').filter(e=>e.def.verb==='command'&&e.alert)){ if(G.turn<boss.alertTurn+2||G.objState.summons>=3) break; const spots=[]; for(const d of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1},{x:1,y:1},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1}]){ const x=boss.x+d.x,y=boss.y+d.y; if(inb(x,y)&&!solid(x,y)&&!unitAt(x,y)) spots.push({x,y}); }
     if(spots.length){ const sp=spots[rnd(0,spots.length-1)]; G.actcam={x:boss.x,y:boss.y,zoom:1.38,pull:0.7}; await wait(320); anim(boss,'cast',{tx:sp.x,ty:sp.y}); const nu=makeUnit(ENEMY.h,'enemy',sp.x,sp.y); nu.ap=0; nu.alert=true; nu.pod=boss.pod; anim(nu,'blinkIn'); light(sp.x,sp.y,'#9BE7FF',6,500); G.units.push(nu); G.objState.summons++; Audio.summon(boss.x); VO.surgeon('summon'); fxRing(sp.x,sp.y,'#9BE7FF',1.2); fxRing(boss.x,boss.y,'#FF5FA2',1); banner('The Surgeon grafts a Husk','aug'); log(`${boss.name} grafts a Husk onto the field.`,'aug'); if(G.objState.summons===1) say('summon'); introduceNew([nu]); await wait(600); } }
-  { const m=MX(G.missionIdx); if(G.turn>=m.reinforceAt&&!G.over){ const spot=reinforceSpot(); if(spot){ G.actcam={x:spot.x,y:spot.y,zoom:1.22}; await wait(380); const code=(G.reinforced===0&&(G.adapt||[]).includes('vanguard')&&ENEMY.h)?'h':m.reinforce[G.reinforced%m.reinforce.length]; const nu=makeUnit(ENEMY[code],'enemy',spot.x,spot.y); nu.ap=0; nu.alert=true; nu.pod=99; G.units.push(nu); anim(nu,'drop'); setTimeout(()=>{ fxPuff(nu.x,nu.y,'#8a6a5a',0.7,500); Audio.thud(nu.x); shake(5); },420); G.reinforced++; fxRing(spot.x,spot.y,'#E0524B',1.2); Audio.alarm(); Audio.music.spike(0.2); VO.coalition('reinforce',2,1); banner('Reinforcements','enemy'); log(`Coalition reinforcement: ${nu.name} arrives.`,'kill'); if(G.reinforced===1) say('reinforce'); introduceNew([nu]); await wait(600); } } }
+  { const m=MX(G.missionIdx); if(G.turn>=waveTurn(m)&&!G.over){ const spot=reinforceSpot(); if(spot){ G.actcam={x:spot.x,y:spot.y,zoom:1.22}; await wait(380); const code=(G.reinforced===0&&(G.adapt||[]).includes('vanguard')&&ENEMY.h)?'h':m.reinforce[G.reinforced%m.reinforce.length]; const nu=makeUnit(ENEMY[code],'enemy',spot.x,spot.y); nu.ap=0; nu.alert=true; nu.pod=99; G.units.push(nu); anim(nu,'drop'); setTimeout(()=>{ fxPuff(nu.x,nu.y,'#8a6a5a',0.7,500); Audio.thud(nu.x); shake(5); },420); G.reinforced++; fxRing(spot.x,spot.y,'#E0524B',1.2); Audio.alarm(); Audio.music.spike(0.2); VO.coalition('reinforce',2,1); banner('Reinforcements','enemy'); log(`Coalition reinforcement: ${nu.name} arrives.`,'kill'); if(G.reinforced===1) say('reinforce'); introduceNew([nu]); await wait(600); } } }
   G.actcam=null; G.turn++; G.phase='player'; G.busy=false;
   for(const u of alive('player').filter(p=>p.downed)){ if(u.stabilized) continue; u.bleed--; if(u.bleed<=0){ log(`${u.name} bled out.`,'kill'); say('bledOut',u.name); killUnit(u,null); } else { fxText(u.x,u.y,`BLEEDING ${u.bleed}`,'#FF6B62'); log(`${u.name} is bleeding out — ${u.bleed} turn${u.bleed===1?'':'s'} left.`,'kill'); } }
   for(const u of alive('player')){ if(u.downed){ u.ap=0; continue; } u.ap=u.drained?1:2; u.drainedNow=u.drained; u.drained=false; u.ow=false; u.hunker=false; u.marked=false; u.brace=false; u.movedTurn=false; u.markedTurn=false; if(u.cd>0){ u.cd--; if(u.cd===0){ u.readyPing=true; u.readyFlash=now(); } }
@@ -3043,6 +3079,7 @@ async function endTurn(){
   for(const u of alive('player')) u.blinkAim=0; if(G.smoke){ G.smoke=null; log('The smoke clears.','sys'); } G.boost=false;
   { const m=MX(G.missionIdx); if(m.evacAt&&!G.objState.evacOpen&&G.turn>=m.evacAt){ G.objState.evacOpen=true; Audio.evacOpen(); banner('Evac pad open','good'); say('evacOpen'); for(const k of G.evac){ const [x,y]=k.split(',').map(Number); fxRing(x,y,'#5CD68A',1); } } }
   for(const e of alive('enemy')){ e.ap=2; }
+  burnSide('player'); if(checkEnd()) return;
   G.sel=active()[0]||alive('player').find(u=>!u.downed)||null; if((G.salvos||[]).some(sv=>sv.by.alive)){ const inIt=active().filter(u=>inSalvo(u)); setTimeout(()=>banner(inIt.length?`Salvo incoming — ${inIt.map(u=>u.name).join(', ')} in the red`:'Salvo incoming','enemy'),900); } banner('Your turn','player'); Audio.turn(); Audio.music.phase('player'); VO.controlBark('turn'); renderSide(); setHint();
   if(alive('player').some(u=>!u.def.noAttack&&u.hp<=3)) setTimeout(()=>Audio.heartbeat(),500);
   if(alive('player').some(u=>u.cd===0&&u.def.ability&&!u.def.noAttack&&u.readyPing)) setTimeout(()=>Audio.ready(),350); for(const u of alive('player')) u.readyPing=false;
@@ -3113,7 +3150,7 @@ async function enemyAct(e){
     }
     // pressure: a unit that has waited a turn without a shot stops valuing its own cover and starts valuing any shot
     if(idle>=1&&PRESSURE.includes(e.def.ai)){ score+= tgt?40+idle*10:0; if(coverScore(pos,players)>0) score-=coverScore(pos,players)*(idle>=2?9:6); }
-    if(c.c>0) score-=2;
+    if(c.c>0) score-=2; if(fireAt(pos)) score-=80;
     if(!best||score>best.score) best={c,pos,tgt,score};
   }
   if(best.c.c>0){ if(phase){ fxRing(e.x,e.y,'#9BE7FF',0.9); e.x=best.pos.x; e.y=best.pos.y; if(G.actcam) G.actcam={x:e.x,y:e.y,zoom:1.28}; anim(e,'blinkIn'); fxRing(e.x,e.y,'#9BE7FF',0.9); Audio.huskBlink(e.x); VO.husk(); await wait(260); } else { await doMove(e,pathTo(reach,best.pos.x,best.pos.y)); } e.ap-=1; await wait(120); if(!e.alive) return; }
@@ -3225,6 +3262,7 @@ function draw(){
   if(G.smoke){ for(const k of G.smoke){ const [sx,sy]=k.split(',').map(Number); ctx.fillStyle=`rgba(184,194,204,${0.28+0.08*Math.sin(t/250+sx)})`; ctx.fillRect(sx*TILE+1,sy*TILE+1,TILE-2,TILE-2); } }
   // jammer fields
   for(const z of jammers()){ const cx=z.x*TILE+TILE/2, cy=z.y*TILE+TILE/2; ctx.fillStyle='rgba(199,125,255,0.07)'; ctx.fillRect((z.x-3)*TILE,(z.y-3)*TILE,TILE*7,TILE*7); ctx.strokeStyle=`rgba(199,125,255,${0.35+0.15*Math.sin(t/300)})`; ctx.setLineDash([6,5]); ctx.lineWidth=1.5; ctx.strokeRect((z.x-3)*TILE+1,(z.y-3)*TILE+1,TILE*7-2,TILE*7-2); ctx.setLineDash([]); }
+  for(const [fk,f] of (G.fire||new Map())){ const [fx_,fy_]=fk.split(',').map(Number); ctx.fillStyle=f.life>=2?'rgba(255,120,30,0.45)':'rgba(255,120,30,0.25)'; ctx.fillRect(fx_*TILE+2,fy_*TILE+2,TILE-4,TILE-4); }
   for(const sv of (G.salvos||[])){ const W_=SALVO_R*2+1; ctx.fillStyle=sv.by.alive?'rgba(255,77,46,0.28)':'rgba(92,214,138,0.15)'; ctx.fillRect((sv.x-SALVO_R)*TILE,(sv.y-SALVO_R)*TILE,TILE*W_,TILE*W_); ctx.strokeStyle=sv.by.alive?'#FF4D2E':'#5CD68A'; ctx.lineWidth=2; ctx.setLineDash([6,4]); ctx.strokeRect((sv.x-SALVO_R)*TILE+1,(sv.y-SALVO_R)*TILE+1,TILE*W_-2,TILE*W_-2); ctx.setLineDash([]); ctx.fillStyle=sv.by.alive?'#FF4D2E':'#5CD68A'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.fillText(sv.by.alive?'INCOMING':'CANCELLED',sv.x*TILE+TILE/2,(sv.y-SALVO_R)*TILE-3); }
   if(sel&&sel.alive&&playerPhase&&sel.ap>0){
     if(G.mode==='move'){ const r=reachable(sel,sel.move*sel.ap); for(const n of r.values()){ ctx.fillStyle=n.c<=sel.move?'rgba(63,193,227,0.26)':'rgba(63,193,227,0.10)'; ctx.fillRect(n.x*TILE+2,n.y*TILE+2,TILE-4,TILE-4); ctx.strokeStyle=n.c<=sel.move?'rgba(63,193,227,0.55)':'rgba(63,193,227,0.22)'; ctx.lineWidth=1; ctx.strokeRect(n.x*TILE+2.5,n.y*TILE+2.5,TILE-5,TILE-5); }
@@ -3294,5 +3332,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,blastPreview,flankTiles,allyResult,GRAFTS,setGraft,graftHolder,finish,renderHub,openMutant,threatAfterMove,threatMoveAt,pathThreats,threatZone,anim,fxTracer,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
+window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,blastPreview,flankTiles,allyResult,GRAFTS,setGraft,graftHolder,finish,renderHub,openMutant,waveTurn,fireAt,igniteAround,threatAfterMove,threatMoveAt,pathThreats,threatZone,anim,fxTracer,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

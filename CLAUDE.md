@@ -431,6 +431,26 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   bot clusters and wakes every pod; the "22-turn slog" note below is stale). `test34.mjs` covers paint → land → cancel, the flanker,
   the lane and the pressure sequence (hold one turn → dash through the gap → shoot).
 
+## Tempo & pressure pass (2026-09-27, Cameron's brief: anti-turtling that suits the fiction and allows slack)
+- **The reinforcement clock starts at contact.** `G.called` = the turn an awake hostile first survived a Coalition turn
+  (`registerCall()` after the activation loop) or the console transmission began (hold missions). `waveTurn(m)` is the single
+  timer read: `called==null ? ceilTurn : min(ceilTurn, called+callDelay)`, plus `G.reinfDelay`; `callDelay=max(2,reinforceAt−1)`
+  (contact on turn 1 reproduces the old schedule), `ceilTurn=reinforceAt+3` (patrols find you regardless). Used by `endTurn`'s spawn
+  check, the turnline ("Quiet — nobody has called it in · patrols by turn N" / "Called in turn 3 · reinforcements in 4 · right
+  edge"), the right-edge glow and the briefing ("N turns after contact, patrols by turn M"; eliminate adds "they keep coming; clear it
+  fast"). Adaptations/perks/difficulty still edit `reinforceAt` through `MX`, so they move both numbers.
+- **Spotters are the uplink.** A player kill on a `verb:'mark'` unit adds 1 to `G.reinfDelay` (UPLINK DOWN float, "+1" in the
+  turnline) — before or after the call, and mid-stream it opens a one-turn gap.
+- **Fire** (industrial/rust — `FIRE_THEMES=DRUM_THEMES`). `detonate()` → `igniteAround()` lights the 3×3 of floor (`G.fire` Map
+  key→{life}, `FIRE_LIFE=3`). `spreadFire()` at the top of the Coalition phase: tiles with life≥2 spread to each orthogonal floor
+  neighbour with `FIRE_SPREAD=0.35` (new life 2, so a blaze burns out in ~4 turns), then all lives tick down. `burnSide(side)`
+  deals `FIRE_DMG=2` (armor ignored) to units starting their turn in fire — enemies at the top of their phase, players right
+  before "Your turn" — and drums in fire detonate (chains). `doMove` burns once per move for a path through fire. Enemy tile scoring
+  −80 on fire; move highlights turn orange, `moveHint` warns "Burning" / "Runs through fire"; 3D flickers `put(...,3)` with embers
+  every 420 ms (`FIRE_T`), 2D fills orange. Control lines `calledIn`, `fire`. `test35.mjs` covers quiet → call → wave, the uplink
+  delay, ignition, spread, burning both sides and burn-out. Sims after: M1 8/8 · M2 7/8 · M3 4/6 (bot makes contact on turn 1–2,
+  so the slack is for careful players, as intended).
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

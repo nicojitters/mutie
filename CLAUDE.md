@@ -470,6 +470,23 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   `test36.mjs` drives combo → bond → +5, a downed-and-recovered scar, records on sheet and report, a death by bleed-out, the memorial
   sheet and the mourn line.
 
+## The Cell — strategic layer (2026-09-27, Cameron's brief: economy, mutually exclusive choices, scarcity both ways, open loops)
+- **Samples** (`CAMP.samples`): `G.samplesEarned` +1 per player kill of an `aug` unit and per vat destroyed (`+1 SAMPLE` float), `SAMPLE_WIN=2`
+  on a win, `SAMPLE_OP=6` from a samples side op; report line "+N samples recovered". Shown in the index bar, briefing params, Next up.
+- **Culture lab.** Harvest now lands in `CAMP.culturing[id]=1`; `finish()` ticks existing cultures *before* adding the new one, moving
+  finished ones into `CAMP.grafts` ("cultured — ready to fit"). `rushGraft(id)` costs `RUSH_COST=3`. Hub graft cards show
+  "Culturing · ready after the next mission · Rush now".
+- **Infirmary.** `treatWound(cid)` (`TREAT_COST=3`) clears `wounded`; button on the mutant sheet when wounded.
+- **Side ops.** Offers carry `reward` ∈ index | samples | intel (seeded, the two always differ; `OP_REWARDS`); cards and the briefing
+  eyebrow say which. Winning pays: index → −3 as before; samples → +6 (Index only +1); intel → `CAMP.intel=true`, which reveals every
+  augment in the next campaign briefing and adds +1 to `reinforceAt` in `adjustMission` (idx≥0), consumed in that mission's `finish()`.
+  `CAMP.offers=null` after any mission already made the pair exclusive; the section header now says so.
+- **Next up** (`renderNextUp()`, `#nextup`): pending L3 fork · wounded and when they're back (treat hint) · cultures (rush hint) ·
+  the two mutants closest to a level · pairs one combo from bonding · the recruit who joins after the next clear · grafts still out
+  there with the units to kill · unseen augments in the next mission (or intel in hand) · what the side ops pay. Weighted, sorted.
+  Old saves migrate (`samples 0`, `culturing {}`, `intel false`). `test37.mjs` covers samples, culture → rush, treat, side-op rewards,
+  intel reveal/consume and the panel.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

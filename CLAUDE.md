@@ -318,6 +318,28 @@ specimen tanks, no motes) · transmitter (cable trays, lattice mast with beacons
   is live. `test24.mjs` (charges/refund), `test25.mjs` (hunker), `test26.mjs` (blink/phase previews).
 - Harness note: `#m-continue` on a fresh save now opens the difficulty picker first — harnesses tap `#df-choices .btn:nth-child(2)`.
 
+## Legibility pass (2026-09-27, Cameron's brief: show the math, telegraph deliberately)
+- **Breakdown & consequence.** `hitChance` returns `parts` (aim, range, cover, marked, reaction, slippery, hunkered, smoke, ambush,
+  suppressed, blink, clamped); `fmtParts(h)` renders "70 aim · −12 range · −20 half cover". `effArmor(t)` is the single armor
+  rule (Surgeon aura, brace, Aegis) used by both `applyDamage` and the previews. `shotInfo(a,d)` → damage range after
+  flank/hotshot/booster/ambush, crit odds, armor, shield and `kill` ∈ kills | may | crit; `powerInfo(u,mode,t)` does the same for
+  concuss/smash/phasestrike; `killTag()` → KILLS / MAY KILL / KILLS ON CRIT. Surfaces: POV `.tcard` gets a `.tc-dmg` line and,
+  on the selected card in shoot mode, a `.tc-why` breakdown; the map hover `.pct` shows "72% · 2–3 dmg · KILLS"; the POV hint
+  carries kill + breakdown; enemy tooltips now list Dmg and Move.
+- **Next-turn threat.** `enemyReach(e)` (its move footprint; Husks any free tile within reach; rooted/stunned stay) and
+  `threatAfterMove(u,tiles)` → Map tileKey→count of awake hostiles that could move then shoot the tile; cached in `TM` on a
+  signature of turn, unit, tile list, enemy states and the grid (≈4 ms for a full footprint in software GL, 0 on hit).
+  Move highlights tint by it — blue 0 · amber 1–2 · red 3+, dash variants dimmer — and the exposure chip reads
+  "N CAN HIT NOW · M if they move" (`threatMoveAt`); `exposureHtml` adds "M could reach a shot after moving" (`.warn`).
+- **Overwatch crossings.** `pathThreats(u,path)` lists overwatchers with a reaction shot on any step and their best odds;
+  `moveHint(u,p,n,r)` says "Crosses overwatch — Trooper 40%", and their labels read "OVERWATCH ON PATH" (or "AT YOU · OW 30% ON
+  PATH" when they also threaten the destination).
+- **Threat zones.** `threatZone(e)` (cached in `TZ` per enemy) = every floor tile e could shoot after moving. Drawn dark red
+  (`put(...,-1)`) under the move highlights while hovering an awake hostile on the map or targeting one in POV; the tooltip
+  says what the shading is. Deliberately *not* Into-the-Breach intent: it shows where they can hurt you, not what they will do.
+- **Reinforcement edge.** With `reinforceAt−turn ≤ 2`, the right-edge arrival columns (`x ≥ COLS−3`, free floor) breathe red
+  and the foot reads "Reinforcements in N · right edge". `test27–29.mjs` cover breakdown, heat map and zones.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

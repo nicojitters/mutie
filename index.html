@@ -1568,6 +1568,11 @@ function threatAfterMove(u,tiles){ const sig=`${G.turn}|${u.id}|${u.x},${u.y}|${
   for(const p of tiles){ const probe=Object.assign({},u,{x:p.x,y:p.y}); let n=0; for(const {e,Q} of es){ for(const q of Q){ if(inRange(Object.assign({},e,{x:q.x,y:q.y}),probe)){ n++; break; } } } out.set(key(p.x,p.y),n); }
   TM={key:sig,map:out}; return out; }
 const threatMoveAt=(u,p)=>threatAfterMove(u,[p]).get(key(p.x,p.y))||0;
+/* Where one hostile could shoot next turn: every floor tile it can reach a shot on after moving. Cached per unit+board state. */
+const TZ=new Map();
+function threatZone(e){ const sig=`${G.turn}|${e.x},${e.y}|${e.move}|${e.range}|${e.stunned?'s':''}${e.rooted?'r':''}|`+G.grid.map(r=>r.join('')).join('')+'|'+G.units.filter(u=>u.alive&&(isWall(u)||u.immobile)).map(u=>u.x+','+u.y).join(';'); const c=TZ.get(e.id); if(c&&c.sig===sig) return c.set;
+  const set=new Set(); const Q=enemyReach(e); const probe={x:0,y:0,side:'player'}; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ if(solid(x,y)) continue; probe.x=x; probe.y=y; for(const q of Q){ if(inRange(Object.assign({},e,{x:q.x,y:q.y}),probe)){ set.add(key(x,y)); break; } } }
+  TZ.set(e.id,{sig,set}); return set; }
 /* Overwatch crossings along a path: which hostiles on overwatch would get a reaction shot at some step, and at what odds. */
 function pathThreats(u,path){ const ows=alive('enemy').filter(e=>e.alert&&e.ow&&!e.melee&&!e.suppressed&&!e.stunned); const out=[]; for(const e of ows){ let best=null; for(const st of path){ const probe=Object.assign({},u,{x:st.x,y:st.y}); if(inRange(e,probe)){ const c=hitChance(e,probe,{reaction:true}).chance; if(!best||c>best.chance) best={e,chance:c,step:st}; } } if(best) out.push(best); } return out; }
 function moveHint(u,p,n,r){ const wake=alive('enemy').filter(e=>!e.alert&&dist(p,e)<=SIGHT+0.01&&hasLOS(p,e)).length;
@@ -1871,7 +1876,7 @@ function renderSide(){
     b.onclick=()=>{ if(!u.alive||u.side!=='player') return; select(u); }; sq.appendChild(b); });
   $('enemy-count').textContent=`${alive('enemy').length} hostile${alive('enemy').length===1?'':'s'}`;
   $('turn-num').textContent=G.turn;
-  { const m=MX(G.missionIdx); const left=m.reinforceAt-G.turn; const r=$('reinf'); if(m.reinforceAt>50){ r.textContent=m.objective==='assassinate'?'She grafts instead of calling for help':'No reinforcements'; r.style.color=''; } else if(left>0){ r.textContent=`Reinforcements in ${left}`; r.style.color=left<=2?'var(--danger)':''; } else { r.textContent='Reinforcements arriving'; r.style.color='var(--danger)'; } }
+  { const m=MX(G.missionIdx); const left=m.reinforceAt-G.turn; const r=$('reinf'); if(m.reinforceAt>50){ r.textContent=m.objective==='assassinate'?'She grafts instead of calling for help':'No reinforcements'; r.style.color=''; } else if(left>0){ r.textContent=`Reinforcements in ${left}${left<=2?' · right edge':''}`; r.style.color=left<=2?'var(--danger)':''; } else { r.textContent='Reinforcements arriving'; r.style.color='var(--danger)'; } }
   const ot=objectiveText(); const oe=$('objective'); oe.innerHTML=ot.html; oe.className='obj'+(ot.done?' done':'');
   const tl=$('turn-label'); tl.textContent=G.phase==='player'?'Your turn':'Coalition turn'; tl.className='t '+G.phase;
   const u=G.sel, act=$('actions'); act.innerHTML='';
@@ -2012,7 +2017,7 @@ function tooltip(u){
   if(u.side==='obj') return `<span class="tip"><b>${u.name}</b> · HP ${u.hp}/${u.maxHp} · Any hit lands. Destroy to complete the objective.</span>`;
   if(u.side==='captive') return `<span class="tip"><b>${u.name}</b> · captive mutant · move a unit next to them to free them.</span>`;
   const d=u.def; const st=[u.side==='enemy'&&!u.alert?'UNAWARE — has not seen you; its pod wakes when you get within 7 tiles in view or fire on it':'',u.marked?'MARKED':'',u.ow?'OVERWATCH':'',jammed(u)?'JAMMED':'',(u.drained||u.drainedNow)?'DRAINED':''].filter(Boolean).join(' · ');
-  return `<span class="tip"><b>${u.name}</b>${u.side==='enemy'&&d.aug?` <i>[${d.aug}]</i>`:''} · HP ${u.hp}/${u.maxHp}${u.armor?` · Armor ${u.armor}`:''} · Aim ${u.aim} · Dmg ${u.dmg[0]}–${u.dmg[1]} · Move ${u.move} · Rng ${u.range}${st?' · '+st:''}${u.side==='enemy'?` — ${d.desc}`:''}</span>`;
+  return `<span class="tip"><b>${u.name}</b>${u.side==='enemy'&&d.aug?` <i>[${d.aug}]</i>`:''} · HP ${u.hp}/${u.maxHp}${u.armor?` · Armor ${u.armor}`:''} · Aim ${u.aim} · Dmg ${u.dmg[0]}–${u.dmg[1]} · Move ${u.move} · Rng ${u.range}${st?' · '+st:''}${u.side==='enemy'?` — ${d.desc}`:''}${u.side==='enemy'&&u.alert?' <i>Shaded tiles: where it could shoot next turn.</i>':''}</span>`;
 }
 function banner(text,cls){ const b=$('banner'); b.textContent=text; b.className='banner show '+cls; clearTimeout(banner.t); banner.t=setTimeout(()=>b.classList.remove('show'),1500); }
 function log(msg,cls){ const l=$('log'); const d=document.createElement('div'); d.className=cls||''; d.textContent=msg; l.appendChild(d); l.scrollTop=l.scrollHeight; }
@@ -2691,6 +2696,11 @@ const R3 = (()=>{
     { const zs=jammers(); while(jamPlanes.length<zs.length){ const jp=new T3.Mesh(new T3.PlaneGeometry(7,7),basic({map:TEX.field,color:'#C77DFF',transparent:true,opacity:0.11,side:T3.DoubleSide,depthWrite:false,blending:T3.AdditiveBlending})); jp.rotation.x=-Math.PI/2; scene.add(jp); jamPlanes.push(jp); }
       jamPlanes.forEach((jp,i)=>{ const z=zs[i]; jp.visible=!!z; if(z){ jp.material.opacity=0.11+0.03*Math.sin(t/300); jp.rotation.z=t/6000; jp.position.copy(W(z.x,z.y,0.02)); } }); }
     if(G.smoke){ for(const k of G.smoke){ const [sx,sy]=k.split(',').map(Number); put(sx,sy,'#8f9aa6',0); } }
+    // enemy threat zone: hover a hostile on the map (or target one in POV) and the tiles it could shoot next turn shade dark red
+    { let ze=null; if(playerPhase){ const hu=G.hover?unitAt(G.hover.x,G.hover.y):null; if(hu&&hu.side==='enemy'&&hu.alert&&!hu.def.noAttack) ze=hu; else if(G.povView==='pov'&&G.pov&&G.pov.target&&G.pov.target.side==='enemy'&&G.pov.target.alert) ze=G.pov.target; }
+      if(ze){ const zc=ze.melee?'#5A2A22':'#5A1E28'; for(const k of threatZone(ze)){ const [zx,zy]=k.split(',').map(Number); if(zx===ze.x&&zy===ze.y) continue; put(zx,zy,zc,-1); } } }
+    // reinforcement edge: two turns out, the right-edge arrival zone breathes red
+    { const m=MX(G.missionIdx); const left=m.reinforceAt-G.turn; if(m.reinforceAt<50&&left<=2&&G.phase==='player'){ const pulse=0.5+0.5*Math.sin(t/420); const zc=new T3.Color('#3A1418').lerp(new T3.Color('#8A2E34'),pulse).getStyle(); for(let y=0;y<ROWS;y++) for(let x=COLS-3;x<COLS;x++){ if(!solid(x,y)&&!unitAt(x,y)) put(x,y,zc,-2); } } }
     if(sel&&sel.alive&&playerPhase&&sel.ap>0){
       if(G.mode==='move'){ const r=moveR||reachable(sel,sel.move*sel.ap); const tm=alive('enemy').some(e=>e.alert)?threatAfterMove(sel,[...r.values()]):null;
         for(const nd_ of r.values()){ const th=tm?(tm.get(key(nd_.x,nd_.y))||0):0; const dash=nd_.c>sel.move; put(nd_.x,nd_.y,th===0?(dash?'#1E5F70':'#3FC1E3'):th<=2?(dash?'#6E4E1C':'#E0A040'):(dash?'#6E2A26':'#FF6B62'),0); }
@@ -3099,5 +3109,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,threatAfterMove,threatMoveAt,pathThreats,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
+window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,threatAfterMove,threatMoveAt,pathThreats,threatZone,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

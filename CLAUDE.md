@@ -298,6 +298,26 @@ surgical lamps, gurneys, pink hemi/fog) · theatre (operating circle, blood, gal
 specimen tanks, no motes) · transmitter (cable trays, lattice mast with beacons, dishes and guy wires, generators, dawn sky).
 `shotdress.mjs [idx,…]` renders the map view, `shotdresspov.mjs` four POV frames; software-GL cost ≈ +20 ms/frame.
 
+## Meaningful-decisions pass (2026-09-27, Cameron's brief: no dominant move, action economy, several valid answers)
+- **Pulse Blast is a grenade.** `u.charges`/`u.chargesMax` (3, set at deploy for kits with `ability.key==='blast'`) replace its
+  cooldown; the power button shows `N LEFT` / `SPENT` (`.cd.ch`, `.abtn.spent`). Spend happens at the top of the blast block,
+  before damage, so **Overcharge** (Vex's passive, now "a Blast that kills refunds its charge") can refund after. Focused Pulse =
+  4 dmg (no cd mod); Wide Pulse = 5×5 at 3. Power Surge and Stim restore a charge for Blast users instead of touching cd.
+  Why: 3 guaranteed AoE damage on a 3-turn cooldown beat a 70% rifle shot even against one target, so Blast was never a choice.
+  A flat cut to 2 dmg hollowed the Blaster (bot M1 7/8 → 3/8); charges keep the power and make every throw a spend-or-save.
+  Sims (naive bot, 8 runs): M1 8/8 · M2 7/8 · M3 6/8 vs baseline 7/8 · 3/8 · 7/8. `SMART=1 node sim.mjs` makes the bot blast
+  only clusters/armor/drums (it does worse — it forgoes refunding finishers, which is the point).
+- **Hunker** (`setMode('hunker')`, key 5, ends turn): `u.hunker` → `hitChance` −20 against them and no crits (`cc=0` in
+  `shoot`), cleared with `ow`/`brace` at the player's turn start. Badges on label and squad card, deep crouch (`wantCr` 1.2),
+  2D text. Gives a 30% shot, overwatch, hunker and repositioning as four defensible answers to the same board.
+- **Exposure preview for Blink and Phase Strike.** `previewTile(u,hover)` returns the tile the current mode is really asking
+  about: a reachable move tile, a valid Blink tile (`blinkOk`), or `landingSpot(u,target)` — the nearest open orthogonal tile
+  beside a hovered or POV-targeted Phase Strike victim (the strike itself now calls the same helper). The renderer's `expoAt`/
+  `expo` come from it in every mode; the tile chip is prefixed `BLINK ·` / `LAND ·`; the POV `.tcard` meta adds "lands: N can hit
+  · %" or "lands safe"; hints and the touch arm text carry the same line; enemy "AT YOU" labels draw in any mode while a preview
+  is live. `test24.mjs` (charges/refund), `test25.mjs` (hunker), `test26.mjs` (blink/phase previews).
+- Harness note: `#m-continue` on a fresh save now opens the difficulty picker first — harnesses tap `#df-choices .btn:nth-child(2)`.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with
@@ -340,7 +360,7 @@ a per-browser convenience, not a save system (Phase 8 still owns real persistenc
   blast, concuss, suppress · smash, brace, rally · blink, phasestrike, afterimage · mend, ward, stim. Statuses added:
   `shield` (absorbs), `brace` (full cover for allies + armor), `suppressed` (−25 aim, no reaction fire, cleared at
   your next turn), `taunt` (enemy must target that unit), decoy units (`def.decoy`, excluded from evac/squad counts).
-  Passive keys read in code: overcharge, hotshot, steady, dense, anchor, regen, slippery, momentum, aegis, fieldmedic, triage.
+  Passive keys read in code: overcharge (Blast kill refunds a charge), hotshot, steady, dense, anchor, regen, slippery, momentum, aegis, fieldmedic, triage.
 - `ENEMY` — Trooper, Marksman, Sprinter, Juggernaut (stat roles) + verb enemies: Spotter `mark`, Bulwark `wall`,
   Jammer `jam`, Siphon `drain` (−1 action next turn), Husk `phase` (teleport move, ignores overwatch), The Surgeon
   `command` (boss: +1 armor aura, grafts up to 3 Husks from 2 turns after she wakes). `aug` tags drive the threat file.

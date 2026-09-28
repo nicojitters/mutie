@@ -1533,6 +1533,16 @@ function exposureAt(u,p){ const probe=Object.assign({},u,{x:p.x,y:p.y}); const t
 function exposureHtml(u,p){ const x=exposureAt(u,p); const awake=alive('enemy').some(e=>e.alert);
   if(!x.n) return `<i class="safe">${awake?'No awake hostile can hit you there.':'Nothing awake has eyes on it.'}</i>`;
   return `<i class="risk">${x.n} hostile${x.n>1?'s':''} can hit you there — best <b>${x.best}%</b>${x.flanked?' · <b>FLANKED</b>':x.cover?'':' · <b>NO COVER</b>'}</i>`; }
+/* Where Phase Strike puts you: the nearest open orthogonal tile beside the target (same rule the strike uses). */
+function landingSpot(u,target){ let spot=null,bd=1e9; for(const d of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){ const x=target.x+d.x,y=target.y+d.y; if(inb(x,y)&&!solid(x,y)&&!unitAt(x,y)){ const dd=dist(u,{x,y}); if(dd<bd){bd=dd;spot={x,y};} } } return spot; }
+const blinkOk=(u,p)=>p&&!solid(p.x,p.y)&&!unitAt(p.x,p.y)&&dist(u,p)<=u.def.ability.range+0.01;
+/* The tile whose exposure the current mode is really asking about: the hovered move tile, the hovered Blink tile, or the landing
+   spot beside a hovered / POV-targeted Phase Strike victim. */
+function previewTile(u,hover){ const m=G.mode; if(!u) return null;
+  if(m==='move'){ return (hover&&!unitAt(hover.x,hover.y)&&reachable(u,u.move*u.ap).has(key(hover.x,hover.y)))?hover:null; }
+  if(m==='blink'){ return blinkOk(u,hover)?hover:null; }
+  if(m==='phasestrike'){ let t=hover?unitAt(hover.x,hover.y):null; if(!(t&&t.side==='enemy')&&G.povView==='pov'&&G.pov&&G.pov.unit===u&&G.pov.target&&G.pov.target.side==='enemy') t=G.pov.target; if(t&&t.side==='enemy'&&t.alive&&dist(u,t)<=6.01) return landingSpot(u,t); }
+  return null; }
 function moveHint(u,p,n){ const wake=alive('enemy').filter(e=>!e.alert&&dist(p,e)<=SIGHT+0.01&&hasLOS(p,e)).length;
   return `<b>Move</b> here — ${n.c<=u.move?'1 action':'dash, both actions'}.${wake?` <i class="risk">${wake} unaware hostile${wake>1?'s':''} will see you.</i>`:''} ${exposureHtml(u,p)}`; }
 const jammers=()=>alive('enemy').filter(e=>e.def.verb==='jam');
@@ -1867,7 +1877,8 @@ function armHint(u,p,target,hostile){ const again='<span class="tap">Tap again t
     const r=reachable(u,u.move*u.ap); const n=r.get(key(p.x,p.y)); if(!n){ G.armed=null; return `<b>Can't reach</b> that tile.`; }
     return `${moveHint(u,p,n)} ${again}`; }
   const ab=u.def.ability; const name=G.mode==='setdown'?'Set down':G.mode.startsWith('perk:')?(PERKS[G.mode.slice(5)]||{}).name||'Perk':(ab&&ab.key===G.mode?ab.name:G.mode);
-  return `<b>${name}</b>${target?` on ${target.name}`:' here'}. ${again}`; }
+  const pt=(G.mode==='blink'||G.mode==='phasestrike')?previewTile(u,p):null;
+  return `<b>${name}</b>${target?` on ${target.name}`:' here'}.${pt?' '+(G.mode==='phasestrike'?'On landing: ':'')+exposureHtml(u,pt):''} ${again}`; }
 /* ---------- POV: over-the-shoulder targeting ----------
    Selecting a mutant drops the camera behind them (G.povView='pov') with a strip of targets sorted by hit chance (G.pov.list).
    Enemy strip: shootable first by %, then the rest greyed as info. Ally strip (Mend/Ward/Stim): valid first, then by distance.
@@ -1905,7 +1916,7 @@ function renderPov(){
   if(!pv.list.length) strip.innerHTML=`<div class="note" style="padding:6px 2px">${pv.kind==='ally'?'No allies in reach.':'No hostiles on the field.'}</div>`;
   pv.list.forEach((it,i)=>{ const t=it.u; const b=document.createElement('button'); b.className='tcard'+(i===pv.idx?' on':'')+(it.ok?'':' off'); b.style.setProperty('--tc',t.side==='obj'?'#F2B33D':t.side==='player'?(t.color||'#3FC1E3'):(t.color||'#E0524B'));
     const frac=t.hp/t.maxHp; const hpcls=frac>0.5?'':frac>0.25?'mid':'low';
-    if(pv.kind==='enemy'){ const h=it.h; const meta=[]; if(it.ok){ if(h.flanked) meta.push('<i class="fl">FLANKED</i>'); else if(h.cover===2) meta.push('full cover'); else if(h.cover===1) meta.push('half cover'); if(h.marked) meta.push('<i class="mk">marked</i>'); } else meta.push(dist(u,t)>u.range?'out of range':'no line of sight'); if(t.side==='enemy'&&!t.alert) meta.push('<i class="un">unaware</i>'); if(t.armor) meta.push(`armor ${t.armor}`);
+    if(pv.kind==='enemy'){ const h=it.h; const meta=[]; if(it.ok){ if(h.flanked) meta.push('<i class="fl">FLANKED</i>'); else if(h.cover===2) meta.push('full cover'); else if(h.cover===1) meta.push('half cover'); if(h.marked) meta.push('<i class="mk">marked</i>'); } else meta.push(dist(u,t)>u.range?'out of range':'no line of sight'); if(t.side==='enemy'&&!t.alert) meta.push('<i class="un">unaware</i>'); if(t.armor) meta.push(`armor ${t.armor}`); if(mode==='phasestrike'&&it.ok){ const sp=landingSpot(u,t); if(sp){ const x=exposureAt(u,sp); meta.push(x.n?`<i class="mk">lands: ${x.n} can hit · ${x.best}%</i>`:'<i class="fl">lands safe</i>'); } }
       const pct=it.ok?`<span class="tc-pct ${h.chance>=65?'hi':h.chance>=40?'':'lo'}">${h.chance}%</span>`:`<span class="tc-pct dim">—</span>`;
       b.innerHTML=`<div class="tc-top"><span class="tc-name">${t.side==='obj'?t.name:t.def.name}${t.def.boss?' <i class="boss">boss</i>':''}</span>${pct}</div><div class="tc-hp"><i class="${hpcls}" style="width:${Math.round(frac*100)}%"></i></div><div class="tc-meta">${meta.join(' · ')||'&nbsp;'}</div>`; }
     else { const st=t.downed?`<i class="mk">${t.stabilized?'stable':'bleeding '+t.bleed}</i>`:[t.marked?'<i class="mk">marked</i>':'',(t.drained||t.drainedNow)?'drained':'',t.hp<t.maxHp?`${t.hp}/${t.maxHp} HP`:'full HP',t.shield?`shield ${t.shield}`:''].filter(Boolean).join(' · ');
@@ -1948,13 +1959,13 @@ function setHint(t){
   const m=G.mode;
   if(G.povView==='pov'&&G.pov&&G.pov.unit===u&&G.pov.target&&!TILE_MODES.includes(m)&&m!=='setdown'){ const pv=G.pov, t=pv.target, it=pv.list[pv.idx]; const nm=t.side==='obj'?t.name:t.side==='player'?t.name:t.def.name; const nav=pv.list.length>1?(G.touch?' Swipe or use ‹ › for other targets.':' ← → cycle targets.'):'';
     if(pv.kind==='ally'){ h.innerHTML=`<b>${u.def.ability.name}</b> on <b>${nm}</b>${it.ok?'':' — not valid right now'}.${nav} <b>Move</b> pulls back to the map.`; return; }
-    if(TARGETED[m]==='enemy'){ h.innerHTML=`<b>${u.def.ability.name}</b> → <b>${nm}</b>${it.ok?'':' — out of reach'}.${nav}`; return; }
+    if(TARGETED[m]==='enemy'){ const sp=(m==='phasestrike'&&it.ok)?landingSpot(u,t):null; h.innerHTML=`<b>${u.def.ability.name}</b> → <b>${nm}</b>${it.ok?'':' — out of reach'}.${sp?' On landing: '+exposureHtml(u,sp):''}${nav}`; return; }
     h.innerHTML=it.ok?`<b>${nm}</b> — <b>${it.h.chance}%</b>${it.h.flanked?' flanked':it.h.cover===2?' vs full cover':it.h.cover===1?' vs half cover':''}, ${u.dmg[0]}–${u.dmg[1]} dmg.${t.side==='enemy'&&!t.alert?' Firing wakes their pod.':''}${nav} <b>Move</b> pulls back to the map.`:`<b>${nm}</b> — no shot from here.${nav} <b>Move</b> to reposition.`; return; }
   if(m==='move'){ const p=G.hover; if(p&&!unitAt(p.x,p.y)){ const n=reachable(u,u.move*u.ap).get(key(p.x,p.y)); if(n){ h.innerHTML=moveHint(u,p,n); return; } } h.innerHTML=G.touch?`<b>Move</b> — tap a highlighted tile to preview it (who wakes, who could hit you there), tap again to go.`:`<b>Move</b> — click a highlighted tile. Bright = 1 action, dim = dash (both actions). Hover a tile to see who could hit you there.`; }
   else if(m==='shoot') h.innerHTML=`<b>Fire</b> — click a hostile or a relay. Hover to see hit chance.`;
   else if(m==='blast') h.innerHTML=`<b>Pulse Blast</b> — click a target tile within 5. Hits everything in the 3×3, allies included. Wrecks crates.`;
   else if(m==='smash') h.innerHTML=`<b>Seismic Smash</b> — click an adjacent hostile.`;
-  else if(m==='blink') h.innerHTML=`<b>Blink</b> — click any open tile within 6. No line of sight needed.`;
+  else if(m==='blink'){ const p=G.hover; if(blinkOk(u,p)) h.innerHTML=`<b>Blink</b> here — 1 action, you can still shoot. ${exposureHtml(u,p)}`; else h.innerHTML=`<b>Blink</b> — click any open tile within 6. No line of sight needed. Hover a tile to see who could hit you there.`; }
   else if(m==='mend') h.innerHTML=`<b>Mend</b> — click a wounded or marked ally within 5.`;
   else if(m==='concuss') h.innerHTML=`<b>Concussion Round</b> — click a hostile in view within 6. Knocks them back and breaks overwatch.`;
   else if(m==='suppress') h.innerHTML=`<b>Suppressing Arc</b> — fires on every hostile in view within 4. Click anywhere on the map to confirm.`;
@@ -1967,6 +1978,7 @@ function setHint(t){
   else if(m==='setdown') h.innerHTML=`<b>Set down</b> — click an open tile next to you.`;
 }
 function tooltip(u){
+  if(G.mode==='phasestrike'&&u.side==='enemy'&&G.sel&&G.sel.alive&&dist(G.sel,u)<=6.01){ const sp=landingSpot(G.sel,u); if(sp) return `<span class="tip"><b>Phase Strike</b> ${u.def.name} — you land beside them. ${exposureHtml(G.sel,sp)}</span>`; }
   if(isDrumDef(u)) return `<span class="tip"><b>${u.name}</b> · HP ${u.hp}/${u.maxHp} · Any hit lands. <i>${u.def.desc}</i></span>`;
   if(u.side==='obj') return `<span class="tip"><b>${u.name}</b> · HP ${u.hp}/${u.maxHp} · Any hit lands. Destroy to complete the objective.</span>`;
   if(u.side==='captive') return `<span class="tip"><b>${u.name}</b> · captive mutant · move a unit next to them to free them.</span>`;
@@ -2592,8 +2604,10 @@ const R3 = (()=>{
     { const live=new Set(G.units.map(u=>u.id)); for(const [id,g] of units){ if(!live.has(id)){ unitGroup.remove(g); units.delete(id); } } for(const [id,d] of dying){ if(!live.has(id)){ unitGroup.remove(d.g); dying.delete(id); } } }
     const sel=G.sel, playerPhase=G.phase==='player'&&!G.busy&&!G.over;
     // move preview: reachable set once per frame, and the exposure of the hovered tile (drives the enemy labels below)
-    const moveR=(sel&&sel.alive&&playerPhase&&sel.ap>0&&G.mode==='move')?reachable(sel,sel.move*sel.ap):null;
-    const expo=(moveR&&G.hover&&!unitAt(G.hover.x,G.hover.y)&&moveR.has(key(G.hover.x,G.hover.y)))?exposureAt(sel,G.hover):null;
+    const selOk=sel&&sel.alive&&playerPhase&&sel.ap>0;
+    const moveR=(selOk&&G.mode==='move')?reachable(sel,sel.move*sel.ap):null;
+    const expoAt=selOk?(G.mode==='move'?((G.hover&&!unitAt(G.hover.x,G.hover.y)&&moveR.has(key(G.hover.x,G.hover.y)))?G.hover:null):previewTile(sel,G.hover)):null;
+    const expo=expoAt?exposureAt(sel,expoAt):null;
     const expoBy=expo?new Map(expo.threats.map(t=>[t.e.id,t])):null;
     for(const u of G.units){
       let g=units.get(u.id);
@@ -2627,7 +2641,7 @@ const R3 = (()=>{
       if(u.side!=='captive'&&u.side!=='obj'){ let ref=null; if(u.side==='enemy'&&sel&&sel.alive) ref=sel; else if(u.side==='player') ref=nearestFoe(u);
         for(const c of adjacentCover(u)){ const sp=project(u.x+c.dir.x*0.42,u.y+c.dir.y*0.42,0.55); const active=ref?protects(u,c,ref):true; const e=shieldEl(); e.style.left=sp.x+'px'; e.style.top=sp.y+'px'; e.style.opacity=active?'1':'0.3'; e.firstChild.firstChild.setAttribute('fill',c.val===2?'#EAF1F7':'#AEBFD0'); } }
       // hit chance labels
-      if((u.side==='enemy'||u.side==='obj')&&sel&&sel.alive&&playerPhase&&sel.ap>0&&!sel.def.noAttack&&(G.mode==='move'||G.mode==='shoot')){
+      if((u.side==='enemy'||u.side==='obj')&&sel&&sel.alive&&playerPhase&&sel.ap>0&&!sel.def.noAttack&&(G.mode==='move'||G.mode==='shoot'||expoBy)){
         const pl=pctFor(u.id); const pp=project(g.position.x+COLS/2-0.5,g.position.z+ROWS/2-0.5,-0.05);
         if(expoBy){ const th=expoBy.get(u.id); if(th){ const html2=`${th.chance}%<small>${th.flanked?'FLANKS YOU':'AT YOU'}</small>`; pl.el.className='pct lo exp'; if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } } else pl.used=false; }
         else if(inRange(sel,u)){ const h=hitChance(sel,u); const html2=`${h.chance}%${h.flanked?'<small>FLANKED</small>':''}`; pl.el.className='pct '+(h.chance>=65?'hi':h.chance>=40?'':'lo'); if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } }
@@ -2652,10 +2666,6 @@ const R3 = (()=>{
     if(G.smoke){ for(const k of G.smoke){ const [sx,sy]=k.split(',').map(Number); put(sx,sy,'#8f9aa6',0); } }
     if(sel&&sel.alive&&playerPhase&&sel.ap>0){
       if(G.mode==='move'){ const r=moveR||reachable(sel,sel.move*sel.ap); for(const nd_ of r.values()) put(nd_.x,nd_.y,nd_.c<=sel.move?'#3FC1E3':'#1E5F70',0);
-        if(expo){ // exposure summary floats over the hovered tile; the tile itself tints by verdict
-          put(G.hover.x,G.hover.y,expo.n?(expo.flanked||!expo.cover?'#FF6B62':'#E0A040'):'#5CD68A',2);
-          const pl=pctFor('exptile'); const pp=project(G.hover.x,G.hover.y+0.5,0.02); const html2=expo.n?`${expo.n} CAN HIT<small>${expo.flanked?'FLANKED · ':expo.cover?'':'NO COVER · '}best ${expo.best}%</small>`:`SAFE<small>${expo.cover?'in cover':'no one has eyes'}</small>`;
-          pl.el.className='pct exp '+(expo.n?'lo':'ok'); if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; }
         if(G.hover&&r.has(key(G.hover.x,G.hover.y))){ const pth=pathTo(r,G.hover.x,G.hover.y); let prev=W(sel.x,sel.y,0.06); for(const s of pth){ const nx=W(s.x,s.y,0.06); const segLen=prev.distanceTo(nx); const steps=Math.max(1,Math.round(segLen/0.34)); for(let i=1;i<=steps&&nd<96;i++){ const pt=prev.clone().lerp(nx,i/steps); m4.compose(pt,q,dsc); pathDots.setMatrixAt(nd,m4); nd++; } prev=nx; }
           for(const e of alive('enemy')){ if(!e.alert&&dist(G.hover,e)<=SIGHT+0.01&&hasLOS(G.hover,e)){ const pl=pctFor('wake'+e.id); const pp=project(e.x,e.y,1.6); pl.el.className='pct lo'; if(pl.html!=='WILL SEE YOU'){ pl.el.innerHTML='WILL SEE YOU'; pl.html='WILL SEE YOU'; } pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; } } } }
       else if(G.mode==='blast'||G.mode==='blink'){ const R=sel.def.ability.range; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ if(dist(sel,{x,y})<=R+0.01&&(G.mode==='blast'||(!solid(x,y)&&!unitAt(x,y)))) put(x,y,G.mode==='blast'?'#8a6a2a':'#6a4fa0',0); }
@@ -2669,6 +2679,10 @@ const R3 = (()=>{
       else if(G.mode==='afterimage'){ for(const d of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1},{x:1,y:1},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1}]){ const x=sel.x+d.x,y=sel.y+d.y; if(inb(x,y)&&!solid(x,y)&&!unitAt(x,y)) put(x,y,'#7FD4FF',1); } }
       else if(G.mode==='smash'){ for(const e of G.units.filter(u=>u.alive&&(u.side==='enemy'||u.side==='obj'))){ if(dist(sel,e)<1.5) put(e.x,e.y,'#E08A3C',1); } }
     }
+    if(expo){ // exposure summary floats over the previewed tile (move / blink / phase-strike landing); the tile tints by verdict
+      put(expoAt.x,expoAt.y,expo.n?(expo.flanked||!expo.cover?'#FF6B62':'#E0A040'):'#5CD68A',2);
+      const pl=pctFor('exptile'); const pp=project(expoAt.x,expoAt.y+0.5,0.02); const lead=G.mode==='phasestrike'?'LAND · ':G.mode==='blink'?'BLINK · ':''; const html2=expo.n?`${lead}${expo.n} CAN HIT<small>${expo.flanked?'FLANKED · ':expo.cover?'':'NO COVER · '}best ${expo.best}%</small>`:`${lead}SAFE<small>${expo.cover?'in cover':'no one has eyes'}</small>`;
+      pl.el.className='pct exp '+(expo.n?'lo':'ok'); if(pl.html!==html2){ pl.el.innerHTML=html2; pl.html=html2; } pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; }
     hi.count=n; hi.instanceMatrix.needsUpdate=true; if(hi.instanceColor) hi.instanceColor.needsUpdate=true;
     pathDots.count=nd; pathDots.instanceMatrix.needsUpdate=true; pathDots.material.opacity=0.7+0.3*Math.sin(t/180);
     // light columns: units on an open evac pad, and a held console
@@ -2690,7 +2704,7 @@ function canvasPos(ev){ if(R3) return R3.pick(ev); const r=canvas.getBoundingCli
 let hoverUnit=null;
 const viewEl=R3?R3.canvas:canvas;
 viewEl.addEventListener('mousemove',ev=>{ const prev=G.hover; G.hover=canvasPos(ev); const hu=G.hover?unitAt(G.hover.x,G.hover.y):null; const movedTile=!prev!==!G.hover||(prev&&G.hover&&(prev.x!==G.hover.x||prev.y!==G.hover.y));
-  if(hu!==hoverUnit){ hoverUnit=hu; if(!G.busy) { hu?setHint(tooltip(hu)):setHint(); } } else if(movedTile&&!hu&&!G.busy&&G.mode==='move'&&G.screen==='game'&&G.phase==='player') setHint(); });
+  if(hu!==hoverUnit){ hoverUnit=hu; if(!G.busy) { hu?setHint(tooltip(hu)):setHint(); } } else if(movedTile&&!hu&&!G.busy&&(G.mode==='move'||G.mode==='blink')&&G.screen==='game'&&G.phase==='player') setHint(); });
 viewEl.addEventListener('mouseleave',()=>{ if(G.touch) return; G.hover=null; hoverUnit=null; if(!G.busy) setHint(); });
 viewEl.addEventListener('contextmenu',ev=>{ ev.preventDefault(); if(G.mode!=='move'){ setMode('move'); } });
 window.addEventListener('keydown',ev=>{ if(ev.key==='Escape'){ for(const id of ['modal-threat','modal-help','modal-confirm','modal-mutant','modal-perk','modal-diff']) if(!$(id).hidden){ $(id).hidden=true; return; } } if(G.screen!=='game') return; if(ev.key==='Escape') setMode('move'); if(ev.key==='Tab'){ ev.preventDefault(); cycle(); } if(ev.key==='Enter'&&!G.busy&&G.phase==='player') endTurn(); if(ev.key==='ArrowRight'||ev.key==='e'||ev.key==='E'){ povCycle(1); } if(ev.key==='ArrowLeft'||ev.key==='q'||ev.key==='Q'){ povCycle(-1); } if(ev.key==='v'||ev.key==='V') toggleView(); if(ev.key===' '&&G.povView==='pov'){ ev.preventDefault(); povGo(); } if(ev.key==='1') setMode('move'); if(ev.key==='2') setMode('shoot'); if(ev.key==='3'&&G.sel&&G.sel.def.ability) setMode(G.sel.def.ability.key); if(ev.key==='4') setMode('overwatch'); if(ev.key==='5') setMode('hunker'); });
@@ -2756,7 +2770,7 @@ async function performAt(p,opts={}){
     const hs=alive('enemy').filter(e=>e.alert&&dist(u,e)<=RR+0.01&&hasLOS(u,e)); for(const e of hs){ e.taunt=u; fxText(e.x,e.y-0.6,'TAUNTED','#B5562E'); }
     log(`${u.name} rallies — ${hs.length} hostile${hs.length===1?'':'s'} will come for Grit.`,'sys'); u.cd=u.def.ability.cd; u.ap-=1; await wait(350); G.busy=false; G.mode='move'; afterAction(u); return; }
   if(G.mode==='phasestrike'){ if(!hostile||target.side!=='enemy'||dist(u,target)>6.01){ setHint('<b>Phase Strike</b> needs a hostile within 6.'); return; }
-    let spot=null,bd=1e9; for(const d of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){ const x=target.x+d.x,y=target.y+d.y; if(inb(x,y)&&!solid(x,y)&&!unitAt(x,y)){ const dd=dist(u,{x,y}); if(dd<bd){bd=dd;spot={x,y};} } }
+    const spot=landingSpot(u,target);
     if(!spot){ setHint('<b>Phase Strike</b> — no open tile beside that hostile.'); return; }
     G.busy=true; renderSide(); VO.event(u,'phasestrike'); Audio.blink(spot.x); fxRing(u.x,u.y,'#8E7BFF',1); u.x=spot.x; u.y=spot.y; anim(u,'blinkIn'); await wait(220); if(!target.alert) await scamper(wakePod(target.pod));
     anim(u,'lunge',{tx:target.x,ty:target.y}); Audio.lunge(u.x); await wait(160); Audio.smash(target.x); G.stats.shots++; G.stats.hits++; const PD=F(u,'strikeDmg')||3; log(`${u.name} phase-strikes ${target.name} for ${PD}.`,'hit'); applyDamage(target,PD,u); shake(8);

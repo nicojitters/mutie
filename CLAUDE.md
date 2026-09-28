@@ -700,6 +700,30 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   inner panels scroll. Desktop 1024×768 → 1920×1080: every screen and sheet fits with no inner scroll except the log; 800×600 fits the
   page with a few inner scrolls.
 
+## Pixel-art units (2026-09-28, Cameron: "detailed, evocative pixel art rather than violent Roblox") — default look
+`PIX` (top-level module, before `R3`) draws every unit as a hand-shaded pixel sprite in code — no image files. A 2D forward-kinematic
+rig (`joints`: hip → thighs/shins, spine with lean, shoulders, elbows/hands, neck/head; whole-body `rot` about the hip for lying) is
+rasterized into a 64×64 grid by `cap` (capsules), `ell`, `poly`, `trunk` (polygon shaded as a cylinder per scanline — torsos, jackets,
+armour) and `line`/`dot`, each shaded against a top-left key light and quantized onto a 5-step hue-shifted ramp (`ramp`: shadows toward
+violet, highlights toward gold; skin uses less cool shift), ordered dither on cloth only. `finish()` adds contour lines where a nearer part
+overlaps a farther one (per-pixel part id + depth), a cool rim light on the back-right edge, a 1-px selective outline, and returns a colour
+ImageData plus a glow ImageData (eyes, palms, visors, trims, halos). Characters are data in `PIX.CH` (build `B_STD/BIG/HUGE/SLIM/SOLD`,
+palette, hair style spiky|ponytail|short|bald|mohawk|crest|bob|bun|long, hood/goggles/visor/band/mask/beard/scar/halo, torso
+jacket|vest|armor|coat|suit, sleeves, pads, bracers, pack, cape, blades, claws, rifle, bigArm, `extra()` hook for one-offs such as
+Ember's scarf, Grit's chain, the Bulwark's shield). `specFor(id,custom,extra)` applies the roster customizer (skin, hair colour,
+headgear, accent) and `elite`/`decoy`. `POSES` + `FCOUNT`: idle(4) walk(6) cast1(6) slam(6) cast(6) lunge(6) fire(5) hit(4) dodge ow(2)
+hunker kneel(2) downed(2) fall(4) drop land select crouch:c. Frames are cached (`PIX.frame(spec,view,state,fi,{flash,scan})`), views
+'f' (3/4 front) and 'b' (3/4 back), mirrored for facing left.
+**In R3** (Look `sprite`, `SETTINGS.look` default, migrated once via `lookV`): each unit group keeps its 3D pieces and hidden body — the
+body still runs `pose()`, facing and the cover crouch — and gains an upright billboard (`sprMake`: alpha-tested colour plane + additive glow
+plane at ×1.9 for bloom). `sprUpdate` picks view/mirror from body facing vs the drawing camera (hysteresis), stretches the plane by
+1/cos(camera elevation) so proportions survive the ¾ ortho view, copies the body's knock-back/hop offsets, maps game state → pose/frame
+(`sprState`: downed, anims, walk, hunker, overwatch, crouch from `g.userData.cr`, idle), flashes white on the first frame of a hit, and
+uploads only when the frame key changes. Colours go through `sprLUT` (inverse of the composite's ACES at the current exposure) so the
+authored palette survives tone mapping. Dying units play `fall` then `downed` while the group fades. Labels sit higher in this look.
+Iterate art with the sheet harness (scratch `sheet.mjs`: loads PIX alone in a blank page and tiles characters × states at N×).
+Looks now cycle Standard · Pixel art · Pixel scene · Comic (the old `pixunit` pass is still in `R3.style` but not offered).
+
 ## Look prototypes (2026-09-28, Cameron: "make the most of the visuals" — pixel units on a 3D board, plus alternatives)
 Switchable post styles on the RT path, nothing about the game changes: `R3.style('standard'|'pixunit'|'pixel'|'comic')`, `SETTINGS.look`
 (per device), "Look:" button in How to play, key **L**. Needs the RT path (`BLOOM`); the 2D fallback and non-WebGL2 stay Standard.

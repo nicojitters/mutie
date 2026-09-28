@@ -91,7 +91,7 @@ Order: optics → reactive → plates → frenzy → rapid → surplus → vangu
 adjusted mission object during play so every timer read sees the modified `reinforceAt/evacAt/deadline`; `openBriefing`
 clears `MADJ` and previews the adjusted numbers with "(was N)". Clean Act III run = 2 adaptations; doom 6–8 = 4; doom 9 = 6.
 
-Phase 8 still open: mid-mission resume (the epilogue shipped 2026-09-27).
+Phase 8 is complete: the epilogue shipped 2026-09-27, mid-mission resume 2026-09-28 (see the pacing pass).
 
 **Fixed 2026-09-27 — the real "mission report won't close" bug.** Every `.overlay`/`.modal` element (result screen,
 all 6 modals) was marked `hidden` in markup but its CSS class sets `display:grid`; the bare `hidden` *attribute* relies
@@ -267,7 +267,7 @@ ignores drums when listing relays. Bot never uses drums, so it undercounts their
   stores `CAMP.finale={survivors,turn,doom,when}` on a Last Light win and relabels Continue as **Epilogue** → `showEpilogue()`;
   the hub shows an Epilogue link next to the progress count once all ten are cleared. `showScreen` knows `'epilogue'`
   (menu music, act 2). Buttons: Return to base, New campaign (reuses the menu's confirm). `test22.mjs` drives the whole flow.
-  Phase 8's remaining open item is mid-mission resume.
+  Mid-mission resume shipped in the pacing pass.
 
 ## Difficulty modes (2026-09-27)
 `DIFF` = scout / veteran / graft, stored in `CAMP.diff` (old saves migrate to veteran). Pure deltas on the Veteran numbers via
@@ -517,8 +517,8 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   each Coalition phase), `lowShots/lowHits` (<40% rolled shots), `flankedTaken[name]`, `salvoHits`, `hunkers`, `ows`, `firstDown` —
   rendered as up to four weighted sentences ("2 pods in one turn, which is the fight you lost", "Halden took 3 flanked hits", …).
 - **Modifiers** (`MODS`, `CAMP.mods`, `mod(id)`, picked in `#modal-diff` under the difficulties; shown in the index bar and briefing):
-  `ironman` — `startMission` writes `CAMP.inMission`; `finish` clears it; `migrateCamp` finding it on load applies Index +2, wounds the
-  squad and sets `CAMP.notice` (shown at the top of Next up). `noRecruits` — no death replacements. `mercy` — first loss per campaign
+  `ironman` — since the pacing pass: resume only, no turn restart (see Autosave & resume). The older reload penalty (`CAMP.inMission`
+  found on load → Index +2, squad wounded, `CAMP.notice`) now only fires when no mission save exists. `noRecruits` — no death replacements. `mercy` — first loss per campaign
   mission (`CAMP.merciful`) costs 0 Index.
 - **Legacy** (`PROG.legacy/wall/legacyPerks/campaignNo`, `CAMP.no`): `logLegacy(outcome)` on campaign loss, Last Light win, or New
   campaign over a touched save; the hub shows **The Wall** (fallen from earlier campaigns), the menu a history line (`#menu-legacy`),
@@ -551,6 +551,36 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
 - Composition sims (naive bot, 6 runs, conditions dealt): default Vex/Halden/Nix M1 6/6 · M2 5/6; Vex/Ember/Iris 6/6 · 6/6;
   Halden/Mara/Sol 3/6 (11.8 turns — low damage vs an endless stream) · 6/6; Nix/Sable/Echo 5/6 · 2/6. The bot only uses Blast, Smash
   and Mend, so Phaser- and Bruiser-heavy squads are undersold; every composition wins.
+
+## Friction & pacing pass (2026-09-28, Cameron's brief: fast animations + skip, undo, previews, 10–30 min missions, autosave/resume)
+- **Speed.** `SETTINGS` (localStorage `mutie.settings`, per device: `speed` normal|fast|snap, `endGuard`), `#nav-speed` cycles
+  ×1/×2/×4. `tempo()` scales `wait()` (every scripted pause), the insertion (`G.introEnd`, min 600 ms), banners and both kill-cam
+  durations (floor 0.35); `snapCam()` (tempo ≤0.25) drops the enemy action-cam glides in `placeCamera`. Holding Shift in the
+  Coalition phase sets `G.ffwd` → ×4 for that phase only (cleared on keyup/blur). Measured (2D renderer, 7 awake enemies, one
+  Coalition turn): 6.7 s → 3.4 s → 1.7 s. Under swiftshader the frame cost dominates, so time pacing with the three.js route aborted.
+- **Skip.** `skipBeat()` ends the kill cam (`G.kcSkip` clears the POV hold), a contact focus, or the insertion; wired to board
+  clicks/taps, clicks on `#intro`, and Space/Escape (before POV Space handling).
+- **End Turn guard.** `requestEndTurn()` (button and Enter): with `SETTINGS.endGuard` and standing mutants holding actions, the first
+  press names them in the hint and relabels the button "Confirm end turn" for 4 s (`G.endArm`, reset in `afterAction`).
+- **Honest undo.** `undoSnap(u,kind)` before a Move/dash or Blink, `undoSeal(sn)` after: allowed only if no damage/shield loss, no
+  overwatch consumed, no pod woke, no captive freed, no enemy count change. `G.actionSeq` (ticked in `afterAction`) makes the record
+  valid only until anything else happens. `undoMove()` (Z key, `mk('undo')` button in the actions panel — disabled with the reason
+  when refused, "LOCKED" tag) restores position, ap, movedTurn, cooldown and blinkAim.
+- **Mission clock.** `G.elapsed` counts active seconds (1 s interval while the game screen is visible); the report eyebrow reads
+  "· 11 turns · 16 min"; `PROG.times[missionId|'side']` keeps the last 12 {turns,sec,win}; cleared mission cards show the last win's
+  turns and time. `fmtMin` is a hoisted function (called from renders that can run at load).
+- **Autosave & resume** (closes Phase 8's last item). `saveMission()` writes localStorage `mutie.mission` = `{camp:CAMP.no, cur, turn}`:
+  `cur` after every player action (`afterAction`, deferred a tick) and at the start of the Coalition phase with `pendingEnemy`
+  (`endTurn` now hands off to `coalitionPhase()` so a resume can re-enter it; your actions stand), `turn` at the start of each
+  player turn and at insertion. `snapMission()` stores units whole (defs are plain data) with `carrying`/`taunt` as ids, plus grid,
+  timers, stats, objState, perk uses, evac/hold, fire, salvos (`byId`), setups (`byId`), moments, samples, fallen decals, elapsed.
+  `resumeMission(slot,{abandon})` rebuilds the side op via `decorateSide()` if needed, runs `startMission(idx,op)` for the scene,
+  then overwrites state and re-links references; `G.resumeTurn` runs after the insertion (re-enters `coalitionPhase` for
+  pendingEnemy). `finish()` clears the save. Menu Continue becomes "Resume · Mission, turn N" → `#modal-resume` (`offerResume`):
+  Resume · Restart turn N (not in Ironman) · Abandon (restores, then `finish(false)` so wounds/captures/Index apply). Deploy with a
+  save present asks to abandon it first; Next up shows the mission in progress. **Ironman** now means "no going back" (no turn
+  restart); the old reload-is-defeat path only fires when `CAMP.inMission` exists without a save. `test41.mjs` covers all of it,
+  including a reload mid-Coalition phase that completes the phase and lands on the next turn.
 
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries

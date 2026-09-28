@@ -591,6 +591,33 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   (identical rolls and HP, three runs) and a player shot. Non-Ironman "Restart turn" replays the turn's dice too: repeat the same
   actions, get the same results.
 
+## Feedback & juice pass (2026-09-28, Cameron's brief: hits you feel, camera punches on crits, kill sounds, clear numbers, cinematic key shots, readable states)
+- **Damage numbers carry weight.** One float per hit from `applyDamage`: `−N` (+ ` CRIT`, + ` · K soaked` for armor/partial shield).
+  Size class by damage — `'small'` (1–2), big (3–5), `'huge'` (6+), `'crit'` (`.ftext.big.crit`, `critPop` keyframes). A shield that
+  eats the whole hit shows `BLOCKED`. The separate ARMOR/CRIT floats are gone. `fxText` stacks: texts at the same tile within 450 ms
+  step up 0.32 and alternate ±0.14 sideways (`G.ftStack`), so a kill's number and KILL don't overprint.
+- **Hits you feel.** `hitDir(t,src,mag)` → `{dx,dy,mag}` rides on the `hit` anim (mag 0.6+0.2×dmg, cap 1.8); the renderer turns it
+  into a knock-back along the shot and a lean. `killUnit` stores `target.killDir`; the dying figure turns to face the shooter, falls
+  backwards and slides `0.4×mag` with a dust puff when it lands. Crits: `punch(mag)` (`G.punch`, a 260 ms zoom kick in `placeCamera`,
+  POV fov tighten; 0.09 player / 0.05 enemy) + `freeze(160)` + gold flash. Skipped under reduced motion.
+- **Kill sounds that build.** `G.turnKills` (reset at the player turn start) → `Audio.killChime(x,n)` steps up a pentatonic ladder per
+  player kill this turn (a third voice from the 3rd kill); the boss gets `Audio.bossDown()` + `punch(0.14)`.
+- **Decisive shot.** `isDecisive(a,d,h,opt)`: player, non-reaction, enemy target, once per turn (`G.decisiveTurn`), tempo > 0.25 (off
+  at ×4), no reduced motion; boss target, or a shot `shotInfo` says can kill that is <50% or at the last hostile. The dice are rolled
+  **before** it (`dec` is computed after `roll`), so the beat never changes the outcome. `cineIn` adds `body.cine-on` (letterbox
+  bars + `#cine-cap` "Decisive · 32%" / "Last one" / the boss name), ducks music, heartbeat, frames the pair with `G.actcam` on the
+  map; the projectile and the pause before impact run ×3 (`G.cine` in `fxTracer`), a held freeze on impact, `cineOut` restores.
+  `startMission` clears all of it.
+- **Board states at a glance.** Player labels carry action pips (`.apips`, player phase only); a spent mutant's ring goes grey
+  (`#56606b`, 0.45) and its squad card dims (`.ucard.spent`). Overwatch: `◉ OW` badge (pulsing eye) on label and card, and hovering
+  or POV-targeting an overwatcher shades `owZone(u)` (range + LOS tiles; amber for enemies, teal for yours) instead of its threat
+  zone. Exposure: `flankedBy(u)` (cached in `FLK` on a board signature; counts awake hostiles whose shot would be flanked, via
+  `exposureAt`) → `Flanked ×N` label badge (`.badge.fl`) and "Flanked by N" on the squad card. Note flanked means *has cover but
+  not against that shooter* — a mutant in the open reads no cover, not flanked (same rule as `hitChance`).
+- `test43.mjs` covers every piece (crit float/class, soak, BLOCKED, stacking, hit direction, punch, killDir, chime counter + reset,
+  every decisive condition incl. ×4 and reduced motion, a real decisive shot, pips/spent, OW badge/zone, Flanked badge/card).
+  It captures `G.punch` and `t.anim` with property setters — under swiftshader a frame is slower than the punch, so polling misses it.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

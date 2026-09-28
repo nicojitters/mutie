@@ -505,6 +505,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
   .app{gap:8px}
   .topbar{gap:4px 6px;align-items:center;padding-bottom:4px;flex-wrap:nowrap} .brand{font-size:17px} .crumb{display:none}
   .nav{gap:0;margin-left:auto;flex-wrap:nowrap} .navbtn{font-size:9.5px;letter-spacing:.03em;padding:9px 5px;white-space:nowrap}
+  @media (max-width:430px){ .navbtn{padding:9px 3px;letter-spacing:0;font-size:9px} .nav{min-width:0;overflow-x:auto;scrollbar-width:none} }
   @media (max-width:360px){ .topbar{flex-wrap:wrap} .nav{margin-left:0;width:100%;justify-content:space-between} .navbtn{font-size:9.5px;padding:8px 4px} }
   .menu{min-height:min(560px,calc(100dvh - 210px))} .wordmark{font-size:clamp(52px,17vw,96px)} .menu-inner{padding:34px 16px}
   .premise{font-size:12.5px}
@@ -565,6 +566,156 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
   .side .panel:has(.log){flex:1 1 60px;min-height:60px;display:flex;flex-direction:column} .log{max-height:none;flex:1;min-height:0;font-size:10.5px}
   .intro .i-name{font-size:22px}
 }
+/* hub tabs, help topics, start-pick detail, report columns (all sizes) */
+.hub-tabs{display:flex;gap:2px;margin:4px 0 0;border-bottom:1px solid var(--line);overflow-x:auto}
+.hub-tabs button{font-family:var(--font-display);font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:12px;padding:8px 14px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;gap:6px;align-items:center;white-space:nowrap}
+.hub-tabs button:hover{color:var(--ink)} .hub-tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.hub-tabs i{font-style:normal} .hub-tabs i.on{font-size:10px;letter-spacing:0;min-width:16px;height:16px;border-radius:8px;background:var(--accent);color:#1a1206;display:inline-grid;place-items:center;padding:0 4px}
+.hub-top .doom{margin-bottom:6px}
+.hub-pane{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.95fr);gap:20px;align-items:start}
+@media (max-width:900px){.hub-pane{grid-template-columns:minmax(0,1fr);gap:0}}
+.hp-col{min-width:0} .hp-col>.section-h:first-child{margin-top:12px}
+.help-tabs{margin:0 0 12px}
+.help-tabs button{font-size:12px;padding:5px 10px}
+.sp-detail{margin-top:8px;font-size:12px;line-height:1.45;color:var(--muted);padding:8px 10px;background:var(--panel-2);border-left:2px solid var(--line);min-height:5.8em}
+.sp-detail b{color:var(--ink)} .sp-detail:empty{display:none}
+.res-l,.res-r{min-width:0}
+/* reports never run off the screen (phones included): the sheet scrolls inside itself as a last resort */
+.result{max-height:calc(100dvh - 32px);overflow:auto}
+@media (max-height:520px) and (orientation:landscape){
+  .menu,body .menu{min-height:0} .menu-inner{padding:12px 16px;gap:6px} .wordmark{font-size:52px}
+  .menu-btns{flex-direction:row;flex-wrap:wrap;justify-content:center;width:auto} .menu-btns .btn.big{padding:9px 16px}
+  .premise{display:none} .menu-foot{margin:0}
+}
+/* ===================== FIT: one screen on desktop =====================
+   Desktop and tablet (not phone portrait / phone landscape, which have their own blocks above): the page never scrolls.
+   Every screen is a flex child that fills the viewport under the top bar; the board is sized by JS (fitBoard) to the box it
+   has; long lists live in panels that fit and, only as a last resort, scroll inside themselves. */
+@media (min-width:761px) and (min-height:521px){
+  html,body{height:100%} body{overflow:hidden;padding-block:8px}
+  .app{height:100%;min-height:0;gap:8px}
+  .topbar{padding-bottom:6px}
+  .screen:not([hidden]){flex:1;min-height:0;display:flex;flex-direction:column}
+  /* game */
+  #screen-game .game-grid{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);align-items:stretch;grid-template-columns:minmax(0,1fr) 312px}
+  #screen-game .field{display:flex;flex-direction:column;min-height:0;padding:6px}
+  #screen-game .view{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #screen-game canvas#gl,#screen-game canvas#board{max-width:none}
+  #screen-game .field-foot{padding-top:5px;gap:2px 10px}
+  #screen-game .field-foot .hint{min-height:2.6em;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  #screen-game .side{min-height:0;overflow:hidden;gap:6px}
+  #screen-game .side .panel{padding:7px 10px;flex:0 0 auto}
+  #screen-game .side .panel:has(.log){flex:1 1 60px;min-height:48px;display:flex;flex-direction:column}
+  #screen-game .log{max-height:none;flex:1;min-height:0}
+  .side:has(#pov-panel:not([hidden])) .abtn.fire{display:none}
+  .squad{flex-direction:row;gap:5px} .ucard{flex:1 1 0;min-width:0;grid-template-columns:22px 1fr;gap:6px;padding:5px 6px;align-content:start}
+  .ucard .glyph{width:20px;height:20px;font-size:11px} .ucard .r{display:none} .ucard .n{font-size:12px} .ucard .st{font-size:9px;margin-left:0}
+  .ucard .hp i{width:5px;height:5px} .ucard .ap{grid-column:1/-1;justify-content:flex-start;margin-top:1px}
+  .actions{gap:5px} .abtn{min-height:44px;padding:6px 9px}
+  .passive{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:-2px 0 6px}
+  .sel-title{margin-bottom:5px}
+  .tcard{min-height:56px;padding:6px 8px}
+}
+/* short desktop windows (≤ 860px tall): tighten the HUD further — action descriptions move to the tooltip */
+@media (min-width:761px) and (min-height:521px) and (max-height:860px){
+  .actions .abtn:not(.power):not(.perk) .d{display:none} .actions .abtn{min-height:36px;justify-content:center}
+  .actions .abtn.power .d,.actions .abtn.perk .d{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .turnline .t{font-size:14px} .turnline{gap:2px}
+  .endturn{margin-top:5px;padding:8px}
+  .pov-go{padding:8px 12px} .tc-why{display:none}
+}
+@media (min-width:761px) and (min-height:521px){
+  .ucard .hp{flex-wrap:nowrap;gap:1px} .ucard .hp i{flex:1 1 0;width:auto;min-width:1px;max-width:6px}
+  .pov-h .eyebrow{font-size:10px;letter-spacing:.1em}
+  /* briefing: mission | intel + perks | squad, deploy bar pinned under */
+  #screen-brief .brief-grid{flex:1;min-height:0;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px;align-items:stretch}
+  #screen-brief .brief-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start;min-height:0;overflow:auto}
+  #screen-brief .bm-a,#screen-brief .bm-b{display:flex;flex-direction:column;gap:10px;min-width:0}
+  #screen-brief .bm-a .bcard,#screen-brief .bm-b .bcard,#screen-brief .comms{margin:0}
+  #screen-brief .brief-head h1{font-size:28px;margin:2px 0 4px} #screen-brief .comms p{font-size:12.5px;line-height:1.45}
+  #screen-brief .b-params{font-size:11.5px;gap:2px}
+  #screen-brief .intel .row .d{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  #screen-brief .intel{gap:4px} #screen-brief .adapt{gap:2px;margin-top:4px} #screen-brief .adapt .ad{font-size:11px}
+  #screen-brief .perks .pk span:last-child{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  #screen-brief .brief-side{min-height:0;overflow:auto}
+  #screen-brief .arch-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+  #screen-brief .arch-card.mut{padding:6px 8px;gap:2px}
+  #screen-brief .arch-card.mut .ability-line{border:0;padding:0;margin:0;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #screen-brief .arch-card.mut .ability-line.passive,#screen-brief .arch-card .tg-role,#screen-brief .arch-card .ab-d{display:none}
+  #screen-brief .arch-card.mut .stat-row{font-size:10px;gap:1px 6px;flex-wrap:wrap;color:var(--muted)}
+  #screen-brief .arch-card.mut .a-name{font-size:13px;display:flex;flex-wrap:wrap;gap:3px;align-items:baseline}
+  #screen-brief .arch-card.mut .a-name .tag{font-size:9px;padding:0 4px}
+  #screen-brief .arch-cards .act{grid-column:1/-1;margin-top:4px;padding-bottom:1px;font-size:10px}
+  #screen-brief .deploy-bar{margin-top:8px;padding:8px 14px}
+  #screen-brief .section-h{margin:0 0 6px}
+}
+@media (min-width:761px) and (min-height:521px){
+  /* hub: index bar + tabs on top, one pane below; each column scrolls only as a last resort */
+  #screen-select .hub-top{flex:0 0 auto}
+  #screen-select .hub-top .section-h{margin:0 0 6px;padding-bottom:4px}
+  #screen-select .hub-top .section-h h2{font-size:20px}
+  #screen-select #doom{padding:7px 12px} #screen-select #doom .note:last-child{display:none} #screen-select #doom .bar{margin:5px 0 1px}
+  #screen-select .hub-pane:not([hidden]){flex:1;min-height:0;align-items:stretch;grid-template-rows:minmax(0,1fr)}
+  #screen-select .hp-col{min-height:0;overflow:auto;padding-right:4px;scrollbar-width:thin}
+  #screen-select .hp-col>.section-h{margin:8px 0 5px}
+  #mission-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  #mission-cards .mission-card{padding:7px 10px;gap:3px}
+  #mission-cards .m-name{font-size:14px;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 0}
+  #mission-cards .m-desc{display:none}
+  #mission-cards .m-obj{font-size:11.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  #mission-cards .act{grid-column:1/-1;margin-top:4px;padding-bottom:0}
+  .side-ops .mission-card{padding:8px 10px;gap:3px} .side-ops .m-name{font-size:14px} .side-ops .m-obj{font-size:11.5px} .side-ops .m-meta{font-size:11px;gap:4px 10px}
+  #nextup{margin-bottom:0} #nextup .nu{padding:3px 8px}
+  #roster{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #screen-select .perks .pk span:last-child{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  /* report: two columns, capped to the viewport */
+  .result{width:min(1000px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;padding:18px 22px}
+  .result h2{font-size:30px}
+  .result>p{margin:6px 0 10px}
+  .result .res-cols{flex:1 1 auto;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:14px;align-items:start}
+  .result .res-cols:not(:has(.res-r>:not([hidden]))){grid-template-columns:minmax(0,1fr)}
+  .result .res-r>.report-camp{margin-top:0;margin-bottom:10px}
+  .result .row{flex:0 0 auto;padding-top:10px}
+  .result .stats{margin-bottom:10px}
+  /* sheets: never taller than the window */
+  .sheet{max-height:calc(100vh - 32px)}
+  /* how to play: topic tabs + two text columns */
+  .help-sheet{width:min(1100px,100%)}
+  .help-sheet .help{column-count:2;column-gap:28px}
+  .help-sheet .help p{max-width:none;break-inside:avoid;font-size:12.5px;line-height:1.5}
+  /* new campaign: the three on the left, difficulty and options on the right */
+  .df-sheet{width:min(1180px,100%)!important;display:flex;flex-direction:column}
+  .df-cols{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;min-height:0}
+  .df-cols:has(#df-start-wrap[hidden]){grid-template-columns:minmax(0,1fr)}
+  .df-sheet:has(#df-start-wrap[hidden]){width:min(760px,100%)!important}
+  .df-cols:has(#df-start-wrap[hidden]) .df-l{display:none}
+  .df-sheet .startpick{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+  .df-sheet .startpick .sp{padding:5px 8px}
+  .df-sheet .startpick .sp .pw{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .df-sheet .startpick .sp .ps,.df-sheet .startpick .sp .fk{display:none}
+  .df-sheet .df-lead{margin:0 0 4px}
+  .df-sheet #df-choices{grid-template-columns:minmax(0,1fr);gap:6px;margin-top:6px}
+  .df-sheet #df-choices .btn{padding:8px 12px;font-size:12px;text-align:left}
+  .df-sheet #df-choices .btn .note{margin:1px 0 3px!important}
+  .df-sheet .perks .pk span:last-child{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .df-sheet .df-r .eyebrow{margin:10px 0 5px!important}
+}
+@media (min-width:761px) and (min-height:521px){
+  /* mutant sheet: kit + record | appearance */
+  .mu-sheet:has(.mu-b){width:min(980px,100%)!important}
+  .mu-cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:22px;align-items:start}
+  .mu-b .cust{grid-template-columns:90px 1fr}
+  /* epilogue: the transmission on the left, the numbers and names on the right */
+  #screen-epilogue .epi{flex:1;min-height:0;width:100%;max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto;column-gap:20px;align-content:start}
+  #screen-epilogue .epi>.eyebrow,#screen-epilogue .ep-title,#screen-epilogue .ep-comms,#screen-epilogue .epi>.row{grid-column:1}
+  #screen-epilogue .ep-comms{min-height:0;overflow:auto;margin:0}
+  #screen-epilogue .ep-title{margin:0 0 8px;font-size:56px;line-height:1}
+  #screen-epilogue .ep-side{grid-column:2;grid-row:1 / span 4;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px}
+  #screen-epilogue .ep-grid{display:flex;flex-direction:column;gap:10px;margin:0}
+  #screen-epilogue .ep-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+  #screen-epilogue #ep-fallen-wrap{margin-top:0!important}
+  #screen-epilogue .epi>.row{margin-top:10px!important}
+}
 </style>
 
 <canvas id="bg" aria-hidden="true"></canvas>
@@ -603,29 +754,44 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
 
   <!-- ============ MISSION SELECT ============ -->
   <section id="screen-select" class="screen" hidden>
-    <div class="hub-grid">
-      <div>
-        <div class="section-h" style="margin-top:0"><h2>Campaign</h2><span class="note"><span id="sel-progress"></span> · <button class="linkbtn" id="unlock-all">Unlock all (free play)</button></span></div>
-        <div class="doom" id="doom"></div>
-        <div class="section-h"><h2>Next up</h2><span class="note" id="nextup-note"></span></div>
-        <div class="doom nextup" id="nextup"></div>
-        <div class="section-h"><h2>Commander record</h2><span class="note" id="record-note"></span></div>
-        <div class="doom rec-box" id="record"></div>
-        <div class="section-h"><h2>Coalition adaptations</h2><span class="note" id="adapt-note"></span></div>
-        <div class="doom" id="adapt-box"></div>
-        <div class="section-h"><h2>Side ops</h2><span class="note">Take one — the other expires. Each pays differently.</span></div>
-        <div class="cards side-ops" id="side-ops"></div>
-        <div class="sector-row"><input type="text" id="sector-code" placeholder="Sector code, e.g. K417" maxlength="8"><button class="btn small" id="sector-go">Replay sector</button></div>
+    <div class="hub-top">
+      <div class="section-h" style="margin-top:0"><h2>Campaign</h2><span class="note"><span id="sel-progress"></span> · <button class="linkbtn" id="unlock-all">Unlock all (free play)</button></span></div>
+      <div class="doom" id="doom"></div>
+      <div class="hub-tabs" role="tablist" id="hub-tabs"><button role="tab" data-tab="ops" aria-selected="true">Operations<i id="ht-ops"></i></button><button role="tab" data-tab="squad" aria-selected="false">Squad<i id="ht-squad"></i></button><button role="tab" data-tab="record" aria-selected="false">Record<i id="ht-record"></i></button></div>
+    </div>
+    <div class="hub-pane" data-pane="ops">
+      <div class="hp-col">
         <div class="section-h"><h2>Campaign missions</h2></div>
         <div class="cards" id="mission-cards"></div>
       </div>
-      <div>
-        <div class="section-h" style="margin-top:0"><h2>Roster</h2><span class="note" id="roster-note"></span></div>
+      <div class="hp-col">
+        <div class="section-h"><h2>Next up</h2><span class="note" id="nextup-note"></span></div>
+        <div class="doom nextup" id="nextup"></div>
+        <div class="section-h"><h2>Side ops</h2><span class="note">Take one — the other expires. Each pays differently.</span></div>
+        <div class="cards side-ops" id="side-ops"></div>
+        <div class="sector-row"><input type="text" id="sector-code" placeholder="Sector code, e.g. K417" maxlength="8"><button class="btn small" id="sector-go">Replay sector</button></div>
+      </div>
+    </div>
+    <div class="hub-pane" data-pane="squad" hidden>
+      <div class="hp-col">
+        <div class="section-h"><h2>Roster</h2><span class="note" id="roster-note"></span></div>
         <div class="roster" id="roster"></div>
+      </div>
+      <div class="hp-col">
         <div class="section-h"><h2>Perks</h2><span class="note" id="perks-note"></span></div>
         <div class="perks" id="perks"></div>
         <div class="section-h"><h2>Grafts</h2><span class="note" id="grafts-note"></span></div>
         <div class="perks" id="grafts"></div>
+      </div>
+    </div>
+    <div class="hub-pane" data-pane="record" hidden>
+      <div class="hp-col">
+        <div class="section-h"><h2>Commander record</h2><span class="note" id="record-note"></span></div>
+        <div class="doom rec-box" id="record"></div>
+        <div class="section-h"><h2>Coalition adaptations</h2><span class="note" id="adapt-note"></span></div>
+        <div class="doom" id="adapt-box"></div>
+      </div>
+      <div class="hp-col">
         <div class="section-h"><h2>Memorial</h2><span class="note" id="memorial-note"></span></div>
         <div class="memorial" id="memorial"></div>
         <div id="wall-wrap" hidden><div class="section-h"><h2>The Wall</h2><span class="note" id="wall-note"></span></div><div class="memorial" id="wall"></div></div>
@@ -637,18 +803,20 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
   <section id="screen-brief" class="screen" hidden>
     <div class="brief-grid">
       <div class="brief-main">
+        <div class="bm-a">
         <div class="brief-head">
           <div class="eyebrow" id="b-act"></div>
           <h1 id="b-name"></h1>
           <div class="b-op" id="b-op"></div>
         </div>
         <div class="comms"><div class="comms-h"><span class="dot"></span>Control · secure channel</div><p id="b-intro"></p></div>
-        <div class="brief-cols">
-          <div class="bcard"><div class="eyebrow">Objective</div><div class="b-obj" id="b-obj"></div><div class="b-params" id="b-params"></div></div>
-          <div class="bcard"><div class="eyebrow">Hostile intel</div><div class="intel" id="b-intel"></div><div class="eyebrow" style="margin-top:10px">Coalition adaptations</div><div class="adapt" id="b-adapt"></div></div>
-        </div>
-        <div class="bcard" style="margin-top:12px"><div class="eyebrow">Perks · <span id="b-perks-note"></span></div><div class="perks" id="b-perks" style="margin-top:8px"></div></div>
+        <div class="bcard"><div class="eyebrow">Objective</div><div class="b-obj" id="b-obj"></div><div class="b-params" id="b-params"></div></div>
         <p class="note" id="b-desc"></p>
+        </div>
+        <div class="bm-b">
+        <div class="bcard"><div class="eyebrow">Hostile intel</div><div class="intel" id="b-intel"></div><div class="eyebrow" style="margin-top:10px">Coalition adaptations</div><div class="adapt" id="b-adapt"></div></div>
+        <div class="bcard"><div class="eyebrow">Perks · <span id="b-perks-note"></span></div><div class="perks" id="b-perks" style="margin-top:8px"></div></div>
+        </div>
       </div>
       <aside class="brief-side">
         <div class="section-h" style="margin-top:0"><h2>Squad</h2><span class="note" id="squad-count">3 of 3</span></div>
@@ -664,11 +832,13 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
       <div class="eyebrow">After Last Light · Campaign complete</div>
       <h1 class="ep-title">Daylight</h1>
       <div class="comms ep-comms"><div class="comms-h"><span class="dot"></span>Control · open channel</div><div id="ep-text"></div></div>
+<div class="ep-side">
       <div class="ep-grid">
         <div class="bcard"><div class="eyebrow">The campaign</div><div class="ep-stats" id="ep-stats"></div></div>
         <div class="bcard"><div class="eyebrow">The squad</div><div class="memorial" id="ep-roster"></div></div>
       </div>
       <div class="bcard" id="ep-fallen-wrap" style="margin-top:12px"><div class="eyebrow">The wall</div><div class="memorial" id="ep-fallen" style="margin-top:8px"></div></div>
+      </div>
       <div class="row" style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn primary big" id="ep-hub">Return to base</button><button class="btn big" id="ep-new">New campaign</button></div>
     </div>
   </section>
@@ -724,17 +894,20 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
       <div class="eyebrow" id="res-eyebrow">Mission report</div>
       <h2 id="res-title">Victory</h2>
       <p id="res-text"></p>
+      <div class="res-cols"><div class="res-l">
       <p class="soclose" id="res-close" hidden></p>
       <div class="comms story" id="res-story-wrap"><div class="comms-h"><span class="dot"></span>Control</div><p id="res-story"></p></div>
-      <div class="report-camp" id="res-camp" hidden></div>
-      <p class="luck" id="res-luck" hidden></p>
-      <div class="report-camp post" id="res-post" hidden></div>
-      <div class="report-camp nextrep" id="res-next" hidden></div>
       <div class="stats">
         <div><div class="v num" id="rs-turns">0</div><div class="l">Turns</div></div>
         <div><div class="v num" id="rs-acc">0%</div><div class="l">Accuracy</div></div>
         <div><div class="v num" id="rs-dmg">0</div><div class="l">Damage dealt</div></div>
       </div>
+      <p class="luck" id="res-luck" hidden></p>
+      </div><div class="res-r">
+      <div class="report-camp" id="res-camp" hidden></div>
+      <div class="report-camp post" id="res-post" hidden></div>
+      <div class="report-camp nextrep" id="res-next" hidden></div>
+      </div></div>
       <div class="row">
         <button class="btn primary" id="btn-next">Continue</button>
         <button class="btn" id="btn-retry">Retry</button>
@@ -758,16 +931,19 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
     </div>
   </div>
   <div id="modal-diff" class="overlay modal" hidden>
-    <div class="sheet" style="width:min(760px,100%)">
+    <div class="sheet df-sheet" style="width:min(760px,100%)">
       <div class="sheet-h"><h2>New campaign</h2></div>
+      <div class="df-cols"><div class="df-l">
       <div id="df-start-wrap"><div class="eyebrow" style="margin:0 0 6px">The first three <span class="note" style="text-transform:none;letter-spacing:0;font-weight:400" id="df-start-note">— pick any three, at most two from one family. The rest join as you clear missions, missing families first.</span></div>
-      <div class="startpick" id="df-start"></div></div>
-      <p class="note" style="margin-top:12px">Set the three, any modifiers and doctrine — picking a difficulty begins the campaign.</p>
+      <div class="startpick" id="df-start"></div><div class="sp-detail" id="df-sp-detail"></div></div>
+      </div><div class="df-r">
+      <p class="note df-lead">Set the three, any modifiers and doctrine — picking a difficulty begins the campaign.</p>
       <div class="upgrade-choice three" id="df-choices"></div>
       <div class="eyebrow" style="margin:14px 0 6px">Modifiers <span class="note" style="text-transform:none;letter-spacing:0;font-weight:400">— optional, set for the campaign</span></div>
       <div class="perks" id="df-mods"></div>
       <div id="df-asc" hidden><div class="eyebrow" style="margin:14px 0 6px">Ascension <span class="note" style="text-transform:none;letter-spacing:0;font-weight:400">— unlocked by winning campaigns; each level stacks on the ones below</span></div><div class="seg" id="df-asc-seg"></div><p class="note" id="df-asc-note" style="margin:6px 0 0"></p></div>
       <div id="df-doctrine" hidden><div class="eyebrow" style="margin:14px 0 6px">Doctrine <span class="note" style="text-transform:none;letter-spacing:0;font-weight:400">— carry one perk from a previous campaign</span></div><div class="perks" id="df-doc"></div></div>
+      </div></div>
     </div>
   </div>
   <div id="modal-upgrade" class="overlay modal" hidden>
@@ -786,7 +962,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
     </div>
   </div>
   <div id="modal-mutant" class="overlay modal" hidden>
-    <div class="sheet" style="width:min(560px,100%)">
+    <div class="sheet mu-sheet" style="width:min(560px,100%)">
       <div class="sheet-h"><h2 id="mu-title">Mutant</h2><button class="btn small" data-close="modal-mutant">Close</button></div>
       <p class="note" id="mu-sub"></p>
       <div id="mu-body"></div>
@@ -800,37 +976,37 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
     </div>
   </div>
   <div id="modal-help" class="overlay modal" hidden>
-    <div class="sheet">
+    <div class="sheet help-sheet">
       <div class="sheet-h"><h2>How to play</h2><span style="display:flex;gap:6px;align-items:center"><button class="btn small" id="detail-toggle" title="Lean keeps the board to what changes your next decision; every number is still one hover or POV card away. Key D in a mission.">Board detail: Lean</button><button class="btn small" data-close="modal-help">Close</button></span></div>
-      <div class="help">
-        <p><b>Two actions per unit.</b> Moving costs one. A long move (dim tiles) costs both. Firing, Overwatch, and most powers end the unit's turn. Powers recharge on a cooldown — except <b>Pulse Blast</b>, which is three charges per mission: throw one at a lone trooper and that is a grenade you will not have later.</p>
-        <p><b>Selecting a mutant drops the camera behind them.</b> Targets line up in a strip sorted by hit chance — shootable ones first, the rest greyed with the reason. Swipe, use ‹ ›, or ← → to cycle; the big button throws the mutant's own attack at the current target — a Pulse Shot, a Shockwave, a Rift Shard, a Suture Dart; nobody here carries a gun (or uses a targeted power on them — Mend, Ward and Stim swap the strip to your allies). <b>Move</b>, Blast, Blink and the like pull back to the map so you can pick a tile, then the camera returns. <kbd>V</kbd> or the Map/POV button switches views any time; the map still works exactly as before.</p>
-        <p><b>On a touchscreen,</b> the first tap previews — the path, who it wakes, the hit chance — and a second tap on the same spot confirms. Tapping one of your own mutants selects them straight away.</p>
-        <p><b>Read the number.</b> Hover a hostile to see your hit chance and why. Half cover −20, full cover −40. <b>Set shot</b>: +10 if that mutant hasn't moved this turn. <b>Focus</b>: a miss adds +10 to that mutant's next shot (it stacks to +20; more on Scout, none on Graft) until they hit — the game never fudges a roll in secret, it tells you the odds it is rolling. A shot the math calls 100 is 100. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
-        <p><b>Cover has a side.</b> Shield icons show which direction a unit is protected from. Bright shields protect against the unit you've selected.</p>
-        <p><b>Combos.</b> Set a hostile up and let a different mutant finish it: <b>Exposed</b> (thrown out of cover by a Concussive Burst, or its crate wrecked by a Blast or a drum) means no cover against anyone until your next turn; <b>Shredded</b> means Smash or Blast stripped armor for good; <b>Stunned</b> hostiles are +30 to hit. Smash or Phase Strike on a stunned or exposed target is an <b>Execute</b> (+2). Pins and taunts count as setups too. A finish by someone other than the setter is a COMBO — +1 XP to both.</p>
-<p><b>Each family sees the board its own way.</b> A Blaster hovering a Blast tile reads what it would do (hits · kills · wrecks · exposes). A Phaser in Blink sees gold tiles — the ones that flank their target. A Mender's ally strip shows who is in danger right now and what the power leaves them at. A Bruiser's Smash card says when it shreds armor or executes.</p>
-<p><b>The Coalition does not wait.</b> An awake hostile with no shot holds an overwatch lane for one turn, then it comes for you — through the gap, around the wall — and after two dry turns it dashes. Marksmen are the exception: they hold their lane, and their reaction fire has no penalty. Husks blink to your flank. A Grenadier paints a 3×3 on any two of you standing together (no line of sight needed); it lands at the start of the next Coalition turn unless the Grenadier is dead by then. Spread out.</p>
-<p><b>The clock starts at contact.</b> Reinforcements are called in the first time an awake hostile survives a Coalition turn (or when you start a console transmission); the first wave lands a set number of turns after that, and patrols find you a few turns later regardless. Killing a Spotter takes its uplink with it — one more turn. On industrial and rust maps a detonated drum sets the floor alight: fire spreads for a few turns and burns anyone who starts a turn in it or runs through it, both sides.</p>
-<p><b>The record writes itself.</b> Each mutant's sheet keeps a service record — clutch shots, kills at low HP, saves, the people they fight best beside — taken from what actually happened. Going down leaves a scar: −1 max HP for good, and the sheet says who did it. Two mutants who combo together three times are bonded: +5 aim while within 3 tiles of each other. The fallen keep their record in the memorial.</p>
-<p><b>The ramp.</b> Level 3 is a kit fork, level 4 a family mastery (Overpressure or Long Arc, Unbreakable or Momentum, Assassin or Phase Echo, Battle Medic or Field Hospital), level 5 a last stat tick. The Coalition climbs too, whatever the Index: Act II fields Generation II augments (+1 HP), Act III Generation III (+1 HP, +5 aim, double waves every other turn) — on top of any adaptations.</p>
-<p><b>Losing.</b> When the squad falls, anyone still bleeding is <em>taken alive</em> — Program Graft wants the tissue breathing. They sit in a holding pen for three missions; a rescue op with their name on it appears on the side-op board. Fail it, or wait too long, and they are harvested. A defeat report says what happened: when contact came, how many pods woke, who went down first and to what, how many long shots you took. At Index 7 and above one side op always pays Index −3. Modifiers at campaign start: <em>Ironman</em> (leaving mid-op counts as a defeat), <em>No Replacements</em>, <em>Mercy</em> (the first failure of each mission costs no Index). Nothing is wasted: the Wall keeps every name from every campaign, and a new campaign can carry one perk from an earlier run as Doctrine.</p>
-<p><b>Pace.</b> Speed ×1/×2/×4 in the top bar (hold Shift to fast-forward a Coalition turn); click, tap or Space skips the insertion and the kill cam. Z undoes your last move or Blink if it revealed nothing. End turn asks once if anyone still has actions. The game saves after every action — close the tab and Continue picks up where you were (outside Ironman you can also restart the current turn). The dice are saved too: reloading replays the same rolls.</p>
-<p><b>Medals and records.</b> Every campaign mission has a par. Win with nobody down (<b>Flawless</b>), within par (<b>Swift</b>) or before a single reinforcement lands (<b>Ghost</b>) — each pays +2 samples the first time in a campaign, and your best turn count is kept. The report says how close a loss came and names a win's closest call. <b>Elites</b> — a gold crest and one trait (Hardened, Swift, Mending, Linked), shown before you engage — drop a cache when they die: it finishes the graft you just recovered, or pays 3 samples. The <b>Commander record</b> at base compares your first missions with your latest. Winning a campaign unlocks the next <b>Ascension</b> (up to 5), each level stacking one more pressure.</p>
-<p><b>Every campaign is different.</b> You pick the first three (at most two from one family); the families you left out join first. From mission 2 on, missions can be dealt a field condition — Nightfall, Downpour, Sensor Grid, Fuel Leak, Heavy Escort, Bounty — and the middle missions come mirrored or with their crates moved. It's all shown before you deploy, and the campaign seed on the hub bar makes a run repeatable.</p>
-<p><b>The Cell.</b> Samples are recovered tissue: +1 per augmented kill or vat, +2 per win, and some side ops pay in them. Spend them to treat a wound now or to rush a graft out of the culture lab. Side ops come two at a time — take one and the other expires — paying Graft Index, samples or intel on the next campaign mission. The <em>Next up</em> panel at base lists everything you're one mission away from.</p>
-<p><b>Grafts.</b> Every Coalition augment was grown from mutant tissue. Win a mission after killing a new kind of unit and its graft comes home to the culture lab (ready after the next mission, or rush it); fit it to one mutant from their sheet at base (one per mutant — moving it is the choice). Ten to recover, from Ceramic Weave to the Surgeon's Hand.</p>
-        <p><b>Fuel drums</b> (the ones with the hazard band) are full cover for anyone — until someone shoots one. Any hit sets it off: 4 damage to everything beside it, armor ignored, crates wrecked, neighbouring drums chain. Bait a pod behind one, or don't stand next to one yourself.</p>
-        <p><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it. <b>Hunker</b> is the other way to spend a turn you can't shoot well: −20 to be hit and no crits against you until your next turn. A 30% shot, overwatch, hunker, or a move — all four are real answers.</p>
-        <p><b>Hostiles start unaware.</b> They wake in groups when a mutant comes within seven tiles in view, or fires on them. Hover a move tile to see who it would wake, and every awake hostile that could hit you there shows its odds against you. Pick your fights, and your tiles.</p>
-        <p><b>Don't linger.</b> Reinforcements arrive every turn after the mission's timer.</p>
-        <p><b>Campaign.</b> Your roster persists between missions in this browser. Survivors earn XP (2 per mission, 1 per kill) and level up; at level 3 you choose one of two permanent upgrades. A mutant who ends a mission under half health sits out the next one. The dead stay dead — they go on the memorial and a new recruit joins their family. The <b>Graft Index</b> rises after every mission and only sabotage, broadcasts and the Surgeon push it back; at 10 the campaign is lost.</p>
-        <p><b>Bleed-out.</b> A mutant at 0 HP goes down instead of dying and bleeds for three of your turns. An ally next to them can <b>stabilize</b> (they survive, out of the fight) or <b>carry</b> them (−1 move, no overwatch). A Mender's power brings them back up. Sprinters and Husks will finish a downed mutant if nothing else is in reach. On evac missions, the downed must be carried to the pad or they are left behind. If everyone standing goes down, the mission is lost.</p>
-        <p><b>Perks and adaptations.</b> Clearing a campaign mission for the first time earns a pick of three perks. You own everything you pick but bring only <b>two</b> per mission — once-per-mission tricks (smoke, adrenal shot, a power surge) or passives (earlier evac, first downed mutant auto-stabilized). They recharge every mission and never stack. The Coalition answers in kind: each act, and every three points of Graft Index, Program Graft fields another <em>adaptation</em> — tougher heavies, sharper marksmen, faster reinforcements. Push the Index down with sabotage and side ops and they lose one.</p>
-        <p><b>Side ops</b> are generated strikes: a random sector, objective and Coalition element scaled to where you are in the campaign. They use your roster like any mission — XP, wounds and deaths all count — and a win pushes the Graft Index back by two. Every sector has a code you can replay.</p>
-        <p><b>Twelve mutants, four families.</b> You start with three — Vex, Halden and Nix. Another named mutant joins after each campaign mission you clear, until all twelve are on the roster. Every Blaster, Bruiser, Phaser and Mender shares its family's role, but each mutant has a different power and passive. Two Blasters are not the same Blaster. Take three per mission.</p>
-        <p><b>Voice</b> uses your browser's built-in speech voices; the cast sounds different on every machine. Every spoken line also appears in Comms. Toggle it in the top bar.</p>
-        <p class="keys"><kbd>1</kbd> Move · <kbd>2</kbd> Attack · <kbd>3</kbd> Power · <kbd>4</kbd> Overwatch · <kbd>5</kbd> Hunker · <kbd>D</kbd> board detail · <kbd>Tab</kbd> next unit · <kbd>Enter</kbd> end turn · <kbd>Esc</kbd> / right-click cancel</p>
+      <div class="seg help-tabs" id="help-tabs"><button data-t="basics" aria-pressed="true">Basics</button><button data-t="combat" aria-pressed="false">Combat</button><button data-t="enemy" aria-pressed="false">The Coalition</button><button data-t="camp" aria-pressed="false">Campaign</button><button data-t="opts" aria-pressed="false">Options</button></div>
+      <div class="help" id="help-body">
+        <p data-t="basics"><b>Two actions per unit.</b> Moving costs one. A long move (dim tiles) costs both. Firing, Overwatch, and most powers end the unit's turn. Powers recharge on a cooldown — except <b>Pulse Blast</b>, which is three charges per mission: throw one at a lone trooper and that is a grenade you will not have later.</p>
+        <p data-t="basics"><b>Selecting a mutant drops the camera behind them.</b> Targets line up in a strip sorted by hit chance — shootable ones first, the rest greyed with the reason. Swipe, use ‹ ›, or ← → to cycle; the big button throws the mutant's own attack at the current target — a Pulse Shot, a Shockwave, a Rift Shard, a Suture Dart; nobody here carries a gun (or uses a targeted power on them — Mend, Ward and Stim swap the strip to your allies). <b>Move</b>, Blast, Blink and the like pull back to the map so you can pick a tile, then the camera returns. <kbd>V</kbd> or the Map/POV button switches views any time; the map still works exactly as before.</p>
+        <p data-t="basics"><b>On a touchscreen,</b> the first tap previews — the path, who it wakes, the hit chance — and a second tap on the same spot confirms. Tapping one of your own mutants selects them straight away.</p>
+        <p data-t="basics"><b>Read the number.</b> Hover a hostile to see your hit chance and why. Half cover −20, full cover −40. <b>Set shot</b>: +10 if that mutant hasn't moved this turn. <b>Focus</b>: a miss adds +10 to that mutant's next shot (it stacks to +20; more on Scout, none on Graft) until they hit — the game never fudges a roll in secret, it tells you the odds it is rolling. A shot the math calls 100 is 100. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
+        <p data-t="basics"><b>Cover has a side.</b> Shield icons show which direction a unit is protected from. Bright shields protect against the unit you've selected.</p>
+        <p data-t="combat"><b>Combos.</b> Set a hostile up and let a different mutant finish it: <b>Exposed</b> (thrown out of cover by a Concussive Burst, or its crate wrecked by a Blast or a drum) means no cover against anyone until your next turn; <b>Shredded</b> means Smash or Blast stripped armor for good; <b>Stunned</b> hostiles are +30 to hit. Smash or Phase Strike on a stunned or exposed target is an <b>Execute</b> (+2). Pins and taunts count as setups too. A finish by someone other than the setter is a COMBO — +1 XP to both.</p>
+        <p data-t="combat"><b>Each family sees the board its own way.</b> A Blaster hovering a Blast tile reads what it would do (hits · kills · wrecks · exposes). A Phaser in Blink sees gold tiles — the ones that flank their target. A Mender's ally strip shows who is in danger right now and what the power leaves them at. A Bruiser's Smash card says when it shreds armor or executes.</p>
+        <p data-t="enemy"><b>The Coalition does not wait.</b> An awake hostile with no shot holds an overwatch lane for one turn, then it comes for you — through the gap, around the wall — and after two dry turns it dashes. Marksmen are the exception: they hold their lane, and their reaction fire has no penalty. Husks blink to your flank. A Grenadier paints a 3×3 on any two of you standing together (no line of sight needed); it lands at the start of the next Coalition turn unless the Grenadier is dead by then. Spread out.</p>
+        <p data-t="enemy"><b>The clock starts at contact.</b> Reinforcements are called in the first time an awake hostile survives a Coalition turn (or when you start a console transmission); the first wave lands a set number of turns after that, and patrols find you a few turns later regardless. Killing a Spotter takes its uplink with it — one more turn. On industrial and rust maps a detonated drum sets the floor alight: fire spreads for a few turns and burns anyone who starts a turn in it or runs through it, both sides.</p>
+        <p data-t="camp"><b>The record writes itself.</b> Each mutant's sheet keeps a service record — clutch shots, kills at low HP, saves, the people they fight best beside — taken from what actually happened. Going down leaves a scar: −1 max HP for good, and the sheet says who did it. Two mutants who combo together three times are bonded: +5 aim while within 3 tiles of each other. The fallen keep their record in the memorial.</p>
+        <p data-t="camp"><b>The ramp.</b> Level 3 is a kit fork, level 4 a family mastery (Overpressure or Long Arc, Unbreakable or Momentum, Assassin or Phase Echo, Battle Medic or Field Hospital), level 5 a last stat tick. The Coalition climbs too, whatever the Index: Act II fields Generation II augments (+1 HP), Act III Generation III (+1 HP, +5 aim, double waves every other turn) — on top of any adaptations.</p>
+        <p data-t="opts"><b>Losing.</b> When the squad falls, anyone still bleeding is <em>taken alive</em> — Program Graft wants the tissue breathing. They sit in a holding pen for three missions; a rescue op with their name on it appears on the side-op board. Fail it, or wait too long, and they are harvested. A defeat report says what happened: when contact came, how many pods woke, who went down first and to what, how many long shots you took. At Index 7 and above one side op always pays Index −3. Modifiers at campaign start: <em>Ironman</em> (leaving mid-op counts as a defeat), <em>No Replacements</em>, <em>Mercy</em> (the first failure of each mission costs no Index). Nothing is wasted: the Wall keeps every name from every campaign, and a new campaign can carry one perk from an earlier run as Doctrine.</p>
+        <p data-t="opts"><b>Pace.</b> Speed ×1/×2/×4 in the top bar (hold Shift to fast-forward a Coalition turn); click, tap or Space skips the insertion and the kill cam. Z undoes your last move or Blink if it revealed nothing. End turn asks once if anyone still has actions. The game saves after every action — close the tab and Continue picks up where you were (outside Ironman you can also restart the current turn). The dice are saved too: reloading replays the same rolls.</p>
+        <p data-t="camp"><b>Medals and records.</b> Every campaign mission has a par. Win with nobody down (<b>Flawless</b>), within par (<b>Swift</b>) or before a single reinforcement lands (<b>Ghost</b>) — each pays +2 samples the first time in a campaign, and your best turn count is kept. The report says how close a loss came and names a win's closest call. <b>Elites</b> — a gold crest and one trait (Hardened, Swift, Mending, Linked), shown before you engage — drop a cache when they die: it finishes the graft you just recovered, or pays 3 samples. The <b>Commander record</b> at base compares your first missions with your latest. Winning a campaign unlocks the next <b>Ascension</b> (up to 5), each level stacking one more pressure.</p>
+        <p data-t="camp"><b>Every campaign is different.</b> You pick the first three (at most two from one family); the families you left out join first. From mission 2 on, missions can be dealt a field condition — Nightfall, Downpour, Sensor Grid, Fuel Leak, Heavy Escort, Bounty — and the middle missions come mirrored or with their crates moved. It's all shown before you deploy, and the campaign seed on the hub bar makes a run repeatable.</p>
+        <p data-t="camp"><b>The Cell.</b> Samples are recovered tissue: +1 per augmented kill or vat, +2 per win, and some side ops pay in them. Spend them to treat a wound now or to rush a graft out of the culture lab. Side ops come two at a time — take one and the other expires — paying Graft Index, samples or intel on the next campaign mission. The <em>Next up</em> panel at base lists everything you're one mission away from.</p>
+        <p data-t="camp"><b>Grafts.</b> Every Coalition augment was grown from mutant tissue. Win a mission after killing a new kind of unit and its graft comes home to the culture lab (ready after the next mission, or rush it); fit it to one mutant from their sheet at base (one per mutant — moving it is the choice). Ten to recover, from Ceramic Weave to the Surgeon's Hand.</p>
+        <p data-t="combat"><b>Fuel drums</b> (the ones with the hazard band) are full cover for anyone — until someone shoots one. Any hit sets it off: 4 damage to everything beside it, armor ignored, crates wrecked, neighbouring drums chain. Bait a pod behind one, or don't stand next to one yourself.</p>
+        <p data-t="basics"><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it. <b>Hunker</b> is the other way to spend a turn you can't shoot well: −20 to be hit and no crits against you until your next turn. A 30% shot, overwatch, hunker, or a move — all four are real answers.</p>
+        <p data-t="basics"><b>Hostiles start unaware.</b> They wake in groups when a mutant comes within seven tiles in view, or fires on them. Hover a move tile to see who it would wake, and every awake hostile that could hit you there shows its odds against you. Pick your fights, and your tiles.</p>
+        <p data-t="camp"><b>Campaign.</b> Your roster persists between missions in this browser. Survivors earn XP (2 per mission, 1 per kill) and level up; at level 3 you choose one of two permanent upgrades. A mutant who ends a mission under half health sits out the next one. The dead stay dead — they go on the memorial and a new recruit joins their family. The <b>Graft Index</b> rises after every mission and only sabotage, broadcasts and the Surgeon push it back; at 10 the campaign is lost.</p>
+        <p data-t="combat"><b>Bleed-out.</b> A mutant at 0 HP goes down instead of dying and bleeds for three of your turns. An ally next to them can <b>stabilize</b> (they survive, out of the fight) or <b>carry</b> them (−1 move, no overwatch). A Mender's power brings them back up. Sprinters and Husks will finish a downed mutant if nothing else is in reach. On evac missions, the downed must be carried to the pad or they are left behind. If everyone standing goes down, the mission is lost.</p>
+        <p data-t="enemy"><b>Perks and adaptations.</b> Clearing a campaign mission for the first time earns a pick of three perks. You own everything you pick but bring only <b>two</b> per mission — once-per-mission tricks (smoke, adrenal shot, a power surge) or passives (earlier evac, first downed mutant auto-stabilized). They recharge every mission and never stack. The Coalition answers in kind: each act, and every three points of Graft Index, Program Graft fields another <em>adaptation</em> — tougher heavies, sharper marksmen, faster reinforcements. Push the Index down with sabotage and side ops and they lose one.</p>
+        <p data-t="camp"><b>Side ops</b> are generated strikes: a random sector, objective and Coalition element scaled to where you are in the campaign. They use your roster like any mission — XP, wounds and deaths all count — and a win pushes the Graft Index back by two. Every sector has a code you can replay.</p>
+        <p data-t="camp"><b>Twelve mutants, four families.</b> You start with the three you pick. Another named mutant joins after each campaign mission you clear, until all twelve are on the roster. Every Blaster, Bruiser, Phaser and Mender shares its family's role, but each mutant has a different power and passive. Two Blasters are not the same Blaster. Take three per mission.</p>
+        <p data-t="opts"><b>Voice</b> uses your browser's built-in speech voices; the cast sounds different on every machine. Every spoken line also appears in Comms. Toggle it in the top bar.</p>
+        <p class="keys" data-t="basics"><kbd>1</kbd> Move · <kbd>2</kbd> Attack · <kbd>3</kbd> Power · <kbd>4</kbd> Overwatch · <kbd>5</kbd> Hunker · <kbd>D</kbd> board detail · <kbd>Tab</kbd> next unit · <kbd>Enter</kbd> end turn · <kbd>Esc</kbd> / right-click cancel</p>
       </div>
     </div>
   </div>
@@ -1994,7 +2170,7 @@ async function scamper(members){ if(!members.length) return; Audio.contact(); Au
   introduceNew(members); renderSide(); }
 async function checkContact(){ const woke=alertEnemies(); if(G.pendingScamper&&G.pendingScamper.length){ woke.push(...G.pendingScamper.filter(e=>e.alive)); G.pendingScamper=null; } if(woke.length){ const wasBusy=G.busy; G.busy=true; renderSide(); await scamper(woke); G.busy=wasBusy; renderSide(); } }
 function introduceNew(list){ let announced=false; for(const e of list){ if(e.side!=='enemy'||G.seen.has(e.def.id)) continue; G.seen.add(e.def.id); saveProg(); log(`Threat file — ${e.def.name}${e.def.aug?' ['+e.def.aug+' augment]':''}: ${e.def.desc}`,'aug'); if(!announced&&e.def.aug){ banner(`New hostile: ${e.def.name}`,'aug'); say('newAug'); announced=true; } } }
-function showScreen(s){ G.screen=s; document.body.dataset.screen=s; for(const k of ['menu','select','brief','game','epilogue']) $('screen-'+k).hidden=s!==k; $('crumb').textContent=s==='game'?(G.missionIdx<0?`Side op · ${MX(G.missionIdx).sector}`:`${ACTS[MX(G.missionIdx).act]} · Mission ${G.missionIdx+1}`):s==='brief'?'Briefing':s==='select'?'Campaign':s==='epilogue'?'Epilogue':''; if(s==='epilogue') Audio.music.set('menu',{act:2}); if(s==='menu'||s==='select'||s==='brief'){ Audio.music.set('menu',{act:s==='brief'?MX(G.missionIdx).act:Math.min(2,Math.floor(nextMissionIdx()/5)*1+(nextMissionIdx()>=8?1:0))}); } if(s==='menu') renderMenu(); }
+function showScreen(s){ G.screen=s; document.body.dataset.screen=s; for(const k of ['menu','select','brief','game','epilogue']) $('screen-'+k).hidden=s!==k; if(s==='game') requestAnimationFrame(()=>{ try{ fitBoard(); }catch(e){} }); $('crumb').textContent=s==='game'?(G.missionIdx<0?`Side op · ${MX(G.missionIdx).sector}`:`${ACTS[MX(G.missionIdx).act]} · Mission ${G.missionIdx+1}`):s==='brief'?'Briefing':s==='select'?'Campaign':s==='epilogue'?'Epilogue':''; if(s==='epilogue') Audio.music.set('menu',{act:2}); if(s==='menu'||s==='select'||s==='brief'){ Audio.music.set('menu',{act:s==='brief'?MX(G.missionIdx).act:Math.min(2,Math.floor(nextMissionIdx()/5)*1+(nextMissionIdx()>=8?1:0))}); } if(s==='menu') renderMenu(); }
 
 /* ---------- UI: menu / select / briefing / modals ---------- */
 function renderMenu(){
@@ -2014,12 +2190,12 @@ function pickDifficulty(cb,{mods=true}={}){ const box=$('df-choices'); box.inner
   { const aw=$('df-asc'); const top=PROG.ascension||0; aw.hidden=!(mods&&top>0); if(mods&&top>0){ const seg=$('df-asc-seg'); seg.innerHTML=''; const note=()=>{ $('df-asc-note').textContent=asc?ASC.slice(0,asc).map(a=>`A${a.n}: ${a.desc}`).join(' · '):'Standard campaign.'; }; for(let n=0;n<=top;n++){ const b=document.createElement('button'); b.textContent=n?`A${n}`:'None'; b.setAttribute('aria-pressed',String(n===asc)); b.onclick=()=>{ asc=n; seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); note(); Audio.select(); }; seg.appendChild(b); } note(); } }
   const start=STARTING_IDS.slice(); const sw=$('df-start-wrap'); sw.hidden=!mods; const sp=$('df-start'); sp.innerHTML='';
   const famOf=id=>MUTANTS.find(m=>m.id===id).arch; const okStart=()=>start.length===3&&Object.keys(ARCH_INFO).every(a=>start.filter(id=>famOf(id)===a).length<=2);
-  const drawStart=()=>{ sp.innerHTML=''; for(const arch of Object.keys(ARCH_INFO)){ for(const m of MUTANTS.filter(x=>x.arch===arch)){ const on=start.includes(m.id); const b=document.createElement('button'); b.className='sp'; b.setAttribute('aria-pressed',String(on)); b.style.setProperty('--c',m.color);
+  let lastSp=null; const drawStart=()=>{ sp.innerHTML=''; for(const arch of Object.keys(ARCH_INFO)){ for(const m of MUTANTS.filter(x=>x.arch===arch)){ const on=start.includes(m.id); const b=document.createElement('button'); b.className='sp'; b.dataset.id=m.id; b.setAttribute('aria-pressed',String(on)); b.style.setProperty('--c',m.color);
       const up=upgradesFor(m.id).map(u=>u.name).join(' / '), ms=masteriesFor(m.id).map(u=>u.name).join(' / ');
       b.innerHTML=`<span class="k">${ARCH_INFO[arch].name} · ${m.tagline}</span><span class="n">${m.name}</span><span class="pw"><b>${m.ability.name}</b> — ${m.ability.desc}</span><span class="ps">${m.passive}</span><span class="fk">L3 ${up} · L4 ${ms}</span>`;
-      b.onclick=()=>{ Audio.select(); if(on){ start.splice(start.indexOf(m.id),1); } else { if(start.length>=3) start.shift(); start.push(m.id); if(start.filter(id=>famOf(id)===arch).length>2){ const drop=start.find(id=>id!==m.id&&famOf(id)===arch); start.splice(start.indexOf(drop),1); } } drawStart(); }; sp.appendChild(b); } }
+      b.title=`${m.ability.name} — ${m.ability.desc}\n${m.passive}\nL3 ${up} · L4 ${ms}`; const det=()=>{ const el=$('df-sp-detail'); if(el) el.innerHTML=`<b style="color:${m.color}">${m.name}</b> · ${ARCH_INFO[arch].name} · ${m.tagline}<br><b>${m.ability.name}</b> — ${m.ability.desc}<br><i>${m.passive}</i><br><span class="note">L3 ${up} · L4 ${ms}</span>`; }; b.onmouseenter=det; b.onfocus=det; b.onclick=()=>{ Audio.select(); lastSp=m.id; if(on){ start.splice(start.indexOf(m.id),1); } else { if(start.length>=3) start.shift(); start.push(m.id); if(start.filter(id=>famOf(id)===arch).length>2){ const drop=start.find(id=>id!==m.id&&famOf(id)===arch); start.splice(start.indexOf(drop),1); } } drawStart(); }; sp.appendChild(b); } }
     $('df-start-note').textContent=`— ${start.length}/3: ${start.map(id=>MUTANTS.find(m=>m.id===id).name).join(', ')||'none'}. At most two from one family. The rest join as you clear missions, missing families first.`;
-    box.querySelectorAll('.btn').forEach(b=>b.disabled=mods&&!okStart()); };
+    box.querySelectorAll('.btn').forEach(b=>b.disabled=mods&&!okStart()); { const want=lastSp||start[start.length-1]; const bt=[...sp.children].find(x=>x.dataset.id===want); if(bt&&bt.onmouseenter) bt.onmouseenter(); } };
   const mb=$('df-mods'); mb.innerHTML=''; mb.parentElement.querySelectorAll('.eyebrow')[0].hidden=!mods; mb.hidden=!mods;
   if(mods) for(const [id,M] of Object.entries(MODS)){ const b=document.createElement('button'); b.className='pk'; b.setAttribute('aria-pressed','false'); b.innerHTML=`<span class="k">${id==='mercy'?'Easier':'Harder'}</span><span class="n">${M.name}</span><span>${M.desc}</span>`; b.onclick=()=>{ picked[id]=!picked[id]; b.setAttribute('aria-pressed',String(picked[id])); Audio.select(); }; mb.appendChild(b); }
   const dw=$('df-doctrine'); const legacy=(PROG.legacyPerks||[]).filter(pid=>PERKS[pid]); dw.hidden=!(mods&&legacy.length); if(mods&&legacy.length){ const db=$('df-doc'); db.innerHTML=''; const none=document.createElement('button'); none.className='pk'; none.setAttribute('aria-pressed','true'); none.innerHTML=`<span class="k">None</span><span class="n">Start clean</span><span>No carry-over.</span>`; db.appendChild(none); const all=[none]; none.onclick=()=>{ doctrine=null; all.forEach(x=>x.setAttribute('aria-pressed',String(x===none))); Audio.select(); };
@@ -2031,6 +2207,19 @@ $('m-new').onclick=()=>{ Audio.unlock(); Audio.select(); const has=PROG.cleared.
 $('m-select').onclick=()=>{ Audio.unlock(); Audio.select(); renderSelect(); showScreen('select'); };
 $('brand-home').onclick=()=>{ if(G.screen==='game'&&!G.over){ if(G.busy) return; confirmBox('Abandon the mission?','Pulling out now counts as a defeat: wounds and losses stand as they are, and the Graft Index rises. Your squad walks away from whatever is left on this field.',()=>{ finish(false,'Mission abandoned. The squad pulled out.'); }); return; } $('overlay').hidden=true; VO.stop(); showScreen('menu'); };
 $('unlock-all').onclick=()=>{ PROG.freeplay=true; saveProg(); renderSelect(); };
+/* Hub tabs (Operations · Squad · Record): the hub is three screens' worth of panels; each tab fits one screen on desktop.
+   Remembered per browser. Badges say when a tab holds something waiting (a fork, a perk to pick, a bench graft). */
+const HUB_TAB_KEY='mutie.hubtab';
+function hubTab(t){ if(!['ops','squad','record'].includes(t)) t='ops'; document.querySelectorAll('#hub-tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t))); document.querySelectorAll('#screen-select .hub-pane').forEach(p=>p.hidden=p.dataset.pane!==t); try{ localStorage.setItem(HUB_TAB_KEY,t); }catch(e){} }
+document.querySelectorAll('#hub-tabs [data-tab]').forEach(b=>b.onclick=()=>{ Audio.select(); hubTab(b.dataset.tab); });
+function hubBadges(){ const alive_=CAMP.roster.filter(r=>r.alive&&!r.captured); const forks=alive_.filter(r=>r.pendingUpgrade||r.pendingMastery).length; const bench=CAMP.grafts.filter(g=>GRAFTS[g]&&!graftHolder(g)).length; const sq=forks+bench+(CAMP.perkOffer?1:0);
+  const set=(id,n,tip)=>{ const el=$(id); if(!el) return; el.textContent=n?String(n):''; el.title=n?tip:''; el.className=n?'on':''; };
+  set('ht-squad',sq,[forks?`${forks} fork${forks>1?'s':''} waiting`:'',bench?`${bench} graft${bench>1?'s':''} on the bench`:'',CAMP.perkOffer?'a perk to pick':''].filter(Boolean).join(' · '));
+  set('ht-record',0,''); const held=heldRoster().length; set('ht-ops',held,held?`${held} held — rescue op on the board`:''); }
+try{ hubTab(localStorage.getItem(HUB_TAB_KEY)||'ops'); }catch(e){ hubTab('ops'); }
+/* How to play: topic tabs instead of one long scroll. */
+function helpTopic(t){ document.querySelectorAll('#help-tabs [data-t]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.t===t))); document.querySelectorAll('#help-body [data-t]').forEach(p=>p.hidden=p.dataset.t!==t); const sh=document.querySelector('.help-sheet'); if(sh) sh.scrollTop=0; }
+document.querySelectorAll('#help-tabs [data-t]').forEach(b=>b.onclick=()=>{ Audio.select(); helpTopic(b.dataset.t); }); helpTopic('basics');
 
 /* Next up: the campaign's open loops, computed, one line each — the reasons to play one more. */
 function nextUpLines(){ const L=[]; const alive_=CAMP.roster.filter(r=>r.alive&&!r.captured);
@@ -2062,7 +2251,7 @@ function renderHub(){
     for(const id of Object.keys(CAMP.culturing||{})){ const g=GRAFTS[id]; if(!g) continue; const b=document.createElement('button'); b.className='pk'; b.setAttribute('aria-pressed','false'); b.style.borderLeftColor='var(--focus)'; b.innerHTML=`<span class="k">Culturing · ready after the next mission</span><span class="n">${g.name}</span><span>${g.desc}</span><span class="k" style="color:var(--heal)">${(CAMP.samples||0)>=RUSH_COST?`Rush now · ${RUSH_COST} samples`:`Rush needs ${RUSH_COST} samples (${CAMP.samples||0})`}</span>`; b.onclick=()=>{ if(rushGraft(id)){ Audio.heal(7.5); renderHub(); } else Audio.select(); }; el.appendChild(b); }
     for(const id of owned){ const g=GRAFTS[id]; const h=graftHolder(id); const src=enemyByType(g.from); const b=document.createElement('button'); b.className='pk'; b.setAttribute('aria-pressed',String(!!h)); b.innerHTML=`<span class="k">From ${srcLabel(g)} · ${h?`on ${h.name}`:'on the bench — open a mutant to fit it'}</span><span class="n">${g.name}</span><span>${g.desc}</span>`; b.onclick=()=>{ Audio.select(); if(h) openMutant(h.cid); else { const first=readyRoster()[0]||CAMP.roster.find(r=>r.alive); if(first) openMutant(first.cid); } }; el.appendChild(b); }
     { const cul=Object.keys(CAMP.culturing||{}).length; $('grafts-note').textContent=`${owned.filter(g=>graftHolder(g)).length}/${owned.length} fitted${cul?` · ${cul} culturing`:''} · ${GRAFT_ORDER.length-owned.length-cul} still out there`; } }
-  renderNextUp(); renderRecord();
+  renderNextUp(); renderRecord(); if(typeof hubBadges==='function') hubBadges();
   { const nextM=MISSIONS.find(mm=>!PROG.cleared.includes(mm.id))||MISSIONS[MISSIONS.length-1]; const n=adaptCount(CAMP.doom,nextM.act); $('adapt-note').textContent=`${n} active for ${ACTS[nextM.act]}`; $('adapt-box').innerHTML=`<div class="note">Program Graft iterates. Each act, and every three points of Graft Index, the Coalition fields another modification. Push the Index down and they lose one.</div><div class="adapt" id="adapt-list"></div>`; renderAdaptList($('adapt-list'),CAMP.doom,nextM.act); }
   setTimeout(checkPerkOffer,50);
   const me=$('memorial'); me.innerHTML=''; if(!CAMP.fallen.length){ me.innerHTML='<div class="note">No one yet. Keep it that way.</div>'; } else for(const f of CAMP.fallen){ const kit=MUT[f.kit]; const d2=document.createElement('div'); d2.className='mem click'; d2.innerHTML=`<span><b>${f.name}</b> · ${famName(kit)} · ${kit.ability.name}</span><span>${f.missions} missions · ${f.kills} kills · fell at ${f.mission}${f.by?` — ${f.by}`:''}</span>`; d2.onclick=()=>{ Audio.select(); openFallen(f); }; me.appendChild(d2); }
@@ -2096,7 +2285,7 @@ function openMutant(cid){ const r=rosterEntry(cid); const kit=MUT[r.kit]; const 
   const SK=['#E3CDB6','#D2A67C','#B9825A','#8C5A3C','#6B4226','#F0DACA'], HR=['#2A1B12','#4A2E1B','#8A5A2B','#C9A063','#1A1A1A','#5A5A5A','#B0332E'], AC=[kit.color,'#F2B33D','#FF7A45','#E0524B','#5CD68A','#3FC1E3','#B58CF0','#FF5FA2','#E4ECF2'];
   const sw=(key,arr,cur)=>`<div class="sw-row">${arr.map(col=>`<button data-k="${key}" data-v="${col}" aria-pressed="${cur===col}" style="background:${col}" aria-label="${col}"></button>`).join('')}</div>`;
   const seg=(key,arr,cur)=>`<div class="seg">${arr.map(v=>`<button data-k="${key}" data-v="${v}" aria-pressed="${cur===v}">${v}</button>`).join('')}</div>`;
-  $('mu-body').innerHTML=`<div class="ability-line" style="margin-bottom:10px"><em>${kit.ability.name}</em> — ${kit.ability.desc}</div><div class="ability-line passive" style="margin-bottom:12px"><em>${kit.passive.split(' — ')[0]}</em> — ${kit.passive.split(' — ')[1]}</div>
+  $('mu-body').innerHTML=`<div class="mu-cols"><div class="mu-a"><div class="ability-line" style="margin-bottom:10px"><em>${kit.ability.name}</em> — ${kit.ability.desc}</div><div class="ability-line passive" style="margin-bottom:12px"><em>${kit.passive.split(' — ')[0]}</em> — ${kit.passive.split(' — ')[1]}</div>
     ${r.upgrade?`<div class="note" style="margin-bottom:10px">Upgrade: <b style="color:var(--accent)">${(findUpgrade(r.kit,r.upgrade)||{}).name||''}</b> — ${(findUpgrade(r.kit,r.upgrade)||{}).desc||''}</div>`:''}
     ${!r.upgrade&&!r.pendingUpgrade?`<div class="note" style="margin-bottom:10px">At level 3, choose: ${upgradesFor(r.kit).map(u=>`<b>${u.name}</b>`).join(' or ')}.</div>`:''}
     ${r.mastery?`<div class="note" style="margin-bottom:10px">Mastery: <b style="color:var(--heal)">${(findMastery(r.kit,r.mastery)||{}).name||''}</b> — ${(findMastery(r.kit,r.mastery)||{}).desc||''}</div>`:r.level<4?`<div class="note" style="margin-bottom:10px">At level 4, a ${famName(kit)} mastery: ${masteriesFor(r.kit).map(u=>`<b>${u.name}</b>`).join(' or ')}.</div>`:''}
@@ -2105,10 +2294,10 @@ function openMutant(cid){ const r=rosterEntry(cid); const kit=MUT[r.kit]; const 
     ${sheetHistory(r)}
     <div class="eyebrow" style="margin:6px 0 8px">Graft <span class="note" style="text-transform:none;letter-spacing:0;font-weight:400">— one per mutant; fitting it here takes it off whoever has it</span></div>
     <div class="perks graftpick" id="mu-grafts"></div>
-    <div class="eyebrow" style="margin:12px 0 8px">Appearance</div>
+    </div><div class="mu-b"><div class="eyebrow" style="margin:0 0 8px">Appearance</div>
     <div class="cust"><span>Name</span><input type="text" id="mu-name" value="${r.name.replace(/"/g,'&quot;')}" maxlength="14">
       <span>Skin</span>${sw('skin',SK,c.skin)}<span>Hair colour</span>${sw('hair',HR,c.hair)}<span>Headgear</span>${seg('head',['hair','helmet','hood','bare'],c.head||'hair')}<span>Accent</span>${sw('accent',AC,c.accent||kit.color)}</div>
-    <div class="row" style="display:flex;gap:8px;margin-top:12px"><button class="btn primary small" id="mu-save">Save</button><button class="btn small" id="mu-reset">Reset look</button></div>`;
+    <div class="row" style="display:flex;gap:8px;margin-top:12px"><button class="btn primary small" id="mu-save">Save</button><button class="btn small" id="mu-reset">Reset look</button></div></div></div>`;
   const draft=Object.assign({},c);
   const gp=$('mu-grafts'); const drawGrafts=()=>{ gp.innerHTML=''; if(!CAMP.grafts.length){ gp.innerHTML='<div class="note" style="grid-column:1/-1">None recovered yet. Win a mission after killing a new kind of Coalition unit and its augment comes home with you.</div>'; return; }
     const none=document.createElement('button'); none.className='pk'; none.setAttribute('aria-pressed',String(!r.graft)); none.innerHTML=`<span class="k">No graft</span><span class="n">Unmodified</span><span>Fight with what you were born with.</span>`; none.onclick=()=>{ setGraft(r.cid,null); Audio.select(); drawGrafts(); renderHub(); }; gp.appendChild(none);
@@ -2167,7 +2356,7 @@ function openBriefing(i){
   $('b-params').innerHTML=params.join('');
   const intel=$('b-intel'); intel.innerHTML='';
   for(const c of enemyCodesFor(m)){ const e=ENEMY[c]; const known=G.seen.has(e.id)||!e.aug||(CAMP.intel&&i>=0); const row=document.createElement('div'); row.className='row'+(known?'':' unknown');
-    row.innerHTML=known?`<span class="sw" style="background:${e.color}"></span><div><div class="n">${e.name}${e.aug?`<span class="aug">${e.aug}</span>`:''}</div><div class="d">${e.desc}</div></div>`
+    if(known) row.title=e.desc; row.innerHTML=known?`<span class="sw" style="background:${e.color}"></span><div><div class="n">${e.name}${e.aug?`<span class="aug">${e.aug}</span>`:''}</div><div class="d">${e.desc}</div></div>`
       :`<span class="sw"></span><div><div class="n">Unknown augment</div><div class="d">No field data. Engage to learn what it does — carefully.</div></div>`;
     intel.appendChild(row); }
   renderAdaptList($('b-adapt'),CAMP.doom,m.act); renderPerkList($('b-perks'),$('b-perks-note'));
@@ -2181,10 +2370,10 @@ function renderArchCards(){
   for(const arch of Object.keys(ARCH_INFO)){ const members=CAMP.roster.filter(x=>x.alive&&!x.captured&&MUT[x.kit].arch===arch); if(!members.length) continue;
     const h=document.createElement('div'); h.className='act'; h.textContent=`${ARCH_INFO[arch].name} · ${ARCH_INFO[arch].role}`; ac.appendChild(h);
     for(const r of members){ const m=MUT[r.kit]; const d=buildDef(r); const on=G.squad.includes(r.cid); const ready=r.wounded<=0||forceW; const b=document.createElement('button'); b.className='arch-card mut'+(ready?'':' locked'); b.disabled=!ready; b.setAttribute('aria-pressed',String(on)); const accent=r.custom&&r.custom.accent?r.custom.accent:m.color;
-      b.innerHTML=`<div class="a-name" style="color:${accent}">${r.name} <span class="tag">L${r.level}</span> <span class="tag">${m.tagline}</span>${r.wounded>0?' <span class="tag" style="color:var(--danger)">Wounded</span>':''}${r.pendingUpgrade?' <span class="tag" style="color:var(--heal)">Upgrade waiting</span>':r.pendingMastery?' <span class="tag" style="color:var(--heal)">Mastery waiting</span>':''}</div>
+      b.innerHTML=`<div class="a-name" style="color:${accent}">${r.name} <span class="tag">L${r.level}</span> <span class="tag tg-role">${m.tagline}</span>${r.wounded>0?' <span class="tag" style="color:var(--danger)">Wounded</span>':''}${r.pendingUpgrade?' <span class="tag" style="color:var(--heal)">Upgrade waiting</span>':r.pendingMastery?' <span class="tag" style="color:var(--heal)">Mastery waiting</span>':''}</div>
         <div class="stat-row"><span>HP <b>${d.hp}</b></span><span>Aim <b>${d.aim}</b></span><span>Move <b>${d.move}</b></span><span>Dmg <b>${d.dmg[0]}–${d.dmg[1]}</b></span><span>Rng <b>${d.range}</b></span>${d.armor?`<span>Armor <b>${d.armor}</b></span>`:''}</div>
-        <div class="ability-line"><em>${m.ability.name}</em> — ${m.ability.desc}${d.ability.cd!==m.ability.cd?` <span class="note">(CD ${d.ability.cd})</span>`:''}${d.upgradeName?` <span class="tag" style="color:var(--accent)">${d.upgradeName}</span>`:''}${d.graftName?` <span class="tag" style="color:var(--aug)">${d.graftName}</span>`:''}${d.masteryName?` <span class="tag" style="color:var(--heal)">${d.masteryName}</span>`:''}</div><div class="ability-line passive"><em>${m.passive.split(' — ')[0]}</em> — ${m.passive.split(' — ')[1]}</div>`;
-      b.onclick=()=>{ Audio.select(); if(!ready) return; if(on){ if(G.squad.length>1) G.squad=G.squad.filter(x=>x!==r.cid); } else { if(G.squad.length>=need) G.squad.shift(); G.squad.push(r.cid); } renderArchCards(); };
+        <div class="ability-line"><em>${m.ability.name}</em><span class="ab-d"> — ${m.ability.desc}</span>${d.ability.cd!==m.ability.cd?` <span class="note">(CD ${d.ability.cd})</span>`:''}${d.upgradeName?` <span class="tag" style="color:var(--accent)">${d.upgradeName}</span>`:''}${d.graftName?` <span class="tag" style="color:var(--aug)">${d.graftName}</span>`:''}${d.masteryName?` <span class="tag" style="color:var(--heal)">${d.masteryName}</span>`:''}</div><div class="ability-line passive"><em>${m.passive.split(' — ')[0]}</em> — ${m.passive.split(' — ')[1]}</div>`;
+      b.title=`${m.ability.name} — ${m.ability.desc}\n${m.passive}\nHP ${d.hp} · Aim ${d.aim} · Move ${d.move} · Dmg ${d.dmg[0]}–${d.dmg[1]} · Rng ${d.range}${d.armor?' · Armor '+d.armor:''}`; b.onclick=()=>{ Audio.select(); if(!ready) return; if(on){ if(G.squad.length>1) G.squad=G.squad.filter(x=>x!==r.cid); } else { if(G.squad.length>=need) G.squad.shift(); G.squad.push(r.cid); } renderArchCards(); };
       ac.appendChild(b); } }
   $('squad-count').textContent=`${G.squad.length} of ${need} · ${G.squad.map(id=>rosterEntry(id).name).join(', ')}`; $('btn-deploy').disabled=!need||G.squad.length!==need;
   $('db-squad').innerHTML=G.squad.length===need?`Squad <b>${G.squad.map(id=>rosterEntry(id).name).join(' · ')}</b>${G.squad.some(id=>rosterEntry(id).wounded>0)?` <span class="note">· wounded going in — no one else is fit</span>`:''}`:`Pick <b>${need-G.squad.length}</b> more`;
@@ -2604,7 +2793,7 @@ const R3 = (()=>{
   const T3=window.THREE; const gl=$('gl'); const labels=$('labels');
   const renderer=new T3.WebGLRenderer({canvas:gl,antialias:true,alpha:false,powerPreference:'high-performance'}); renderer.setPixelRatio(Math.min(1.75,window.devicePixelRatio||1)); renderer.setSize(gl.width,gl.height,false);
   // Drawing buffer follows the displayed size (same 1040:700 aspect, so the ortho frustum never changes); labels scale with it.
-  let fitDirty=true; addEventListener('resize',()=>{ fitDirty=true; }); if(window.ResizeObserver) new ResizeObserver(()=>{ fitDirty=true; }).observe($('view'));
+  let fitDirty=true; addEventListener('resize',()=>{ fitDirty=true; }); if(window.ResizeObserver){ new ResizeObserver(()=>{ fitDirty=true; }).observe($('view')); new ResizeObserver(()=>{ fitDirty=true; }).observe(gl); }
   function fit(){ const w=gl.clientWidth; if(!w) return; fitDirty=false; const dpr=Math.min(w<600?2:1.75,window.devicePixelRatio||1); if(fit.w===w&&fit.dpr===dpr) return; fit.w=w; fit.dpr=dpr; renderer.setPixelRatio(dpr); renderer.setSize(w,Math.round(w*700/1040),false); labels.style.setProperty('--ls',String(w<420?0.6:w<560?0.68:w<760?0.82:1)); }
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=T3.PCFSoftShadowMap; renderer.outputColorSpace=T3.SRGBColorSpace;
   /* Bloom (hand-rolled — r158 UMD ships no EffectComposer). Scene → half-float MSAA target (linear, un-tonemapped), bright pass
@@ -3243,6 +3432,10 @@ const R3 = (()=>{
   return { render, pick, canvas:gl, floatText, _scene:scene, _units:units, _camState:()=>({zoom:camera.zoom,off:camTarget.distanceTo(CENTER)}), bloom:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.glow=v; return BLOOM.glow; }, rtPath:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.on=v; return BLOOM.on; }, bloomTune:(o)=>BLOOM&&BLOOM.tune(o), povState:()=>({blend:POV.blend,cam:active===pcam?'pov':'map',pos:pcam.position.toArray().map(v=>+v.toFixed(2))}) };
 })();
 
+/* ---------- One-screen layout: size the board to the box it has (desktop fit mode) ---------- */
+const FIT_MQ=matchMedia('(min-width:761px) and (min-height:521px)');
+function fitBoard(){ const c=R3?R3.canvas:canvas; if(!c) return; if(!FIT_MQ.matches){ c.style.width=''; c.style.height=''; return; } if(G.screen!=='game') return; const v=$('view'); const r=v.getBoundingClientRect(); if(r.width<50||r.height<50) return; const aw=R3?1040:canvas.width, ah=R3?700:canvas.height; const k=Math.min(r.width/aw,r.height/ah); const w=Math.floor(aw*k), h=Math.floor(ah*k); if(c.style.width!==w+'px'||c.style.height!==h+'px'){ c.style.width=w+'px'; c.style.height=h+'px'; } }
+addEventListener('resize',fitBoard); if(window.ResizeObserver) new ResizeObserver(()=>fitBoard()).observe($('view')); if(FIT_MQ.addEventListener) FIT_MQ.addEventListener('change',fitBoard);
 /* ---------- Player input ---------- */
 function canvasPos(ev){ if(R3) return R3.pick(ev); const r=canvas.getBoundingClientRect(); const sx=canvas.width/r.width, sy=canvas.height/r.height; const x=Math.floor((ev.clientX-r.left)*sx/TILE), y=Math.floor((ev.clientY-r.top)*sy/TILE); return inb(x,y)?{x,y}:null; }
 let hoverUnit=null;
@@ -3782,5 +3975,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,blastPreview,flankTiles,allyResult,GRAFTS,setGraft,graftHolder,finish,renderHub,openMutant,waveTurn,fireAt,igniteAround,moment,bonded,partnersOf,openFallen,openBriefing,rushGraft,treatWound,renderNextUp,sideOffers,launchSide,MASTERIES,offerUpgrade,GEN,genFor,PROG,MODS,logLegacy,heldRoster,newCampaign,pickDifficulty,CONDS,condFor,variantMap,recruitOrderFor,freshCampaign,sightR,SETTINGS,tempo,skipBeat,undoMove,requestEndTurn,saveMission,loadMissionSave,resumeMission,offerResume,clearMissionSave,coalitionPhase,threatAfterMove,threatMoveAt,pathThreats,threatZone,anim,fxTracer,flankedBy,owZone,isDecisive,hitDir,renderSide,medalResult,soClose,closestCall,assignElites,makeElite,ELITE_TRAITS,commanderRecord,recordMission,renderRecord,tlmSummary:(r)=>telemetrySummary(r),TLM:()=>TLM,downloadTlm,ASC,ascN,nextUpLines,PAR,MEDALS,medalHtml,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
+window.MUTIE={G,hubTab,helpTopic,fitBoard,showEpilogue,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,blastPreview,flankTiles,allyResult,GRAFTS,setGraft,graftHolder,finish,renderHub,openMutant,waveTurn,fireAt,igniteAround,moment,bonded,partnersOf,openFallen,openBriefing,rushGraft,treatWound,renderNextUp,sideOffers,launchSide,MASTERIES,offerUpgrade,GEN,genFor,PROG,MODS,logLegacy,heldRoster,newCampaign,pickDifficulty,CONDS,condFor,variantMap,recruitOrderFor,freshCampaign,sightR,SETTINGS,tempo,skipBeat,undoMove,requestEndTurn,saveMission,loadMissionSave,resumeMission,offerResume,clearMissionSave,coalitionPhase,threatAfterMove,threatMoveAt,pathThreats,threatZone,anim,fxTracer,flankedBy,owZone,isDecisive,hitDir,renderSide,medalResult,soClose,closestCall,assignElites,makeElite,ELITE_TRAITS,commanderRecord,recordMission,renderRecord,tlmSummary:(r)=>telemetrySummary(r),TLM:()=>TLM,downloadTlm,ASC,ascN,nextUpLines,PAR,MEDALS,medalHtml,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

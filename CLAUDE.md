@@ -672,6 +672,34 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   read "72%" + one tag (KILLS, else FLANKED, else MAY KILL) — damage range and breakdown stay on the POV card and the hover hint. Full
   is the old board. Nothing about the math changed; every number is still one hover or card away. `test46.mjs`.
 
+## One screen (2026-09-28, Cameron's brief: no scrolling on desktop, phones if possible)
+- **Fit mode** = `@media (min-width:761px) and (min-height:521px)` (JS twin `FIT_MQ`). The page never scrolls: `html,body{height:100%;
+  overflow:hidden}`, `.app` fills the window, every visible `.screen` is a flex column filling what the top bar leaves. Anything that
+  still doesn't fit scrolls **inside its own panel** (a hub column, the briefing squad column, a sheet) as a last resort — never the page.
+- **Board:** `fitBoard()` sizes the 3D/2D canvas's CSS box to the largest 1040:700 (or board-canvas) rect that fits `#view` (resize,
+  ResizeObserver on `#view`, `FIT_MQ` change, `showScreen('game')`); R3's own resize observer re-fits the drawing buffer. The side panel
+  is compact (squad as a horizontal strip, log takes the rest); at ≤860px tall the plain action buttons drop their descriptions
+  (powers/perks keep two lines), and the Fire button hides while the POV panel shows.
+- **Hub = tabs** (`hubTab('ops'|'squad'|'record')`, remembered in localStorage `mutie.hubtab`): index bar on top (its explainer line
+  hidden in fit mode), then Operations (campaign missions 2-up with desc hidden | Next up, side ops, sector code) · Squad (roster 3-up |
+  perks, grafts) · Record (commander record, adaptations | memorial, Wall). `hubBadges()` puts a count on Squad (forks waiting, bench
+  grafts, a perk to pick) and Operations (captives). All element ids are unchanged; **harnesses that `page.click` a hub element in a
+  non-default pane must call `MUTIE.hubTab(...)` first** (JS `.click()` works regardless).
+- **Briefing:** `.bm-a` (head, Control, objective, desc) | `.bm-b` (intel, perks) | squad column; squad cards are 3-up per family row
+  with name, level, power and a small stat row (role, power text and passive are in the card's `title`).
+- **Report** `.res-cols` = `.res-l` (near miss, story, stats, luck) | `.res-r` (campaign block, post-mortem, next up); single column when
+  the right side is empty (`:has`). On every size `.result` is capped at the viewport and scrolls itself (it used to run off landscape phones).
+- **Sheets** capped at `100vh − 32px`. How to play has topic tabs (`helpTopic`: Basics · Combat · The Coalition · Campaign · Options;
+  each `<p data-t>`) and two text columns on desktop. New campaign is two columns (`.df-cols`): the twelve 3-up with a detail box
+  (`#df-sp-detail`, follows hover/focus/last pick) | difficulty, modifiers, ascension, doctrine; single column when the picker is hidden
+  (Begin on an untouched save). Mutant sheet: kit/record | appearance (`.mu-cols`). Epilogue: transmission | stats, squad, wall.
+- **Phones:** the game already fit; hub/briefing still scroll on a phone (one tab at a time now). Fixed: the top-bar nav widened the
+  layout viewport to 430px on a 390px iPhone since the Speed button landed (≤430px nav is tighter and scrolls inside itself); landscape
+  menu fits (buttons in a row, premise hidden).
+- `fitcheck.mjs` (`SIZES=WxH,… GL=0 SHOTS=1`) reports, per screen and modal, whether the page scrolls, what's below the fold and which
+  inner panels scroll. Desktop 1024×768 → 1920×1080: every screen and sheet fits with no inner scroll except the log; 800×600 fits the
+  page with a few inner scrolls.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

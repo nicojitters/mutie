@@ -618,6 +618,35 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   every decisive condition incl. ×4 and reduced motion, a real decisive shot, pips/spent, OW badge/zone, Flanked badge/card).
   It captures `G.punch` and `t.anim` with property setters — under swiftshader a frame is slower than the punch, so polling misses it.
 
+## The pull pass (2026-09-28, Cameron's brief: short complete loop, unfinished long loops, variable rewards, near misses, mastery)
+- **Report points forward.** `renderNextUp` is now `nextUpLines()` (weighted list) + a renderer; `finish()` puts the top three into
+  `#res-next` ("Next up.") under the campaign block. Next up also lists one cleared mission with medals still open.
+- **Medals & bests** (campaign missions only). `PAR[id]` turns; `medalResult(m,win)` → Flawless (no `G.stats.firstDown`, no squad
+  death), Swift (`G.turn ≤ par`), Ghost (`G.reinforced===0`; the Surgeon: `objState.summons===0`). `PROG.medals[id]={flawless,swift,
+  ghost,best}` (per browser, across campaigns); `CAMP.medalsPaid` keys `id:medal` so each pays `MEDAL_SAMPLES=2` once per campaign.
+  Report `.medline` ("Swift — 2 turns over par 5", "New best"), mission cards `medalHtml()` (F/S/G pips + best), briefing param
+  (par, medals still open).
+- **Near miss.** `#res-close`: loss → `soClose(m)` (boss HP, hostiles left and how many at ≤3 HP, turns until the pad, console count,
+  relays, pad count, transport); win → `closestCall()` (a mutant ending downed with its bleed count, else `G.stats.lowHp` — tracked
+  in `applyDamage` — if ≤30% max HP).
+- **Elites.** `assignElites(m,idx)` in `startMission` after the escort: from M2 (and side ops), each pod rolls `ELITE_P=0.28` (×2 at
+  Ascension 5; seeded `CAMP.seed:elite:id`) for one non-boss member → `makeElite(e,k)`: `e.elite`, name "Elite X", +2 HP and a trait
+  from `ELITE_TRAITS` — hardened +1 armor, swift +2 move, mending heals 2 at the top of the Coalition phase, linked marks whoever
+  it hits (in `shoot`). Surfaces: gold crest in `fig()`, `.badge.el` label, tooltip `eliteTag`, POV card, 2D gold ring, opening log line.
+  A player kill → `G.caches++` ("CACHE" float); paid in `finish()` after the harvest: finishes a growing culture (this mission's fresh
+  harvest — older cultures already tick on their own) or `ELITE_CACHE=3` samples. `caches` and `round` are in the mission snapshot.
+  Sims: ~46% of M2–M8 missions carry at least one elite (0.5/mission).
+- **Round beat.** `G.round={dealt,eShots,eHits}` (dealt in `applyDamage`, enemy shots in `shoot`); at the end of the Coalition phase,
+  before the reset, the log gets "Round N — you dealt X and dropped Y · they landed A of B" (`.log .round`).
+- **Commander record.** `recordMission(win)` in `finish()` → `PROG.history` (≤60): average odds of your rolled shots, average odds of
+  the shots at you, flanked hits taken, turns, win. `commanderRecord()` compares the first k with the last k (k ≤5, needs 4 missions);
+  hub `#record` with ▲/▼ coloured by whether the move is good.
+- **Ascension.** `PROG.ascension` (highest unlocked, ≤5) goes up by one when a campaign is won at `CAMP.asc`; `#df-asc` in the
+  new-campaign modal picks 0..unlocked (5th callback arg of `pickDifficulty`). `ascN()` stacks: A1 +1 adaptation (`adaptCount`), A2 a
+  field condition every mission including M1 (`condFor`), A3 reinforcements −1 (`adjustMission`), A4 enemy aim +5 (`makeUnit`), A5
+  elites ×2. Shown in the index bar and briefing.
+- `test44.mjs` covers all of it (2D renderer); `shot44.mjs` screenshots the elite badge, the report and the hub.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

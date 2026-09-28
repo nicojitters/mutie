@@ -394,8 +394,20 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   card carries the ally's own exposure ("2 can hit · 71% · FLANKED" / "safe now") plus `allyResult(u,mode,a)` ("→ 9/10 · clears
   mark", "+4 shield", "+1 action · +1 charge"); the hint repeats both. Bruiser — the Smash card's `shreds armor` / `EXECUTE` from
   `powerInfo`. `test32.mjs` covers all three and screenshots them.
-- Deferred on purpose: a wider customization layer (the L3 upgrade fork plus appearance is what exists). Cameron's playthrough decides
-  whether the combo beat fires often enough before more of the kit is bent toward it.
+- **Grafts (the customization layer — Program Graft in reverse).** `GRAFTS` (10, one per Coalition unit type: `{name, from, desc,
+  mod?, flags?}`): Ceramic Weave +2 HP (trooper) · Optic Lattice +1 rng/+5 aim (marksman) · Tendon Weave +1 move (sprinter) ·
+  Subdermal Plating armor +1 (juggernaut) · Target Ganglion — first hit each turn marks the target, `gMark` (spotter) · Bulwark
+  Shell — 3 shield at deploy, `gShield` (bulwark) · Null Node — immune to Jammers, `gNull` (jammer) · Siphon Gland — kills heal 2,
+  `gLeech` (siphon) · Husk Marrow — no reaction fire against you, `gGhost` (husk) · The Surgeon's Hand — cd −1 / +1 Blast charge,
+  +1 HP (surgeon). **Harvest:** `killUnit` records `G.killedTypes`; on a win `finish()` awards *one* graft not yet owned whose source
+  type died this mission (verb enemies before the four stat roles) → `CAMP.grafts`, report line "Graft recovered". **Fitting:**
+  roster entry `graft` (one per mutant, a graft on one mutant at a time — `setGraft(cid,id)` pulls it off the previous holder,
+  `graftHolder(id)`); a fallen mutant's graft returns to the bench. UI: mutant sheet "Graft" row (`#mu-grafts`, `.pk` cards, live),
+  hub "Grafts" section (`#grafts`, holder or "on the bench", click opens the holder), roster chip, briefing kit tag, in-game
+  `#sel-passive` line. `buildDef` applies `mod` (`rng` = weapon range; `cd` clamps at 1) and merges `flags`. Hooks: deploy shield,
+  `jammed`, `doMove` reaction filter + `pathThreats`, `shoot` (mark after a hit; `u.markedTurn` resets at turn start, enemy `marked`
+  clears with `exposed`), `killUnit` leech. Marks from the Ganglion count as setups (`SETUP_WORDS.mark`). `test33.mjs` covers harvest,
+  fitting/moving, and every hook. Old saves migrate (`CAMP.grafts=[]`).
 
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries

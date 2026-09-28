@@ -581,6 +581,15 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   save present asks to abandon it first; Next up shows the mission in progress. **Ironman** now means "no going back" (no turn
   restart); the old reload-is-defeat path only fires when `CAMP.inMission` exists without a save. `test41.mjs` covers all of it,
   including a reload mid-Coalition phase that completes the phase and lands on the next turn.
+- **Seeded dice (2026-09-28, closes the reload-reroll loophole).** `grand()` is a mulberry32 stream with state `GR.s`, seeded in
+  `startMission` (campaign seed × mission × op × time) and saved as `rng` in every snapshot; `resumeMission` restores it, so a reload
+  mid-Coalition phase — or after your own shot — replays the identical rolls. `rnd()` draws from it; every outcome roll goes through
+  it (hit, damage, crit, Smash, fire spread, spawn/graft spots, recruits, perk draft). Cosmetic picks use `crnd()`/`Math.random`
+  (Control's lines in `say`, `opName`, VO, fx, camera shake, unit ids and the renderer's per-unit seed) so timers and the speed
+  setting can never shift the game stream. Outside a mission `GR.s` is null and `grand()` falls back to `Math.random`. **Rule:** new
+  outcome rolls use `rnd`/`grand`; new cosmetic randomness must not. `test42.mjs` replays two Coalition phases at a different speed
+  (identical rolls and HP, three runs) and a player shot. Non-Ironman "Restart turn" replays the turn's dice too: repeat the same
+  actions, get the same results.
 
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries

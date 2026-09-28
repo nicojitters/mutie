@@ -796,7 +796,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
 <p><b>The record writes itself.</b> Each mutant's sheet keeps a service record — clutch shots, kills at low HP, saves, the people they fight best beside — taken from what actually happened. Going down leaves a scar: −1 max HP for good, and the sheet says who did it. Two mutants who combo together three times are bonded: +5 aim while within 3 tiles of each other. The fallen keep their record in the memorial.</p>
 <p><b>The ramp.</b> Level 3 is a kit fork, level 4 a family mastery (Overpressure or Long Arc, Unbreakable or Momentum, Assassin or Phase Echo, Battle Medic or Field Hospital), level 5 a last stat tick. The Coalition climbs too, whatever the Index: Act II fields Generation II augments (+1 HP), Act III Generation III (+1 HP, +5 aim, double waves every other turn) — on top of any adaptations.</p>
 <p><b>Losing.</b> When the squad falls, anyone still bleeding is <em>taken alive</em> — Program Graft wants the tissue breathing. They sit in a holding pen for three missions; a rescue op with their name on it appears on the side-op board. Fail it, or wait too long, and they are harvested. A defeat report says what happened: when contact came, how many pods woke, who went down first and to what, how many long shots you took. At Index 7 and above one side op always pays Index −3. Modifiers at campaign start: <em>Ironman</em> (leaving mid-op counts as a defeat), <em>No Replacements</em>, <em>Mercy</em> (the first failure of each mission costs no Index). Nothing is wasted: the Wall keeps every name from every campaign, and a new campaign can carry one perk from an earlier run as Doctrine.</p>
-<p><b>Pace.</b> Speed ×1/×2/×4 in the top bar (hold Shift to fast-forward a Coalition turn); click, tap or Space skips the insertion and the kill cam. Z undoes your last move or Blink if it revealed nothing. End turn asks once if anyone still has actions. The game saves after every action — close the tab and Continue picks up where you were (outside Ironman you can also restart the current turn).</p>
+<p><b>Pace.</b> Speed ×1/×2/×4 in the top bar (hold Shift to fast-forward a Coalition turn); click, tap or Space skips the insertion and the kill cam. Z undoes your last move or Blink if it revealed nothing. End turn asks once if anyone still has actions. The game saves after every action — close the tab and Continue picks up where you were (outside Ironman you can also restart the current turn). The dice are saved too: reloading replays the same rolls.</p>
 <p><b>Every campaign is different.</b> You pick the first three (at most two from one family); the families you left out join first. From mission 2 on, missions can be dealt a field condition — Nightfall, Downpour, Sensor Grid, Fuel Leak, Heavy Escort, Bounty — and the middle missions come mirrored or with their crates moved. It's all shown before you deploy, and the campaign seed on the hub bar makes a run repeatable.</p>
 <p><b>The Cell.</b> Samples are recovered tissue: +1 per augmented kill or vat, +2 per win, and some side ops pay in them. Spend them to treat a wound now or to rush a graft out of the culture lab. Side ops come two at a time — take one and the other expires — paying Graft Index, samples or intel on the next campaign mission. The <em>Next up</em> panel at base lists everything you're one mission away from.</p>
 <p><b>Grafts.</b> Every Coalition augment was grown from mutant tissue. Win a mission after killing a new kind of unit and its graft comes home to the culture lab (ready after the next mission, or rush it); fit it to one mutant from their sheet at base (one per mutant — moving it is the choice). Ten to recover, from Ceramic Weave to the Surgeon's Hand.</p>
@@ -826,7 +826,14 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
    ===================================================================== */
 const TILE = 44, COLS = 16, ROWS = 11;
 const T = { FLOOR:0, WALL:1, HALF:2, FULL:3 };
-const rnd = (a,b)=>a+Math.floor(Math.random()*(b-a+1));
+/* Game dice vs cosmetic dice. Every roll that changes an outcome (hit, damage, crit, Smash, fire spread, spawn spots, recruits)
+   goes through grand(), a mulberry32 stream whose state GR.s is seeded per mission and saved in every mission snapshot — so a
+   reload replays the same rolls in the same order. Anything cosmetic (Control's lines, op names, VO, fx) uses crnd/Math.random,
+   so it can never shift the game stream, whatever the speed setting or timer order. Outside a mission GR.s is null → Math.random. */
+const GR={s:null};
+function grand(){ if(GR.s==null) return Math.random(); let t=(GR.s=(GR.s+0x6D2B79F5)|0); t=Math.imul(t^t>>>15,1|t); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }
+const rnd = (a,b)=>a+Math.floor(grand()*(b-a+1));
+const crnd = (a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const key=(x,y)=>x+','+y;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -1004,7 +1011,7 @@ const ENEMY = {
 const NAMES = { vip:'Wren' };
 const OP_A=['Iron','Hollow','Silent','Burning','Broken','Pale','Static','Feral','Glass','Crimson','Cold','Wired','Last','Bitter','Quiet'];
 const OP_B=['Lantern','Compass','Hymn','Ledger','Meridian','Anvil','Signal','Orchard','Harbor','Cinder','Needle','Vigil','Sparrow','Circuit','Tide'];
-const opName=()=>`Operation ${OP_A[rnd(0,OP_A.length-1)]} ${OP_B[rnd(0,OP_B.length-1)]}`;
+const opName=()=>`Operation ${OP_A[crnd(0,OP_A.length-1)]} ${OP_B[crnd(0,OP_B.length-1)]}`;
 const HANDLER='Control';
 const LINES={
   start:['Squad is on the ground. Two actions each — spend them like they cost something.','You are outnumbered. Make the map fight for you.','Cover first, shots second. Bring them home.'],
@@ -1037,7 +1044,7 @@ const LINES={
   newAug:['New augment on the field. Read the threat file before you commit.','They cut into another one. Learn what it does before it teaches you.'],
   combo:['That is the squad I wanted.','Set and spike. Do it again.','They never saw the second one coming.','Two of you, one problem. That is how this works.'],
 };
-const say=(k,n)=>{ const arr=LINES[k]; const t=arr[rnd(0,arr.length-1)].replace('{n}',n||''); log(`${HANDLER}: ${t}`,'sys'); if(k!=='start'&&k!=='win'&&k!=='winLoss'&&k!=='lose') VO.control(t,2); };
+const say=(k,n)=>{ const arr=LINES[k]; const t=arr[crnd(0,arr.length-1)].replace('{n}',n||''); log(`${HANDLER}: ${t}`,'sys'); if(k!=='start'&&k!=='win'&&k!=='winLoss'&&k!=='lose') VO.control(t,2); };
 
 /* Map legend: . floor  # wall  = half cover (crate)  O full cover (pillar)
    P player spawn  E evac tile  X relay (sabotage)  V captive (rescue)
@@ -1838,7 +1845,7 @@ const fireOk=()=>{ const m=MX(G.missionIdx); return FIRE_THEMES.has(m.theme||MIS
 function ignite(x,y,life){ if(cond()&&cond().aim) return false; if(!inb(x,y)||tile(x,y)!==T.FLOOR) return false; const occ=unitAt(x,y); if(occ&&isWall(occ)&&!isDrum(occ)) return false; G.fire=G.fire||new Map(); const k=key(x,y); const cur=G.fire.get(k); if(cur&&cur.life>=life) return false; G.fire.set(k,{life}); fxPuff(x,y,'#FF7A2A',0.5,500); return true; }
 function igniteAround(x,y){ if(!fireOk()) return 0; let n=0; for(let yy=y-1;yy<=y+1;yy++) for(let xx=x-1;xx<=x+1;xx++) if(ignite(xx,yy,FIRE_LIFE)) n++; if(n){ log(`The fuel catches — ${n} tile${n>1?'s':''} burning. It spreads.`,'aug'); if(!G.saidFire){ G.saidFire=true; say('fire'); } } return n; }
 function burnUnit(u,why){ if(!u.alive||u.side==='obj'&&!isDrum(u)) return; if(isDrum(u)){ log(`${u.name} is in the fire.`,'kill'); applyDamage(u,DRUM_HP,null,{ignoreArmor:true}); return; } fxText(u.x,u.y-0.3,'BURNING −'+FIRE_DMG,'#FF7A2A'); fxSpark(u.x,u.y,'#FF9A40',8,{speed:1,up:1.6,life:500,size:0.05}); log(`${u.name} ${why||'is burning'} — ${FIRE_DMG}.`,'hit'); applyDamage(u,FIRE_DMG,null,{ignoreArmor:true}); if(u.side==='player'&&u.alive) VO.bark(u,'hit',0.3); }
-async function spreadFire(){ if(!G.fire||!G.fire.size) return; const grow=[]; for(const [k,f] of G.fire){ if(f.life<2) continue; const [x,y]=k.split(',').map(Number); for(const d of DIRS){ const nx=x+d.x, ny=y+d.y; if(G.fire.has(key(nx,ny))) continue; if(Math.random()<FIRE_SPREAD) grow.push([nx,ny]); } }
+async function spreadFire(){ if(!G.fire||!G.fire.size) return; const grow=[]; for(const [k,f] of G.fire){ if(f.life<2) continue; const [x,y]=k.split(',').map(Number); for(const d of DIRS){ const nx=x+d.x, ny=y+d.y; if(G.fire.has(key(nx,ny))) continue; if(grand()<FIRE_SPREAD) grow.push([nx,ny]); } }
   let n=0; for(const [x,y] of grow) if(ignite(x,y,2)) n++; for(const [k,f] of [...G.fire]){ f.life--; if(f.life<=0){ G.fire.delete(k); const [x,y]=k.split(',').map(Number); fxSmoke(x,y,3); } }
   if(n) log(`The fire spreads — ${n} more tile${n>1?'s':''}.`,'sys'); if(n||G.fire.size) await wait(250); }
 function burnSide(side){ if(!G.fire||!G.fire.size) return; for(const u of G.units.filter(u=>u.alive&&(u.side===side||(side==='enemy'&&isDrum(u)))&&!u.carried&&fireAt(u))) burnUnit(u,'starts the turn in the fire'); }
@@ -1850,7 +1857,7 @@ function makeCaptive(x,y,name){ const u=makeUnit(VIP,'captive',x,y,name||NAMES.v
 function startMission(idx,op){
   const base=idx<0?SIDE:MISSIONS[idx]; G.perks=equippedPerks(); G.adapt=adaptFor(CAMP.doom,base.act); G.gen=genFor(base); MADJ=adjustMission(base,idx,G.perks,G.adapt); G.cond=MADJ.cond||null; G.perkUsed=new Set(); G.medevacUsed=false; G.smoke=null; G.boost=false;
   const m=MX(idx); G.missionIdx=idx; G.grid=[]; G.units=[]; G.turn=1; G.phase='player'; G.sel=null; G.mode='move'; G.fx=[]; G.over=false; G.busy=false;
-  G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.actcam=null; G.setups=new Map(); G.salvos=[]; G.saidSalvo=false; G.saidPressure=false; G.killedTypes=new Set(); G.elapsed=0; G.called=null; G.reinfDelay=0; G.fire=new Map(); G.saidFire=false; G.moments=new Map(); G.samplesEarned=0; G.saidCaptured=false; CAMP.inMission={idx,op:op||null,squad:G.squad.slice(),when:Date.now()}; CAMP.notice=null; saveCamp(); if(CAMP.mourn){ CAMP.mourn=null; saveCamp(); } G.stats={shots:0,hits:0,dmg:0,combos:0}; G.campApplied=false; G.timed=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
+  G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.actcam=null; G.setups=new Map(); G.salvos=[]; G.saidSalvo=false; G.saidPressure=false; G.killedTypes=new Set(); G.elapsed=0; GR.s=hashStr(`${CAMP.seed}:${idx}:${op||''}:${Date.now()}:${Math.random()}`)|0; G.called=null; G.reinfDelay=0; G.fire=new Map(); G.saidFire=false; G.moments=new Map(); G.samplesEarned=0; G.saidCaptured=false; CAMP.inMission={idx,op:op||null,squad:G.squad.slice(),when:Date.now()}; CAMP.notice=null; saveCamp(); if(CAMP.mourn){ CAMP.mourn=null; saveCamp(); } G.stats={shots:0,hits:0,dmg:0,combos:0}; G.campApplied=false; G.timed=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
   G.objState={relays:0,relaysTotal:0,freed:0,captivesTotal:0,shipped:false,holdCount:0,summons:0,evacOpen:!(m.evacAt||m.evacAfterHold)};
   const spawns=[]; let relayN=0, capN=0;
   const drums=drumSet(m);
@@ -2436,7 +2443,7 @@ async function shoot(a,d,opt={}){
   if(opt.reaction) Audio.reaction(a.x);
   fxTracer(a,d,atk?atk.color:'#FFB3AE',atk?atk.kind:'bullet'); if(atk&&atk.kind==='wave'){ fxRing(a.x,a.y,atk.color,0.7); shake(3); } if(a.melee) Audio.lunge(a.x); else Audio.shoot(a.x,atk?atk.sfx:kind); await wait(atk&&atk.kind==='wave'?260:200);
   const covTxt=h.flanked?' (flanked)':h.cover===2?' vs full cover':h.cover===1?' vs half cover':''; const mk=h.marked?' [marked]':'';
-  if(hit){ let dmg=rnd(a.dmg[0],a.dmg[1]); let crit=false; if(h.flanked){ dmg+=1; if(a.def.passiveKey==='hotshot') dmg+=1; const cc=d.hunker?0:(a.side==='player'?(F(a,'mAssassin')?1:0.25):((G.adapt||[]).includes('frenzy')?0.24:0.12)*diff().enemyCrit); if(Math.random()<cc){ crit=true; dmg+=a.side==='player'?2:1; } }
+  if(hit){ let dmg=rnd(a.dmg[0],a.dmg[1]); let crit=false; if(h.flanked){ dmg+=1; if(a.def.passiveKey==='hotshot') dmg+=1; const cc=d.hunker?0:(a.side==='player'?(F(a,'mAssassin')?1:0.25):((G.adapt||[]).includes('frenzy')?0.24:0.12)*diff().enemyCrit); if(grand()<cc){ crit=true; dmg+=a.side==='player'?2:1; } }
     const overp=a.side==='player'&&F(a,'mOverpressure')&&d.side==='enemy'&&(d.marked||d.stunned||d.exposed); if(overp){ dmg+=1; fxText(d.x,d.y-1.1,'OVERPRESSURE','#F2B33D'); }
     if(a.side==='player'&&G.boost) dmg+=1; if(opt.ambush){ dmg+=1; fxText(d.x,d.y-1.1,'AMBUSH','#F2B33D'); }
     if(crit){ Audio.crit(d.x); fxText(d.x,d.y-0.8,'CRIT','#FFD27A',true); freeze(110); flash('#FFD27A',0.35,80); log(`${a.name} CRITS ${d.name} for ${dmg} — ${h.chance}%${covTxt}${mk}.`,'hit'); } else { Audio.hit(d.x); log(`${a.name} hits ${d.name} for ${dmg} — ${h.chance}%${covTxt}${mk}.`,'hit'); }
@@ -3229,7 +3236,7 @@ function snapMission(extra){ const idOf=u=>u?u.id:null; const skip=new Set(['ani
   return Object.assign({v:1,idx:G.missionIdx,op:G.op,side,squad:G.squad.slice(),turn:G.turn,grid:G.grid,units,called:G.called,reinfDelay:G.reinfDelay||0,reinforced:G.reinforced||0,elapsed:G.elapsed||0,
     stats:G.stats,objState:G.objState,perkUsed:[...(G.perkUsed||[])],medevacUsed:!!G.medevacUsed,boost:!!G.boost,smoke:G.smoke?[...G.smoke]:null,evac:[...G.evac],hold:[...G.hold],
     fire:[...(G.fire||new Map())],salvos:(G.salvos||[]).map(sv=>({x:sv.x,y:sv.y,byId:idOf(sv.by),turn:sv.turn})),setups:[...(G.setups||new Map())].map(([k,v])=>[k,{byId:idOf(v.by),kind:v.kind,turn:v.turn}]),
-    moments:[...(G.moments||new Map())],killedTypes:[...(G.killedTypes||[])],samplesEarned:G.samplesEarned||0,fallen:G.fallen||[],when:Date.now()},extra||{}); }
+    moments:[...(G.moments||new Map())],killedTypes:[...(G.killedTypes||[])],samplesEarned:G.samplesEarned||0,fallen:G.fallen||[],rng:GR.s,when:Date.now()},extra||{}); }
 function saveMission(extra={}){ if(G.over||!G.units||!G.units.length||G.screen!=='game') return; try{ const prev=loadMissionSave(); const snap=snapMission(extra); const out={camp:CAMP.no,cur:snap,turn:(extra.turnStart||!prev||!prev.turn)?snap:prev.turn}; localStorage.setItem('mutie.mission',JSON.stringify(out)); }catch(e){} }
 function decorateSide(o){ SIDE=genMission(o.seed,o.tier,o.objective); SIDE.reward=o.reward||'index'; if(o.rescueCid){ SIDE.rescueCid=o.rescueCid; SIDE.captiveNames=[o.rescueName]; SIDE.name=`Bring ${o.rescueName} Home`; SIDE.brief=`${o.rescueName} is in a Coalition holding pen. Free them before the transport leaves, then get everyone to the evac zone.`; } }
 function resumeMission(slot='cur',{abandon=false}={}){ const S0=loadMissionSave(); if(!S0) return false; const S=S0[slot]||S0.cur; if(CAMP.mods.ironman&&slot!=='cur') return false;
@@ -3238,7 +3245,7 @@ function resumeMission(slot='cur',{abandon=false}={}){ const S0=loadMissionSave(
   for(const o of S.units){ const u=byId.get(o.id); u.carrying=o.carryingId?byId.get(o.carryingId)||null:null; u.taunt=o.tauntId?byId.get(o.tauntId)||null:null; }
   G.turn=S.turn; G.grid=S.grid; G.called=S.called; G.reinfDelay=S.reinfDelay; G.reinforced=S.reinforced; G.elapsed=S.elapsed; G.stats=S.stats; G.objState=S.objState; G.perkUsed=new Set(S.perkUsed); G.medevacUsed=S.medevacUsed; G.boost=S.boost; G.smoke=S.smoke?new Set(S.smoke):null;
   G.evac=new Set(S.evac); G.hold=new Set(S.hold); G.fire=new Map(S.fire); G.salvos=S.salvos.map(sv=>({x:sv.x,y:sv.y,by:byId.get(sv.byId)||{alive:false},turn:sv.turn})); G.setups=new Map(S.setups.map(([k,v])=>[k,{by:byId.get(v.byId),kind:v.kind,turn:v.turn}]).filter(([k,v])=>v.by));
-  G.moments=new Map(S.moments); G.killedTypes=new Set(S.killedTypes); G.samplesEarned=S.samplesEarned; G.fallen=S.fallen; G.undo=null; G.pov=null; G.povView='map'; G.sel=null; G.phase='player';
+  if(S.rng!=null) GR.s=S.rng; G.moments=new Map(S.moments); G.killedTypes=new Set(S.killedTypes); G.samplesEarned=S.samplesEarned; G.fallen=S.fallen; G.undo=null; G.pov=null; G.povView='map'; G.sel=null; G.phase='player';
   $('i-sub')&&($('i-sub').textContent=abandon?'Pulling out…':`Resuming · turn ${S.turn}`);
   log(`Resumed — turn ${S.turn}${slot==='turn'?' (restarted from the start of the turn)':''}.`,'sys');
   if(abandon){ if(G.introEnd) G.introEnd(); finish(false,'Mission abandoned. The squad pulled out.'); return true; }
@@ -3435,7 +3442,7 @@ async function enemyAct(e){
 
 /* ---------- Finish ---------- */
 function finish(win,reason){
-  G.over=true; G.busy=true; clearMissionSave(); renderSide();
+  G.over=true; G.busy=true; clearMissionSave(); renderSide(); setTimeout(()=>{ if(G.over) GR.s=null; },2000);
   setTimeout(()=>{
     const r=$('result'); r.className='result '+(win?'victory':'defeat');
     const m=MX(G.missionIdx);

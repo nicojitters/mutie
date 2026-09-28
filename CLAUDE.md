@@ -647,6 +647,31 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   elites ×2. Shown in the index bar and briefing.
 - `test44.mjs` covers all of it (2D renderer); `shot44.mjs` screenshots the elite badge, the report and the hub.
 
+## Decisions over compulsion (2026-09-28, Cameron's caveat: loops bring players back, decisions make it worth it)
+- **Decision log** (localStorage `mutie.telemetry`, cap 4000 rows, never leaves the browser). `tlmStart(u,mode,target)` runs where an
+  action is about to commit (`performAt` after the touch gate; `setMode` for stabilize/carry/hunker/overwatch/perks) and records the
+  alternatives from `tlmAlts(u)`: shots in range and best odds, flank/kill available, power ready, reachable and *safe* tiles, exposure
+  where the unit stood. `tlmCommit(u)` (top of `afterAction`, plus the perks that skip it) writes the row: kind (move/dash/shoot/power/
+  ow/hunker…), target odds and whether it was flanked, think time (idle ms since the previous commit or turn start — animations excluded),
+  where it ended (exposure after a move) and the preview surfaces seen since the previous action (`surf(k)` stamps in the renderer
+  and hint code: exposure, movetint, threatzone, owzone, flanktiles, blastpreview, breakdown, tooltip, wake, salvo, pov). `tlmEvent`
+  logs end-turn (actions left) and undo. `telemetrySummary()` → action mix per family, best-odds-picked %, flank taken when offered,
+  moves ending exposed while a safe tile existed, overwatch/hunker with a ≥50% shot available, early end turns, think medians, surface
+  use rates, longest thinks. Hub: Commander record note → Download (JSON with summary + rows) / Clear. `test45.mjs`.
+- **Strategy probes** (`STRAT=engage|turtle|creep|rush node sim.mjs …`; `stalled` counts missions that hit the loop guard). Findings,
+  6 runs each: M1 engage 6/6 (4.8 turns) · creep 6/6 (6.0, safer, slower — Swift pays for speed) · rush 4/6 · turtle 0/4 (overrun in
+  ~23 turns). M4 all 0–1/6 (bot vs armor, as before) — turtle 0/6. M2 engage 4/6 · creep 3/6 · rush 0/6. M9 engage 3/6 · creep 1/6 ·
+  rush 0/6 · **turtle stalled 6/6 with nobody hurt** — the one degenerate line: a squad that never finds Voss never wakes her pod, and
+  the boss map has no reinforcement clock. Fixed: `BOSS_FINDS=5` — at the top of the Coalition phase from turn 5 her pod wakes and
+  scampers (Control `bossHunt`, banner, turnline/briefing say so); and after three quick grafts she keeps grafting one Husk every
+  other turn while she stands (enemy desc updated). Cover matters (rush loses everywhere) and waiting is punished everywhere else.
+- **Complexity budget — Board detail: Lean (default) / Full** (`SETTINGS.detail`, How-to-play header button, key D). Lean: label
+  badges sorted by decision weight (downed · flanked · stunned · exposed · marked · elite · OW · hunkered · jammed · drained · pinned ·
+  taunted · carrying · shield · braced · shred · +aim), at most `BADGE_CAP=2` plus a "+N" chip; Unaware (the dim figure says it) and
+  the Surgeon's name badge are dropped; cover shields only on the selected mutant, the hovered unit and the POV target; map hit labels
+  read "72%" + one tag (KILLS, else FLANKED, else MAY KILL) — damage range and breakdown stay on the POV card and the hover hint. Full
+  is the old board. Nothing about the math changed; every number is still one hover or card away. `test46.mjs`.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with
@@ -692,7 +717,7 @@ a per-browser convenience, not a save system (Phase 8 still owns real persistenc
   Passive keys read in code: overcharge (Blast kill refunds a charge), hotshot, steady, dense, anchor, regen, slippery, momentum, aegis, fieldmedic, triage.
 - `ENEMY` — Trooper, Sprinter, Juggernaut (stat roles), Marksman (overwatch lane) + verb enemies: Spotter `mark`, Bulwark `wall`,
   Jammer `jam`, Siphon `drain` (−1 action next turn), Husk `phase` (teleport move, ignores overwatch, flanks), Grenadier `salvo`, The Surgeon
-  `command` (boss: +1 armor aura, grafts up to 3 Husks from 2 turns after she wakes). `aug` tags drive the threat file.
+  `command` (boss: +1 armor aura, grafts three Husks from 2 turns after she wakes, then one every other turn; her pod wakes on its own at `BOSS_FINDS`=5). `aug` tags drive the threat file.
 - `VIP` — the unarmed captive (Wren) for Rescue missions; side flips `captive` → `player` when freed.
 - Relays are units with `side:'obj'` (100% hit, block movement, not LOS).
 - `MISSIONS` — hand-built maps as string arrays. Legend: `.` floor, `#` wall, `=` half cover, `O` full cover,

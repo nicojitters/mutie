@@ -306,6 +306,7 @@ canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;curso
 .field-foot .hint .tip i{font-style:normal;color:var(--aug)}
 .field-foot .hint .risk{font-style:normal;color:var(--danger)} .field-foot .hint .risk b{color:var(--danger)}
 .field-foot .hint .safe{font-style:normal;color:var(--heal)} .field-foot .hint .warn{font-style:normal;color:var(--gold-hot)}
+.field-foot .hint .gold{font-style:normal;color:var(--focus)} .field-foot .hint .gold b{color:var(--focus)} .field-foot .hint b.k{color:var(--danger)}
 .field-foot .hint .tap{color:var(--gold-hot);font-family:var(--font-display);font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-left:4px}
 
 .side{display:flex;flex-direction:column;gap:10px}
@@ -755,6 +756,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <p><b>Read the number.</b> Hover a hostile to see your hit chance and why. Half cover −20, full cover −40. <b>Set shot</b>: +10 if that mutant hasn't moved this turn. <b>Focus</b>: a miss adds +10 to that mutant's next shot (it stacks to +20; more on Scout, none on Graft) until they hit — the game never fudges a roll in secret, it tells you the odds it is rolling. A shot the math calls 100 is 100. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
         <p><b>Cover has a side.</b> Shield icons show which direction a unit is protected from. Bright shields protect against the unit you've selected.</p>
         <p><b>Combos.</b> Set a hostile up and let a different mutant finish it: <b>Exposed</b> (thrown out of cover by a Concussive Burst, or its crate wrecked by a Blast or a drum) means no cover against anyone until your next turn; <b>Shredded</b> means Smash or Blast stripped armor for good; <b>Stunned</b> hostiles are +30 to hit. Smash or Phase Strike on a stunned or exposed target is an <b>Execute</b> (+2). Pins and taunts count as setups too. A finish by someone other than the setter is a COMBO — +1 XP to both.</p>
+<p><b>Each family sees the board its own way.</b> A Blaster hovering a Blast tile reads what it would do (hits · kills · wrecks · exposes). A Phaser in Blink sees gold tiles — the ones that flank their target. A Mender's ally strip shows who is in danger right now and what the power leaves them at. A Bruiser's Smash card says when it shreds armor or executes.</p>
         <p><b>Fuel drums</b> (the ones with the hazard band) are full cover for anyone — until someone shoots one. Any hit sets it off: 4 damage to everything beside it, armor ignored, crates wrecked, neighbouring drums chain. Bait a pod behind one, or don't stand next to one yourself.</p>
         <p><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it. <b>Hunker</b> is the other way to spend a turn you can't shoot well: −20 to be hit and no crits against you until your next turn. A 30% shot, overwatch, hunker, or a move — all four are real answers.</p>
         <p><b>Hostiles start unaware.</b> They wake in groups when a mutant comes within seven tiles in view, or fires on them. Hover a move tile to see who it would wake, and every awake hostile that could hit you there shows its odds against you. Pick your fights, and your tiles.</p>
@@ -1573,6 +1575,34 @@ function exposureHtml(u,p){ const x=exposureAt(u,p); const awake=alive('enemy').
 /* Where Phase Strike puts you: the nearest open orthogonal tile beside the target (same rule the strike uses). */
 function landingSpot(u,target){ let spot=null,bd=1e9; for(const d of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){ const x=target.x+d.x,y=target.y+d.y; if(inb(x,y)&&!solid(x,y)&&!unitAt(x,y)){ const dd=dist(u,{x,y}); if(dd<bd){bd=dd;spot={x,y};} } } return spot; }
 const blinkOk=(u,p)=>p&&!solid(p.x,p.y)&&!unitAt(p.x,p.y)&&dist(u,p)<=u.def.ability.range+0.01;
+/* ---------- Family sight lines: each family's power answers its own question before you commit ----------
+   Blaster: what a Pulse Blast at p does — victims, kills, wrecked crates, exposures — from the same rules the blast applies. */
+function blastPreview(u,p){ const BR=F(u,'blastRadius')||1, BD=F(u,'blastDmg')||3; const inA=v=>Math.abs(v.x-p.x)<=BR&&Math.abs(v.y-p.y)<=BR;
+  const victims=G.units.filter(v=>v.alive&&v.side!=='captive'&&inA(v)); const enemies=victims.filter(v=>v.side==='enemy'), allies=victims.filter(v=>v.side==='player');
+  const dead=v=>v.hp<=Math.max(0,BD-(v.shield||0)); const kills=enemies.filter(dead); const drums=victims.filter(v=>isDrumDef(v));
+  const wrecked=[]; for(let y=p.y-BR;y<=p.y+BR;y++) for(let x=p.x-BR;x<=p.x+BR;x++) if(tile(x,y)===T.HALF) wrecked.push({x,y});
+  const exposes=alive('enemy').filter(e=>!e.exposed&&!kills.includes(e)&&wrecked.some(t=>cheb(t,e)<=1)); const shreds=enemies.filter(e=>!dead(e)&&e.armor>0);
+  return {victims,enemies,allies,kills,drums,crates:wrecked.length,exposes,shreds,dmg:BD}; }
+function blastHtml(u,p){ const b=blastPreview(u,p); const parts=[];
+  parts.push(b.enemies.length?`hits <b>${b.enemies.length}</b> hostile${b.enemies.length>1?'s':''}`:'hits nothing hostile'); if(b.kills.length) parts.push(`<b class="k">kills ${b.kills.length}</b>`);
+  if(b.shreds.length) parts.push(`shreds ${b.shreds.length}`); if(b.crates) parts.push(`wrecks ${b.crates} crate${b.crates>1?'s':''}`); if(b.exposes.length) parts.push(`<b>exposes ${b.exposes.length}</b>`); if(b.drums.length) parts.push(`<i class="risk">sets off ${b.drums.length} drum${b.drums.length>1?'s':''}</i>`);
+  const ally=b.allies.length?` <i class="risk">Catches ${b.allies.map(a=>a.name).join(' and ')} — ${b.dmg} to them too.</i>`:'';
+  return `<b>Pulse Blast</b> here — ${parts.join(' · ')}.${ally}`; }
+/* Phaser: the hostile Blink is measured against (the POV target, else the nearest awake foe) and every open tile within reach
+   from which a shot at it would be a flank. Drawn gold in blink mode. */
+function blinkRef(u){ if(G.pov&&G.pov.unit===u&&G.pov.target&&G.pov.target.side==='enemy'&&G.pov.target.alive) return G.pov.target; return alive('enemy').filter(e=>e.alert).sort((a,b)=>dist(u,a)-dist(u,b))[0]||alive('enemy').sort((a,b)=>dist(u,a)-dist(u,b))[0]||null; }
+let FK={key:null,val:null};
+function flankTiles(u){ const t=blinkRef(u); if(!t) return {t,set:new Set()}; const sig=`${G.turn}|${u.id}|${u.x},${u.y}|${t.id}|${t.x},${t.y}|`+G.units.filter(w=>w.alive).map(w=>w.x+','+w.y).join(';')+'|'+G.grid.map(r=>r.join('')).join(''); if(FK.key===sig) return FK.val;
+  const set=new Set(); for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ const p={x,y}; if(!blinkOk(u,p)) continue; const probe=Object.assign({},u,{x,y}); if(!inRange(probe,t)) continue; const h=hitChance(probe,t); if(h.flanked) set.add(key(x,y)); }
+  FK={key:sig,val:{t,set}}; return FK.val; }
+function flankNote(u,p,ft){ ft=ft||flankTiles(u); if(!ft.t) return ''; const probe=Object.assign({},u,{x:p.x,y:p.y}); if(ft.set.has(key(p.x,p.y))){ const h=hitChance(probe,ft.t); return ` <i class="gold"><b>Flanks ${ft.t.def.name}</b> — ${h.chance}% from there.</i>`; }
+  if(inRange(probe,ft.t)){ const h=hitChance(probe,ft.t); return ` Shot at ${ft.t.def.name} from there: ${h.chance}%${h.cover===2?' vs full cover':h.cover===1?' vs half cover':''}.`; } return ''; }
+/* Mender: what the power leaves the ally at, in one phrase, from the same numbers the power applies. */
+function allyResult(u,mode,a){ if(a.downed) return mode==='mend'?'revive → 4 HP':mode==='ward'?`revive → 1 HP + ${F(u,'wardAmt')||4} shield`:'revive → 3 HP';
+  if(mode==='mend'){ const h=Math.min(F(u,'mendAmt')||5,a.maxHp-a.hp); const bits=[]; if(h>0) bits.push(`→ ${a.hp+h}/${a.maxHp}`); if(a.marked) bits.push('clears mark'); if(a.drained||a.drainedNow) bits.push('restores action'); return bits.join(' · '); }
+  if(mode==='ward'){ const WA=F(u,'wardAmt')||4; const bits=[a.shield>=WA?`shield stays ${a.shield}`:`+${WA} shield`]; if(a.marked||a.drained||a.drainedNow) bits.push('clears'); return bits.join(' · '); }
+  if(mode==='stim'){ const bits=[a.ap<2?'+1 action':'no action to give']; if(a.def.ability&&a.def.ability.key==='blast'){ if((a.charges||0)<(a.chargesMax||3)) bits.push('+1 charge'); } else if(a.cd>0) bits.push(F(u,'stimReset')?'power ready':`cooldown −1`); if(F(u,'stimHeal')&&a.hp<a.maxHp) bits.push(`+${Math.min(F(u,'stimHeal'),a.maxHp-a.hp)} HP`); return bits.join(' · '); }
+  return ''; }
 /* The tile whose exposure the current mode is really asking about: the hovered move tile, the hovered Blink tile, or the landing
    spot beside a hovered / POV-targeted Phase Strike victim. */
 function previewTile(u,hover){ const m=G.mode; if(!u) return null;
@@ -1933,7 +1963,8 @@ function armHint(u,p,target,hostile){ const again='<span class="tap">Tap again t
     return `${moveHint(u,p,n,r)} ${again}`; }
   const ab=u.def.ability; const name=G.mode==='setdown'?'Set down':G.mode.startsWith('perk:')?(PERKS[G.mode.slice(5)]||{}).name||'Perk':(ab&&ab.key===G.mode?ab.name:G.mode);
   const pt=(G.mode==='blink'||G.mode==='phasestrike')?previewTile(u,p):null;
-  return `<b>${name}</b>${target?` on ${target.name}`:' here'}.${pt?' '+(G.mode==='phasestrike'?'On landing: ':'')+exposureHtml(u,pt):''} ${again}`; }
+  if(G.mode==='blast'&&dist(u,p)<=u.def.ability.range+0.01) return `${blastHtml(u,p)} ${again}`;
+  return `<b>${name}</b>${target?` on ${target.name}`:' here'}.${G.mode==='blink'&&pt?flankNote(u,pt):''}${pt?' '+(G.mode==='phasestrike'?'On landing: ':'')+exposureHtml(u,pt):''} ${again}`; }
 /* ---------- POV: over-the-shoulder targeting ----------
    Selecting a mutant drops the camera behind them (G.povView='pov') with a strip of targets sorted by hit chance (G.pov.list).
    Enemy strip: shootable first by %, then the rest greyed as info. Ally strip (Mend/Ward/Stim): valid first, then by distance.
@@ -1946,7 +1977,8 @@ function povEnemyOk(u,e,mode){ mode=mode||'shoot'; if(mode==='smash') return dis
 function povAllyOk(u,a,mode){ if(mode==='mend') return dist(u,a)<=u.def.ability.range+0.01&&(a.downed||a.hp<a.maxHp||a.marked||a.drained||a.drainedNow); if(mode==='ward') return !a.downed?dist(u,a)<=5.01:dist(u,a)<=5.01; if(mode==='stim') return a!==u&&!a.def.noAttack&&dist(u,a)<=4.01; return false; }
 function povMode(kind){ return kind==='ally'?G.mode:(TARGETED[G.mode]==='enemy'?G.mode:'shoot'); }
 function povTargets(u,kind,mode){
-  if(kind==='ally') return alive('player').filter(a=>a!==u&&!a.def.decoy&&!a.carried).map(a=>({u:a,ok:povAllyOk(u,a,mode),d:dist(u,a)})).sort((a,b)=>(b.ok-a.ok)||(a.d-b.d));
+  // allies: valid first, then by need — downed, then most exposed where they stand, then lowest HP — so the one in trouble is the default
+  if(kind==='ally') return alive('player').filter(a=>a!==u&&!a.def.decoy&&!a.carried).map(a=>({u:a,ok:povAllyOk(u,a,mode),d:dist(u,a),need:(a.downed?1000:0)+(a.downed?0:exposureAt(a,a).best)+(1-a.hp/a.maxHp)*40})).sort((a,b)=>(b.ok-a.ok)||(a.ok?(b.need-a.need):(a.d-b.d)));
   // shootable hostiles first by hit chance, then shootable relays, then drums (never the default target), then everything else by distance
   const tier=e=>e.side==='enemy'?0:isDrumDef(e)?2:1;
   return G.units.filter(e=>e.alive&&(e.side==='enemy'||e.side==='obj')).map(e=>({u:e,ok:povEnemyOk(u,e,mode),h:hitChance(u,e),d:dist(u,e)})).sort((a,b)=>(b.ok-a.ok)||(a.ok?((tier(a.u)-tier(b.u))||(b.h.chance-a.h.chance)):(a.d-b.d))); }
@@ -1976,7 +2008,10 @@ function renderPov(){
       const pct=it.ok?`<span class="tc-pct ${h.chance>=65?'hi':h.chance>=40?'':'lo'}">${h.chance}%</span>`:`<span class="tc-pct dim">—</span>`;
       b.innerHTML=`<div class="tc-top"><span class="tc-name">${t.side==='obj'?t.name:t.def.name}${t.def.boss?' <i class="boss">boss</i>':''}</span>${pct}</div><div class="tc-hp"><i class="${hpcls}" style="width:${Math.round(frac*100)}%"></i></div>${dmgLine}<div class="tc-meta">${meta.join(' · ')||'&nbsp;'}</div>${why}`; }
     else { const st=t.downed?`<i class="mk">${t.stabilized?'stable':'bleeding '+t.bleed}</i>`:[t.marked?'<i class="mk">marked</i>':'',(t.drained||t.drainedNow)?'drained':'',t.hp<t.maxHp?`${t.hp}/${t.maxHp} HP`:'full HP',t.shield?`shield ${t.shield}`:''].filter(Boolean).join(' · ');
-      b.innerHTML=`<div class="tc-top"><span class="tc-name">${t.name}</span><span class="tc-pct ${it.ok?'hi':'dim'}">${it.ok?'OK':'—'}</span></div><div class="tc-hp"><i class="${hpcls}" style="width:${Math.round(frac*100)}%"></i></div><div class="tc-meta">${st||(it.ok?'':'out of reach')}</div>`; }
+      // the mender's way of seeing: who is in danger (exposure where they stand) and what the power leaves them at
+      const x=t.downed?null:exposureAt(t,t); const danger=x?(x.n?`<i class="${x.best>=50||x.flanked?'mk':'ar'}">${x.n} can hit · ${x.best}%${x.flanked?' · FLANKED':''}</i>`:'<i class="fl">safe now</i>'):'';
+      const res=it.ok?allyResult(u,mode,t):''; const dmgLine=res?`<div class="tc-dmg">${res}</div>`:'';
+      b.innerHTML=`<div class="tc-top"><span class="tc-name">${t.name}</span><span class="tc-pct ${it.ok?'hi':'dim'}">${it.ok?'OK':'—'}</span></div><div class="tc-hp"><i class="${hpcls}" style="width:${Math.round(frac*100)}%"></i></div>${dmgLine}<div class="tc-meta">${[st,danger].filter(Boolean).join(' · ')||(it.ok?'':'out of reach')}</div>`; }
     b.onclick=()=>{ if(i===pv.idx){ povGo(); } else { pv.idx=i; pv.target=t; G.armed=null; Audio.select(); renderSide(); setHint(); } }; strip.appendChild(b); });
   const onEl=strip.children[pv.idx]; if(onEl&&onEl.offsetWidth){ strip.scrollLeft=Math.max(0,onEl.offsetLeft-(strip.clientWidth-onEl.offsetWidth)/2); }
   const go=$('pov-go'); const it=pv.list[pv.idx]; const can=G.phase==='player'&&!G.busy&&u.ap>0; const t=it&&it.u;
@@ -2014,14 +2049,15 @@ function setHint(t){
   if(u.ap<=0){ h.textContent=`${u.name} is out of actions. Select another unit or end the turn.`; return; }
   const m=G.mode;
   if(G.povView==='pov'&&G.pov&&G.pov.unit===u&&G.pov.target&&!TILE_MODES.includes(m)&&m!=='setdown'){ const pv=G.pov, t=pv.target, it=pv.list[pv.idx]; const nm=t.side==='obj'?t.name:t.side==='player'?t.name:t.def.name; const nav=pv.list.length>1?(G.touch?' Swipe or use ‹ › for other targets.':' ← → cycle targets.'):'';
-    if(pv.kind==='ally'){ h.innerHTML=`<b>${u.def.ability.name}</b> on <b>${nm}</b>${it.ok?'':' — not valid right now'}.${nav} <b>Move</b> pulls back to the map.`; return; }
+    if(pv.kind==='ally'){ const res=it.ok?allyResult(u,m,t):''; const x=t.downed?null:exposureAt(t,t); const dg=x?(x.n?` <i class="${x.best>=50||x.flanked?'risk':'warn'}">${x.n} hostile${x.n>1?'s':''} can hit ${t.name} where they stand — best ${x.best}%${x.flanked?' · FLANKED':''}.</i>`:` <i class="safe">${t.name} is safe where they stand.</i>`):'';
+      h.innerHTML=`<b>${u.def.ability.name}</b> on <b>${nm}</b>${it.ok?(res?` — ${res}`:''):' — not valid right now'}.${dg}${nav} <b>Move</b> pulls back to the map.`; return; }
     if(TARGETED[m]==='enemy'){ const sp=(m==='phasestrike'&&it.ok)?landingSpot(u,t):null; h.innerHTML=`<b>${u.def.ability.name}</b> → <b>${nm}</b>${it.ok?'':' — out of reach'}.${sp?' On landing: '+exposureHtml(u,sp):''}${nav}`; return; }
     if(it.ok){ const si=t.side==='obj'?null:shotInfo(u,t); const kt=si?killTag(si):''; h.innerHTML=`<b>${nm}</b> — <b>${it.h.chance}%</b>${it.h.flanked?' flanked':it.h.cover===2?' vs full cover':it.h.cover===1?' vs half cover':''}, ${si?(si.lo===si.hi?si.lo:si.lo+'–'+si.hi):u.dmg[0]+'–'+u.dmg[1]} dmg${si&&si.armor?' after '+si.armor+' armor':''}${kt?` — <b>${kt.toLowerCase()}</b>`:''}.${it.h.parts&&it.h.parts.length>1?` <span class="why">${fmtParts(it.h)}</span>`:''}${t.side==='enemy'&&!t.alert?' Firing wakes their pod.':''}${nav}`; } else h.innerHTML=`<b>${nm}</b> — no shot from here.${nav} <b>Move</b> to reposition.`; return; }
   if(m==='move'){ const p=G.hover; if(p&&!unitAt(p.x,p.y)){ const r=reachable(u,u.move*u.ap); const n=r.get(key(p.x,p.y)); if(n){ h.innerHTML=moveHint(u,p,n,r); return; } } h.innerHTML=G.touch?`<b>Move</b> — tap a highlighted tile to preview it (who wakes, who could hit you there), tap again to go.`:`<b>Move</b> — click a highlighted tile. Bright = 1 action, dim = dash (both actions). Hover a tile to see who could hit you there.`; }
   else if(m==='shoot') h.innerHTML=`<b>${(u.def.attack&&u.def.attack.name)||'Fire'}</b> — click a hostile or a relay. Hover to see hit chance.`;
-  else if(m==='blast') h.innerHTML=`<b>Pulse Blast</b> — click a target tile within 5. Hits everything in the 3×3, allies included. Wrecks crates.`;
+  else if(m==='blast'){ const p=G.hover; if(p&&dist(u,p)<=u.def.ability.range+0.01) h.innerHTML=blastHtml(u,p); else h.innerHTML=`<b>Pulse Blast</b> — click a target tile within 5. Hits everything in the 3×3, allies included. Wrecks crates and exposes whoever was hiding behind them. Hover a tile to see what it would do.`; }
   else if(m==='smash') h.innerHTML=`<b>Seismic Smash</b> — click an adjacent hostile.`;
-  else if(m==='blink'){ const p=G.hover; if(blinkOk(u,p)) h.innerHTML=`<b>Blink</b> here — 1 action, you can still shoot. ${exposureHtml(u,p)}`; else h.innerHTML=`<b>Blink</b> — click any open tile within 6. No line of sight needed. Hover a tile to see who could hit you there.`; }
+  else if(m==='blink'){ const p=G.hover; const ft=flankTiles(u); if(blinkOk(u,p)) h.innerHTML=`<b>Blink</b> here — 1 action, you can still shoot.${flankNote(u,p,ft)} ${exposureHtml(u,p)}`; else h.innerHTML=`<b>Blink</b> — click any open tile within 6. No line of sight needed.${ft.t&&ft.set.size?` <i class="gold">Gold tiles flank ${ft.t.def.name}.</i>`:ft.t?` No tile in reach flanks ${ft.t.def.name}.`:''} Hover a tile to see who could hit you there.`; }
   else if(m==='mend') h.innerHTML=`<b>Mend</b> — click a wounded or marked ally within 5.`;
   else if(m==='concuss') h.innerHTML=`<b>Concussive Burst</b> — click a hostile in view within 6. Knocks them back and breaks overwatch.`;
   else if(m==='suppress') h.innerHTML=`<b>Suppressing Arc</b> — fires on every hostile in view within 4. Click anywhere on the map to confirm.`;
@@ -2759,7 +2795,7 @@ const R3 = (()=>{
         for(const nd_ of r.values()){ const th=tm?(tm.get(key(nd_.x,nd_.y))||0):0; const dash=nd_.c>sel.move; put(nd_.x,nd_.y,th===0?(dash?'#1E5F70':'#3FC1E3'):th<=2?(dash?'#6E4E1C':'#E0A040'):(dash?'#6E2A26':'#FF6B62'),0); }
         if(G.hover&&r.has(key(G.hover.x,G.hover.y))){ const pth=pathTo(r,G.hover.x,G.hover.y); let prev=W(sel.x,sel.y,0.06); for(const s of pth){ const nx=W(s.x,s.y,0.06); const segLen=prev.distanceTo(nx); const steps=Math.max(1,Math.round(segLen/0.34)); for(let i=1;i<=steps&&nd<96;i++){ const pt=prev.clone().lerp(nx,i/steps); m4.compose(pt,q,dsc); pathDots.setMatrixAt(nd,m4); nd++; } prev=nx; }
           for(const e of alive('enemy')){ if(!e.alert&&dist(G.hover,e)<=SIGHT+0.01&&hasLOS(G.hover,e)){ const pl=pctFor('wake'+e.id); const pp=project(e.x,e.y,1.6); pl.el.className='pct lo'; if(pl.html!=='WILL SEE YOU'){ pl.el.innerHTML='WILL SEE YOU'; pl.html='WILL SEE YOU'; } pl.el.style.left=pp.x+'px'; pl.el.style.top=pp.y+'px'; } } } }
-      else if(G.mode==='blast'||G.mode==='blink'){ const R=sel.def.ability.range; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ if(dist(sel,{x,y})<=R+0.01&&(G.mode==='blast'||(!solid(x,y)&&!unitAt(x,y)))) put(x,y,G.mode==='blast'?'#8a6a2a':'#6a4fa0',0); }
+      else if(G.mode==='blast'||G.mode==='blink'){ const R=sel.def.ability.range; const FT=G.mode==='blink'?flankTiles(sel).set:null; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ if(dist(sel,{x,y})<=R+0.01&&(G.mode==='blast'||(!solid(x,y)&&!unitAt(x,y)))){ const fl=FT&&FT.has(key(x,y)); put(x,y,G.mode==='blast'?'#8a6a2a':fl?'#F2B33D':'#6a4fa0',fl?1:0); } }
         if(G.mode==='blast'&&G.hover&&dist(sel,G.hover)<=R+0.01){ const BR=F(sel,'blastRadius')||1; for(let y=G.hover.y-BR;y<=G.hover.y+BR;y++) for(let x=G.hover.x-BR;x<=G.hover.x+BR;x++) if(inb(x,y)) put(x,y,'#F2B33D',2); } }
       else if(G.mode==='mend'){ for(const p of alive('player')){ if(p!==sel&&!p.carried&&dist(sel,p)<=5.01&&(p.downed||p.hp<p.maxHp||p.marked||p.drained||p.drainedNow)) put(p.x,p.y,'#5CD68A',1); } }
       else if(G.mode==='setdown'){ for(const d of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1},{x:1,y:1},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1}]){ const x=sel.x+d.x,y=sel.y+d.y; if(inb(x,y)&&!solid(x,y)&&!unitAt(x,y)) put(x,y,'#3FC1E3',1); } }
@@ -3103,7 +3139,7 @@ function draw(){
   if(sel&&sel.alive&&playerPhase&&sel.ap>0){
     if(G.mode==='move'){ const r=reachable(sel,sel.move*sel.ap); for(const n of r.values()){ ctx.fillStyle=n.c<=sel.move?'rgba(63,193,227,0.26)':'rgba(63,193,227,0.10)'; ctx.fillRect(n.x*TILE+2,n.y*TILE+2,TILE-4,TILE-4); ctx.strokeStyle=n.c<=sel.move?'rgba(63,193,227,0.55)':'rgba(63,193,227,0.22)'; ctx.lineWidth=1; ctx.strokeRect(n.x*TILE+2.5,n.y*TILE+2.5,TILE-5,TILE-5); }
       if(G.hover&&r.has(key(G.hover.x,G.hover.y))){ const p=pathTo(r,G.hover.x,G.hover.y); ctx.strokeStyle='rgba(63,193,227,0.8)'; ctx.lineWidth=2; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(sel.x*TILE+TILE/2,sel.y*TILE+TILE/2); for(const q of p) ctx.lineTo(q.x*TILE+TILE/2,q.y*TILE+TILE/2); ctx.stroke(); ctx.setLineDash([]); } }
-    else if(G.mode==='blast'||G.mode==='blink'){ const R=sel.def.ability.range; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ if(dist(sel,{x,y})<=R+0.01&&(G.mode==='blast'||(!solid(x,y)&&!unitAt(x,y)))){ ctx.fillStyle=G.mode==='blast'?'rgba(242,179,61,0.12)':'rgba(181,140,240,0.14)'; ctx.fillRect(x*TILE+2,y*TILE+2,TILE-4,TILE-4); } }
+    else if(G.mode==='blast'||G.mode==='blink'){ const R=sel.def.ability.range; const FT=G.mode==='blink'?flankTiles(sel).set:null; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ if(dist(sel,{x,y})<=R+0.01&&(G.mode==='blast'||(!solid(x,y)&&!unitAt(x,y)))){ const fl=FT&&FT.has(key(x,y)); ctx.fillStyle=G.mode==='blast'?'rgba(242,179,61,0.12)':fl?'rgba(242,179,61,0.3)':'rgba(181,140,240,0.14)'; ctx.fillRect(x*TILE+2,y*TILE+2,TILE-4,TILE-4); } }
       if(G.mode==='blast'&&G.hover&&dist(sel,G.hover)<=R+0.01){ const BR=F(sel,'blastRadius')||1, W=BR*2+1; ctx.fillStyle='rgba(242,179,61,0.3)'; ctx.fillRect((G.hover.x-BR)*TILE,(G.hover.y-BR)*TILE,TILE*W,TILE*W); ctx.strokeStyle='#F2B33D'; ctx.lineWidth=2; ctx.strokeRect((G.hover.x-BR)*TILE+1,(G.hover.y-BR)*TILE+1,TILE*W-2,TILE*W-2); } }
     else if(G.mode==='mend'){ for(const p of alive('player')){ if(p!==sel&&dist(sel,p)<=5.01&&(p.hp<p.maxHp||p.marked||p.drained||p.drainedNow)){ ctx.strokeStyle='#5CD68A'; ctx.lineWidth=2; ctx.strokeRect(p.x*TILE+3,p.y*TILE+3,TILE-6,TILE-6); } } }
     else if(G.mode==='smash'){ for(const e of G.units.filter(u=>u.alive&&(u.side==='enemy'||u.side==='obj'))){ if(dist(sel,e)<1.5){ ctx.strokeStyle='#E08A3C'; ctx.lineWidth=2; ctx.strokeRect(e.x*TILE+3,e.y*TILE+3,TILE-6,TILE-6); } } }
@@ -3168,5 +3204,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,threatAfterMove,threatMoveAt,pathThreats,threatZone,anim,fxTracer,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
+window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,blastPreview,flankTiles,allyResult,threatAfterMove,threatMoveAt,pathThreats,threatZone,anim,fxTracer,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

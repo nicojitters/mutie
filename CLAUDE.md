@@ -373,6 +373,30 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   difficulty text. Sims after the pass (naive bot, 8 runs): M1 8/8 · M2 5/8 · M3 7/8; M4 still 0 (armor, as always for the bot).
   `test30.mjs` covers set shot, focus, the cap and the luck line.
 
+## Unit identity & synergy pass (2026-09-27, Cameron's brief: combos are the dopamine; each family sees the board its own way)
+- **Combo vocabulary** — four states any family can create and any other can cash in, all read by the same `hitChance`/`powerInfo`
+  the roll uses: `expose(target,by,why)` (`target.exposed`: no cover, counts as flanked, cleared at the Coalition reset — set by a
+  Concuss knockback that actually moved them, or by `exposeByWreck(tiles,by)` when a Blast/drum wrecks a crate someone was
+  hugging); `shred(target,by)` (armor −1 for good, `target.shredded` counts it — every armor-ignoring hit from a player: Smash,
+  Blast); **stunned +30** to hit; **Execute** — Smash / Phase Strike on a stunned or exposed target is +2 (`powerInfo().exec`,
+  `EXECUTE` on the card and in float text). Suppress (`pinned`) and Rally's taunt (`pulled`) register as setups too.
+- **Recognition.** `setup(target,by,kind)` records the last setter per enemy in `G.setups`; `killUnit` fires `combo(by,fin,target,
+  kind)` when the killer is a different living mutant and the setup is from this or last turn: hit-stop, gold "COMBO · A → B"
+  float, `Audio.win`, flash, `LINES.combo`, `+1 XP each` (`u.combos`, paid in `finish()` and shown on the report), `G.stats.combos`
+  in the luck line. `SETUP_WORDS` names the setup in the log. Nothing here changes the numbers except the +30/+2/−1 already listed;
+  the point is that the game *notices*. `test31.mjs`.
+- **Family sight lines** (each power answers its own question before you commit; all helpers exported on `MUTIE`):
+  Blaster — `blastPreview(u,p)` → `blastHtml`: hovering / touch-arming a Blast tile reads "hits 2 hostiles · kills 1 · shreds 1 ·
+  wrecks 2 crates · exposes 1 · sets off 1 drum" and calls out allies caught. Phaser — `flankTiles(u)` (cached in `FK`) marks
+  every open Blink tile from which a shot at `blinkRef(u)` (POV target, else nearest awake foe) is a flank; both renderers tint
+  them gold in blink mode, the hint says "Gold tiles flank Trooper" and a hovered gold tile reads "Flanks Trooper — 75% from
+  there" (`flankNote`). Mender — the ally strip is sorted by need (downed → most exposed where they stand → lowest HP) and each
+  card carries the ally's own exposure ("2 can hit · 71% · FLANKED" / "safe now") plus `allyResult(u,mode,a)` ("→ 9/10 · clears
+  mark", "+4 shield", "+1 action · +1 charge"); the hint repeats both. Bruiser — the Smash card's `shreds armor` / `EXECUTE` from
+  `powerInfo`. `test32.mjs` covers all three and screenshots them.
+- Deferred on purpose: a wider customization layer (the L3 upgrade fork plus appearance is what exists). Cameron's playthrough decides
+  whether the combo beat fires often enough before more of the kit is bent toward it.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

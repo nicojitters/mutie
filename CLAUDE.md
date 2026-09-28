@@ -40,7 +40,7 @@ well-placed teleport or a missed 80% shot can swing the whole fight.
 - **Guerrilla stance.** The squad is outgunned and picks its fights; missions are strikes, not sieges.
 
 ## Campaign layer (Phase 8 — built in-page)
-**Roster growth (2026-09-27, Cameron's call).** A new campaign starts with only Vex, Halden and Nix (`STARTING_IDS`).
+**Roster growth (2026-09-27, Cameron's call; start pick 2026-09-28).** A new campaign starts with the three the player picks (default Vex, Halden, Nix — `STARTING_IDS`); the join order is per campaign (`CAMP.recruitOrder`, see the variety pass).
 The other nine named mutants join one per campaign-mission clear, keyed by mission index: `RECRUIT_ORDER[G.missionIdx]`
 = Sol (after M1), Ember, Mara, Sable, Iris, Rook, Grit, Echo, Tobias (after M9); nothing after M10. Order is role-spread so
 the first mender arrives before M2. Guarded by `CAMP.joined` (mission ids, like `CAMP.drafted`), so replays and side ops
@@ -526,6 +526,31 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   says names move to the Wall.
 - **Comeback rope:** at Index ≥7 `sideOffers()` forces one `index` reward. `test39.mjs` covers wipe → captured → rescue home, mercy,
   post-mortem, ironman reload, legacy/doctrine and the rope.
+
+## Variety & replayability pass (2026-09-28, Cameron's brief: semi-procedural maps, mission modifiers, run twists, compositions that play differently)
+- **Campaign seed** (`CAMP.seed`, set in `freshCampaign`; old saves get a hash-derived one) drives everything below; shown in the hub
+  index bar in base 36 so a run can be replayed/shared. `hashStr` is the shared FNV-1a helper.
+- **Choose your three.** The campaign-start modal (`#modal-diff`, now titled New campaign) has a `.startpick` grid of all twelve
+  (power, passive, L3 and L4 forks); exactly three, at most two per family, or the difficulty buttons stay disabled. `pickDifficulty`
+  passes `startIds` as the 4th callback arg; `freshCampaign(startIds)` builds the roster from them and derives
+  `CAMP.recruitOrder=recruitOrderFor(ids,seed)` — one mutant from each missing family first, then a seeded shuffle; `recruitOrder()`
+  replaces every `RECRUIT_ORDER[...]` read (old saves keep the old fixed order). `STARTING_IDS` is now only the picker's default.
+- **Field conditions** (`CONDS`, `condFor(m)` — seeded per campaign × mission; `COND_P_CAMPAIGN=0.45` from M2 on, `COND_P_SIDE=0.4`;
+  Fuel Leak only on drum themes, no Escort on the boss fight). `adjustMission` stores `m.cond`, `startMission` sets `G.cond`,
+  `cond()` reads it. Hooks: **Nightfall** `sightR()`=5 (every former `SIGHT` read: `alertEnemies`, wake previews, move hint,
+  tooltip) and Marksman range −2 in `makeUnit` · **Downpour** −10 aim as a `downpour` part in `hitChance` (both sides) and `ignite`
+  refuses · **Sensor Grid** `sightR()`=9, `reinforceAt` −1, +2 samples on a win · **Fuel Leak** `drumSet` share 1.0 · **Heavy Escort**
+  one extra augmented unit (seeded from o/w/z, plus q/g/h from Act II) beside the largest pod after `assignPods` · **Bounty**
+  augmented kills pay 2 samples, Index −1 extra on a win. Shown on the mission and side-op cards (`.cond`), as a briefing parameter,
+  in the mission label and the opening log line.
+- **Map variants** (`variantMap(m)`, M2–M8 only): seeded vertical flip (50%) + ~30% of `=` crates stepped one tile to free floor not
+  touching P/E/V/C/X; a BFS guard reverts the crate shuffle (keeps the flip) if any objective becomes unreachable. Applied in
+  `adjustMission` so `MX(idx).map` is the variant everywhere; the card/briefing say "Layout mirrored · N crates moved".
+- `test40.mjs`: recruit order, condition rate over 300 seeds (0.45, none on M1), all six hooks, 2,000 variant maps (counts preserved,
+  every objective reachable), briefing lines, the picker rules and a full new campaign from the picker.
+- Composition sims (naive bot, 6 runs, conditions dealt): default Vex/Halden/Nix M1 6/6 · M2 5/6; Vex/Ember/Iris 6/6 · 6/6;
+  Halden/Mara/Sol 3/6 (11.8 turns — low damage vs an endless stream) · 6/6; Nix/Sable/Echo 5/6 · 2/6. The bot only uses Blast, Smash
+  and Mend, so Phaser- and Bruiser-heavy squads are undersold; every composition wins.
 
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries

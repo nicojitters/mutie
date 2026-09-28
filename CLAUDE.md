@@ -23,7 +23,7 @@ well-placed teleport or a missed 80% shot can swing the whole fight.
 
 ## Design pillars (do not break these)
 - **Two-action economy.** Move costs 1; dash uses both; firing and most powers end the turn.
-- **Transparent percentages.** Every shot shows its hit chance before you commit. Never hide the math.
+- **Transparent percentages.** Every shot shows its hit chance before you commit. Never hide the math — including mitigation: Focus and Set shot are visible modifiers, not hidden fudge.
 - **Cover and flanking are the game.** Half cover −20, full cover −40, flanked ignores cover and adds +1 dmg.
 - **Reactive play exists.** Overwatch is a base action for both sides (aim −15 reaction fire).
 - **Pressure.** Reinforcements arrive each turn after a per-mission timer. Turtling is punished.
@@ -354,6 +354,24 @@ down, body dips, warm ground light). Every "Fire" surface uses the attack name: 
 ("Pulse Shot → Trooper · 70%"), hints, touch arm text; Overwatch copy says "Hold your shot". Text tidy: Ember is a "Kinetic
 striker", Concussion Round → **Concussive Burst** (same key `concuss`), Steady says "reaction shots". `og.png` regenerated without
 the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTracer` are exposed for it).
+
+## Fair randomness pass (2026-09-27, Cameron's brief: input over output randomness, visible mitigation, "I should have done X")
+- **Cap is 100.** `hitChance` clamps 5..100; a computed 100 is guaranteed (was 95).
+- **Focus (visible streak protection).** A player miss on a rolled shot adds `diff().focusStep` to that mutant's `u.focus`
+  (cap `focusCap`; Scout 15/30, Veteran 10/20, Graft 0/0), a hit resets it, and it shows in the breakdown as `+10 focus`. It is
+  the XCOM lower-difficulty aim fudge done in the open, because "never hide the math" forbids the secret version.
+- **Set shot.** +10 (`set shot` in parts) when the shooter hasn't moved this turn (`u.movedTurn`, set by move/dash/Blink,
+  cleared with `ow`/`hunker` at the player's turn start; not for melee or reaction shots). Stand-and-shoot vs step-into-the-flank
+  is now a real fork.
+- **Luck line on the report.** `shoot()` accumulates `G.stats.rolls/rollHits/rollExp` for the squad and `eRolls/eHits/eExp` for
+  the Coalition (rolled shots only — guaranteed powers stay out); `finish()` fills `#res-luck`: "Your shots: 6 of 9 hit, 5.4
+  expected — about even. Theirs: …" (±0.75 hits = even) and, on a loss, a verdict: dice fair → "Look at the positioning";
+  dice against you → says so, still points at the plan.
+- **Enemy overwatch is a rule, not a coin flip.** With no shot available, a covered hostile overwatches when a mutant is within
+  `range+3` but out of sight; otherwise it closes. Learnable.
+- **Scout: Coalition never crits** (`DIFF.enemyCrit` multiplies the enemy crit chance in `shoot` and `shotInfo`). Stated in the
+  difficulty text. Sims after the pass (naive bot, 8 runs): M1 8/8 · M2 5/8 · M3 7/8; M4 still 0 (armor, as always for the bot).
+  `test30.mjs` covers set shot, focus, the cap and the luck line.
 
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries

@@ -362,6 +362,7 @@ canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;curso
 .result.defeat h2{color:var(--enemy)} .result.victory h2{color:var(--accent)}
 .result p{color:var(--muted);margin:8px 0 14px}
 .result .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.result .luck{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin:0 0 10px;padding:8px 10px;border:1px dashed rgba(138,77,255,.35);background:rgba(10,6,18,.5)} .result .luck b{color:var(--ink);font-weight:500} .result .luck .hot{color:var(--gold-hot)} .result .luck .cold{color:var(--player)} .result .luck .even{color:var(--heal)}
 .result .stats>div{background:var(--panel-2);padding:8px 10px;border:1px solid var(--line)}
 .result .stats .v{font-family:var(--font-display);font-weight:700;font-size:20px}
 .result .stats .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
@@ -687,6 +688,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
       <p id="res-text"></p>
       <div class="comms story" id="res-story-wrap"><div class="comms-h"><span class="dot"></span>Control</div><p id="res-story"></p></div>
       <div class="report-camp" id="res-camp" hidden></div>
+      <p class="luck" id="res-luck" hidden></p>
       <div class="stats">
         <div><div class="v num" id="rs-turns">0</div><div class="l">Turns</div></div>
         <div><div class="v num" id="rs-acc">0%</div><div class="l">Accuracy</div></div>
@@ -750,7 +752,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <p><b>Two actions per unit.</b> Moving costs one. A long move (dim tiles) costs both. Firing, Overwatch, and most powers end the unit's turn. Powers recharge on a cooldown — except <b>Pulse Blast</b>, which is three charges per mission: throw one at a lone trooper and that is a grenade you will not have later.</p>
         <p><b>Selecting a mutant drops the camera behind them.</b> Targets line up in a strip sorted by hit chance — shootable ones first, the rest greyed with the reason. Swipe, use ‹ ›, or ← → to cycle; the big button throws the mutant's own attack at the current target — a Pulse Shot, a Shockwave, a Rift Shard, a Suture Dart; nobody here carries a gun (or uses a targeted power on them — Mend, Ward and Stim swap the strip to your allies). <b>Move</b>, Blast, Blink and the like pull back to the map so you can pick a tile, then the camera returns. <kbd>V</kbd> or the Map/POV button switches views any time; the map still works exactly as before.</p>
         <p><b>On a touchscreen,</b> the first tap previews — the path, who it wakes, the hit chance — and a second tap on the same spot confirms. Tapping one of your own mutants selects them straight away.</p>
-        <p><b>Read the number.</b> Hover a hostile to see your hit chance. Half cover −20, full cover −40. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
+        <p><b>Read the number.</b> Hover a hostile to see your hit chance and why. Half cover −20, full cover −40. <b>Set shot</b>: +10 if that mutant hasn't moved this turn. <b>Focus</b>: a miss adds +10 to that mutant's next shot (it stacks to +20; more on Scout, none on Graft) until they hit — the game never fudges a roll in secret, it tells you the odds it is rolling. A shot the math calls 100 is 100. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
         <p><b>Cover has a side.</b> Shield icons show which direction a unit is protected from. Bright shields protect against the unit you've selected.</p>
         <p><b>Fuel drums</b> (the ones with the hazard band) are full cover for anyone — until someone shoots one. Any hit sets it off: 4 damage to everything beside it, armor ignored, crates wrecked, neighbouring drums chain. Bait a pod behind one, or don't stand next to one yourself.</p>
         <p><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it. <b>Hunker</b> is the other way to spend a turn you can't shoot well: −20 to be hit and no crits against you until your next turn. A 30% shot, overwatch, hunker, or a move — all four are real answers.</p>
@@ -1442,9 +1444,9 @@ const ADAPT=[
    balance reference stays the baseline: aim for both sides, how many Coalition adaptations are live, and the reinforcement
    timer. Graft Index math is untouched — the clock is the same, the fights differ. */
 const DIFF={
-  scout:  {name:'Scout',   sub:'Learn the map',     desc:'Your squad aims +5, the Coalition −5. One fewer adaptation in play and reinforcements a turn later. The story is the same; the margins are wider.', playerAim:5,  enemyAim:-5, adapt:-1, reinf:1},
-  veteran:{name:'Veteran', sub:'As designed',       desc:'The numbers the game was tuned on. Every shot you take is a real decision, and the Graft Index is a real clock.', playerAim:0,  enemyAim:0,  adapt:0,  reinf:0},
-  graft:  {name:'Graft',   sub:'They know you now', desc:'The Coalition aims +5, fields one more adaptation from the first mission, and answers a turn sooner. Wounds and deaths hurt the same — you will just take more of them.', playerAim:0,  enemyAim:5,  adapt:1,  reinf:-1},
+  scout:  {name:'Scout',   sub:'Learn the map',     desc:'Your squad aims +5, the Coalition −5 and never crits. Focus after a miss stacks to +30. One fewer adaptation in play and reinforcements a turn later. The story is the same; the margins are wider.', playerAim:5,  enemyAim:-5, adapt:-1, reinf:1, focusStep:15, focusCap:30, enemyCrit:0},
+  veteran:{name:'Veteran', sub:'As designed',       desc:'The numbers the game was tuned on. Focus after a miss stacks to +20. Every shot you take is a real decision, and the Graft Index is a real clock.', playerAim:0,  enemyAim:0,  adapt:0,  reinf:0, focusStep:10, focusCap:20, enemyCrit:1},
+  graft:  {name:'Graft',   sub:'They know you now', desc:'The Coalition aims +5, fields one more adaptation from the first mission, and answers a turn sooner. No Focus after misses. Wounds and deaths hurt the same — you will just take more of them.', playerAim:0,  enemyAim:5,  adapt:1,  reinf:-1, focusStep:0, focusCap:0, enemyCrit:1},
 };
 const diff=()=>DIFF[(CAMP&&CAMP.diff)||'veteran']||DIFF.veteran;
 const adaptCount=(doom,act)=>Math.max(0,Math.min(ADAPT.length,(act||0)+Math.floor(doom/3)+(doom>=9?1:0)+diff().adapt));
@@ -1539,7 +1541,9 @@ function hitChance(a,d,opt={}){
   if(a.side==='player'&&d.side==='enemy'&&perk('ambush')&&(opt.ambush||!d.alert)){ c+=25; parts.push(['ambush',25]); }
   if(a.suppressed){ c-=25; parts.push(['suppressed',-25]); }
   if(a.blinkAim&&!opt.reaction){ c+=a.blinkAim; parts.push(['blink',a.blinkAim]); }
-  const hasCover=adjacentCover(d).length>0; const raw=Math.round(c), chance=clamp(raw,5,95); if(chance!==raw) parts.push(['clamped',chance-raw]);
+  if(a.side==='player'&&a.focus>0){ c+=a.focus; parts.push(['focus',a.focus]); }
+  if(a.side==='player'&&!a.melee&&!opt.reaction&&!a.movedTurn){ c+=10; parts.push(['set shot',10]); }
+  const hasCover=adjacentCover(d).length>0; const raw=Math.round(c), chance=clamp(raw,5,100); if(chance!==raw) parts.push(['clamped',chance-raw]);
   return { chance, cover:cov, flanked:hasCover&&cov===0&&!a.melee, marked:!!d.marked&&!a.melee, parts };
 }
 const fmtParts=h=>(h.parts||[]).map(([k,v],i)=>i===0?`${v} ${k}`:`${v>0?'+':'−'}${Math.abs(v)} ${k}`).join(' · ');
@@ -1547,7 +1551,7 @@ const fmtParts=h=>(h.parts||[]).map(([k,v],i)=>i===0?`${v} ${k}`:`${v>0?'+':'−
 function effArmor(target){ let armor=target.armor||0; if(target.side==='enemy'&&target.def.verb!=='command'&&alive('enemy').some(b=>b.def.verb==='command'&&cheb(b,target)<=1)) armor+=1; if(target.brace) armor+=1; if(target.side==='player'&&alive('player').some(p=>p!==target&&p.def.passiveKey==='aegis'&&cheb(p,target)<=1)) armor+=1; return armor; }
 /* What a hit would do: damage range after flank/hotshot/booster, crit odds, armor, and whether it kills. Same rules as shoot()/applyDamage(). */
 function shotInfo(a,d,opt={}){ const h=hitChance(a,d,opt); let lo=a.dmg[0], hi=a.dmg[1]; const fl=h.flanked; if(fl){ lo+=1; hi+=1; if(a.def.passiveKey==='hotshot'){ lo+=1; hi+=1; } } if(a.side==='player'&&G.boost){ lo+=1; hi+=1; } if(opt.ambush){ lo+=1; hi+=1; }
-  const crit=(fl&&!d.hunker)?(a.side==='player'?25:((G.adapt||[]).includes('frenzy')?24:12)):0; const critB=a.side==='player'?2:1; const armor=d.side==='obj'?0:effArmor(d); const sh=d.shield||0;
+  const crit=(fl&&!d.hunker)?(a.side==='player'?25:Math.round(((G.adapt||[]).includes('frenzy')?24:12)*diff().enemyCrit)):0; const critB=a.side==='player'?2:1; const armor=d.side==='obj'?0:effArmor(d); const sh=d.shield||0;
   const toHp=v=>Math.max(0,Math.max(1,v-armor)-sh); const hpLo=toHp(lo), hpHi=toHp(hi), hpCrit=toHp(hi+critB);
   const kill=d.hp<=hpLo?'kills':d.hp<=hpHi?'may':(crit&&d.hp<=hpCrit)?'crit':''; return {h,chance:h.chance,lo,hi,crit,critB,armor,shield:sh,kill}; }
 const killTag=(si)=>si.kill==='kills'?'KILLS':si.kill==='may'?'MAY KILL':si.kill==='crit'?'KILLS ON CRIT':'';
@@ -2106,12 +2110,13 @@ async function shoot(a,d,opt={}){
   const h=hitChance(a,d,opt); const roll=rnd(1,100); const hit=roll<=h.chance;
   const atk=(a.side==='player'&&a.def.attack)||null; anim(a,a.melee?'lunge':(atk?atk.anim:'fire'),{tx:d.x,ty:d.y}); if(a.blinkAim&&!opt.reaction) a.blinkAim=0;
   if(a.side==='enemy'&&G.actcam&&!opt.reaction){ const dd=dist(a,d); G.actcam={x:(a.x+d.x)/2,y:(a.y+d.y)/2,zoom:dd>6?1.12:dd>3?1.24:1.36,pull:0.7}; }
-  if(a.side==='player'){ G.stats.shots++; if(hit) G.stats.hits++; }
+  if(a.side==='player'){ G.stats.shots++; if(hit) G.stats.hits++; G.stats.rolls=(G.stats.rolls||0)+1; G.stats.rollExp=(G.stats.rollExp||0)+h.chance/100; if(hit) G.stats.rollHits=(G.stats.rollHits||0)+1; const D=diff(); if(hit) a.focus=0; else if(D.focusStep) a.focus=Math.min(D.focusCap,(a.focus||0)+D.focusStep); }
+  else if(a.side==='enemy'&&d.side==='player'){ G.stats.eRolls=(G.stats.eRolls||0)+1; G.stats.eExp=(G.stats.eExp||0)+h.chance/100; if(hit) G.stats.eHits=(G.stats.eHits||0)+1; }
   const kind=a.def.id==='marksman'?'marksman':(a.def.id==='juggernaut'||a.def.boss||a.def.id==='bulwark')?'heavy':(a.def.id==='spotter'||a.def.id==='jammer'||a.def.id==='siphon')?'pistol':'rifle';
   if(opt.reaction) Audio.reaction(a.x);
   fxTracer(a,d,atk?atk.color:'#FFB3AE',atk?atk.kind:'bullet'); if(atk&&atk.kind==='wave'){ fxRing(a.x,a.y,atk.color,0.7); shake(3); } if(a.melee) Audio.lunge(a.x); else Audio.shoot(a.x,atk?atk.sfx:kind); await wait(atk&&atk.kind==='wave'?260:200);
   const covTxt=h.flanked?' (flanked)':h.cover===2?' vs full cover':h.cover===1?' vs half cover':''; const mk=h.marked?' [marked]':'';
-  if(hit){ let dmg=rnd(a.dmg[0],a.dmg[1]); let crit=false; if(h.flanked){ dmg+=1; if(a.def.passiveKey==='hotshot') dmg+=1; const cc=d.hunker?0:(a.side==='player'?0.25:((G.adapt||[]).includes('frenzy')?0.24:0.12)); if(Math.random()<cc){ crit=true; dmg+=a.side==='player'?2:1; } }
+  if(hit){ let dmg=rnd(a.dmg[0],a.dmg[1]); let crit=false; if(h.flanked){ dmg+=1; if(a.def.passiveKey==='hotshot') dmg+=1; const cc=d.hunker?0:(a.side==='player'?0.25:((G.adapt||[]).includes('frenzy')?0.24:0.12)*diff().enemyCrit); if(Math.random()<cc){ crit=true; dmg+=a.side==='player'?2:1; } }
     if(a.side==='player'&&G.boost) dmg+=1; if(opt.ambush){ dmg+=1; fxText(d.x,d.y-1.1,'AMBUSH','#F2B33D'); }
     if(crit){ Audio.crit(d.x); fxText(d.x,d.y-0.8,'CRIT','#FFD27A',true); freeze(110); flash('#FFD27A',0.35,80); log(`${a.name} CRITS ${d.name} for ${dmg} — ${h.chance}%${covTxt}${mk}.`,'hit'); } else { Audio.hit(d.x); log(`${a.name} hits ${d.name} for ${dmg} — ${h.chance}%${covTxt}${mk}.`,'hit'); }
     fxSpark(d.x,d.y,d.side==='enemy'?'#FFB3AE':'#9FE8FF',crit?18:10,{speed:crit?1.6:1});
@@ -2798,7 +2803,7 @@ async function performAt(p,opts={}){
     if(hostile&&!u.def.noAttack){ if(inRange(u,target)){ await playerShoot(u,target); } else setHint(`<b>No shot</b> — ${target.name} is out of range or line of sight.`); return; }
     if(target) return;
     const r=reachable(u,u.move*u.ap); const n=r.get(key(p.x,p.y)); if(!n) return;
-    const cost=n.c<=u.move?1:2; G.busy=true; renderSide(); VO.bark(u,'move',0.3); await doMove(u,pathTo(r,p.x,p.y)); fxRing(u.x,u.y,u.color,0.6); u.ap-=cost; G.busy=false; afterAction(u); return;
+    const cost=n.c<=u.move?1:2; G.busy=true; renderSide(); VO.bark(u,'move',0.3); u.movedTurn=true; await doMove(u,pathTo(r,p.x,p.y)); fxRing(u.x,u.y,u.color,0.6); u.ap-=cost; G.busy=false; afterAction(u); return;
   }
   if(G.mode==='shoot'){ if(hostile){ if(inRange(u,target)) await playerShoot(u,target); else setHint(`<b>No shot</b> — out of range or no line of sight.`); } return; }
   if(G.mode==='blast'){ if(dist(u,p)>u.def.ability.range+0.01){ setHint('<b>Too far</b> — Pulse Blast reaches 5 tiles.'); return; } const BR=F(u,'blastRadius')||1, BD=F(u,'blastDmg')||3; if(!(u.charges>0)){ setHint('<b>Pulse Blast</b> is spent — no charges left this mission.'); return; } u.charges--;
@@ -2819,7 +2824,7 @@ async function performAt(p,opts={}){
       if(F(u,'smashAoE')){ const others=alive('enemy').filter(e=>e!==target&&cheb(e,u)<=1); if(others.length){ fxRing(u.x,u.y,'#B5562E',1.6); shake(14); for(const o of others){ if(!o.alert) wakePod(o.pod); log(`Quake hits ${o.name} for ${F(u,'smashAoE')}.`,'hit'); applyDamage(o,F(u,'smashAoE'),u,{ignoreArmor:true}); } } } } else { log(`${u.name}'s smash whiffs — 90%.`,'miss'); fxText(target.x,target.y,'MISS','#C9D4DE'); }
     await checkContact(); u.cd=u.def.ability.cd; u.ap=0; await wait(400); G.busy=false; afterAction(u); return; }
   if(G.mode==='blink'){ if(solid(p.x,p.y)||target||dist(u,p)>u.def.ability.range+0.01){ setHint('<b>Blink</b> needs an open tile within 6.'); return; }
-    G.busy=true; renderSide(); VO.bark(u,'blink',0.7); Audio.blink(p.x); fxRing(u.x,u.y,'#B58CF0',1); u.x=p.x; u.y=p.y; anim(u,'blinkIn'); fxRing(p.x,p.y,'#B58CF0',1); log(`${u.name} blinks.`,'sys'); if(F(u,'blinkAim')){ u.blinkAim=F(u,'blinkAim'); fxText(u.x,u.y-0.6,'+'+u.blinkAim+' AIM','#B58CF0'); } checkCaptive(u); await checkContact();
+    G.busy=true; renderSide(); VO.bark(u,'blink',0.7); Audio.blink(p.x); fxRing(u.x,u.y,'#B58CF0',1); u.x=p.x; u.y=p.y; u.movedTurn=true; anim(u,'blinkIn'); fxRing(p.x,p.y,'#B58CF0',1); log(`${u.name} blinks.`,'sys'); if(F(u,'blinkAim')){ u.blinkAim=F(u,'blinkAim'); fxText(u.x,u.y-0.6,'+'+u.blinkAim+' AIM','#B58CF0'); } checkCaptive(u); await checkContact();
     u.cd=u.def.ability.cd; u.ap-=1; await wait(250); G.busy=false; G.mode='move'; afterAction(u); return; }
   if(G.mode==='concuss'){ if(!hostile||target.side!=='enemy'||!inRange(Object.assign({},u,{range:6}),target)){ setHint('<b>Concussion Round</b> needs a hostile in view within 6.'); return; }
     G.busy=true; renderSide(); VO.event(u,'concuss'); anim(u,'fire',{tx:target.x,ty:target.y}); Audio.shoot(u.x,'heavy'); fxTracer(u,target,'#FF7A45'); await wait(200); G.stats.shots++; G.stats.hits++;
@@ -2927,7 +2932,7 @@ async function endTurn(){
   { const m=MX(G.missionIdx); if(G.turn>=m.reinforceAt&&!G.over){ const spot=reinforceSpot(); if(spot){ G.actcam={x:spot.x,y:spot.y,zoom:1.22}; await wait(380); const code=(G.reinforced===0&&(G.adapt||[]).includes('vanguard')&&ENEMY.h)?'h':m.reinforce[G.reinforced%m.reinforce.length]; const nu=makeUnit(ENEMY[code],'enemy',spot.x,spot.y); nu.ap=0; nu.alert=true; nu.pod=99; G.units.push(nu); anim(nu,'drop'); setTimeout(()=>{ fxPuff(nu.x,nu.y,'#8a6a5a',0.7,500); Audio.thud(nu.x); shake(5); },420); G.reinforced++; fxRing(spot.x,spot.y,'#E0524B',1.2); Audio.alarm(); Audio.music.spike(0.2); VO.coalition('reinforce',2,1); banner('Reinforcements','enemy'); log(`Coalition reinforcement: ${nu.name} arrives.`,'kill'); if(G.reinforced===1) say('reinforce'); introduceNew([nu]); await wait(600); } } }
   G.actcam=null; G.turn++; G.phase='player'; G.busy=false;
   for(const u of alive('player').filter(p=>p.downed)){ if(u.stabilized) continue; u.bleed--; if(u.bleed<=0){ log(`${u.name} bled out.`,'kill'); say('bledOut',u.name); killUnit(u,null); } else { fxText(u.x,u.y,`BLEEDING ${u.bleed}`,'#FF6B62'); log(`${u.name} is bleeding out — ${u.bleed} turn${u.bleed===1?'':'s'} left.`,'kill'); } }
-  for(const u of alive('player')){ if(u.downed){ u.ap=0; continue; } u.ap=u.drained?1:2; u.drainedNow=u.drained; u.drained=false; u.ow=false; u.hunker=false; u.marked=false; u.brace=false; if(u.cd>0){ u.cd--; if(u.cd===0){ u.readyPing=true; u.readyFlash=now(); } }
+  for(const u of alive('player')){ if(u.downed){ u.ap=0; continue; } u.ap=u.drained?1:2; u.drainedNow=u.drained; u.drained=false; u.ow=false; u.hunker=false; u.marked=false; u.brace=false; u.movedTurn=false; if(u.cd>0){ u.cd--; if(u.cd===0){ u.readyPing=true; u.readyFlash=now(); } }
     if(u.def.passiveKey==='regen'&&u.hp<u.maxHp){ u.hp++; fxText(u.x,u.y,'+1','#5CD68A'); }
     if(u.def.decoy){ u.decoyTurns--; if(u.decoyTurns<=0){ u.alive=false; fxRing(u.x,u.y,'#7FD4FF',1); log(`${u.name} fades.`,'sys'); decoyBoom(u); } } }
   for(const t of alive('player').filter(p=>p.def.passiveKey==='fieldmedic')){ for(const a of alive('player')){ if(a!==t&&!a.def.decoy&&cheb(a,t)<=1&&a.hp<a.maxHp){ a.hp++; fxText(a.x,a.y,'+1','#9BE28B'); } } }
@@ -2979,7 +2984,8 @@ async function enemyAct(e){
   const tgt=bestTargetFrom(e,{x:e.x,y:e.y});
   if(tgt){ await shoot(e,tgt.p); e.ap=0; return; }
   if(e.melee||e.def.verb==='phase'){ const victim=alive('player').find(p=>p.downed&&!p.carried&&cheb(p,e)<=1); if(victim){ anim(e,'lunge',{tx:victim.x,ty:victim.y}); Audio.lunge(e.x); await wait(200); log(`${e.name} executes ${victim.name}.`,'kill'); killUnit(victim,e); e.ap=0; await wait(300); return; } }
-  if(e.ap>0&&!e.melee&&e.def.verb!=='wall'&&adjacentCover(e).length&&Math.random()<0.5){ e.ow=true; e.ap=0; Audio.overwatch(e.x); log(`${e.name} takes an overwatch position.`,'miss'); await wait(200); return; }
+  // no shot this turn: cover a lane when a mutant is within reach but out of sight, otherwise close the distance
+  if(e.ap>0&&!e.melee&&e.def.verb!=='wall'&&adjacentCover(e).length&&alive('player').some(p=>!p.downed&&dist(e,p)<=e.range+3&&!hasLOS(e,p))){ e.ow=true; e.ap=0; Audio.overwatch(e.x); log(`${e.name} takes an overwatch position.`,'miss'); await wait(200); return; }
   if(e.ap>0&&!phase){ const np=nearestPlayer(e); if(np.unit){ const r2=reachable(e,e.move); let bt=null,bd=1e9; for(const n of r2.values()){ const d=dist(n,np.unit); if(d<bd){bd=d;bt=n;} } if(bt&&bd<dist(e,np.unit)){ await doMove(e,pathTo(r2,bt.x,bt.y)); e.ap-=1; } } }
   await wait(120);
 }
@@ -3001,6 +3007,10 @@ function finish(win,reason){
     if(win){ txt = lost.length?`${m.name} complete. ${survivors} of ${G.units.filter(u=>u.cid).length} walk out. Lost: ${lost.join(', ')}.`:`${m.name} complete. Everyone who walked in, walked out.`; if(m.objective==='rescue') txt+=` ${NAMES.vip} is safe.`; if(m.objective==='extract') txt+=` The files are out.`; }
     else txt = reason||`${m.name} failed. Regroup, rethink the approach, and try the cover on the other side.`;
     $('res-text').textContent=txt; $('res-story').textContent=win&&m.debrief?m.debrief:'';
+    { const S=G.stats; const lk=$('res-luck'); const side=(n,h,e)=>{ if(!n) return null; const dlt=h-e; const cls=Math.abs(dlt)<0.75?'even':dlt>0?'hot':'cold'; const word=cls==='even'?'about even':cls==='hot'?'ran hot':'ran cold'; return {txt:`<b>${h}</b> of <b>${n}</b> hit, ${e.toFixed(1)} expected — <span class="${cls}">${word}</span>`,cls,dlt}; };
+      const you=side(S.rolls||0,S.rollHits||0,S.rollExp||0), them=side(S.eRolls||0,S.eHits||0,S.eExp||0);
+      if(you||them){ let verdict=''; if(!win){ const youOk=!you||you.cls!=='cold', themOk=!them||them.cls!=='hot'; verdict=youOk&&themOk?' Dice were fair. Look at the positioning.':(!youOk&&!themOk)?' That was a bad night for the dice — and still worth a look at where you stood.':' The dice leaned on you. The plan can still be better.'; }
+        lk.innerHTML=`${you?`Your shots: ${you.txt}.`:''}${them?` Theirs: ${them.txt}.`:''}${verdict}`; lk.hidden=false; } else lk.hidden=true; }
     // ---- campaign bookkeeping ----
     if(!G.campApplied){ G.campApplied=true; const lines=[]; const deployed=G.units.filter(u=>u.cid); const pendingUps=[];
       { const evacMission=['sabotage','rescue','extract'].includes(m.objective)||(m.objective==='hold'&&m.evacAfterHold);

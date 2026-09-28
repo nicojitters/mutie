@@ -341,7 +341,7 @@ canvas#board,canvas#gl{display:block;width:100%;height:auto;max-width:100%;curso
 .abtn .k{font-family:var(--font-display);font-weight:600;font-size:13px}
 .abtn .d{font-size:11px;color:var(--muted);line-height:1.25}
 .abtn .cd{position:absolute;right:8px;top:6px;font-family:var(--font-display);font-size:11px;color:var(--danger);font-weight:600}
-.abtn .cd.jam{color:var(--aug)}
+.abtn .cd.jam{color:var(--aug)} .abtn .cd.ch{color:var(--accent)} .abtn.spent .k{color:var(--muted)}
 .abtn .cost{position:absolute;right:8px;top:6px;display:flex;gap:2px}
 .abtn .cost i{width:6px;height:6px;border-radius:50%;background:var(--accent);display:block}
 .endturn{width:100%;margin-top:6px}
@@ -744,7 +744,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
     <div class="sheet">
       <div class="sheet-h"><h2>How to play</h2><button class="btn small" data-close="modal-help">Close</button></div>
       <div class="help">
-        <p><b>Two actions per unit.</b> Moving costs one. A long move (dim tiles) costs both. Firing, Overwatch, and most powers end the unit's turn.</p>
+        <p><b>Two actions per unit.</b> Moving costs one. A long move (dim tiles) costs both. Firing, Overwatch, and most powers end the unit's turn. Powers recharge on a cooldown — except <b>Pulse Blast</b>, which is three charges per mission: throw one at a lone trooper and that is a grenade you will not have later.</p>
         <p><b>Selecting a mutant drops the camera behind them.</b> Targets line up in a strip sorted by hit chance — shootable ones first, the rest greyed with the reason. Swipe, use ‹ ›, or ← → to cycle; the big button fires at the current target (or uses a targeted power on them — Mend, Ward and Stim swap the strip to your allies). <b>Move</b>, Blast, Blink and the like pull back to the map so you can pick a tile, then the camera returns. <kbd>V</kbd> or the Map/POV button switches views any time; the map still works exactly as before.</p>
         <p><b>On a touchscreen,</b> the first tap previews — the path, who it wakes, the hit chance — and a second tap on the same spot confirms. Tapping one of your own mutants selects them straight away.</p>
         <p><b>Read the number.</b> Hover a hostile to see your hit chance. Half cover −20, full cover −40. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
@@ -784,9 +784,9 @@ const cheb=(a,b)=>Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));
 /* ---------- Data ---------- */
 const ARCH = {
   blaster:{ id:'blaster', name:'Blaster', tagline:'Ranged artillery', hp:10,  aim:70, move:4, dmg:[2,3], range:7, glyph:'B', color:'#F2B33D', armor:0,
-    passive:'Overcharge — Pulse Blast ignores armor and destroys crates it touches.',
+    passive:'Overcharge — a Pulse Blast that kills refunds its charge.',
     ability:{key:'blast', name:'Pulse Blast', cd:3, range:5, ends:true,
-      desc:'3 dmg to every unit in a 3×3 area within 5 tiles. Ignores cover and armor; wrecks crates. Ends turn.'}},
+      desc:'3 dmg to every unit in a 3×3 area within 5 tiles. Always hits; ignores cover and armor; wrecks crates and drums. Three charges per mission. Ends turn.'}},
   bruiser:{ id:'bruiser', name:'Bruiser', tagline:'Frontline wall', hp:16, aim:60, move:4, dmg:[2,3], range:5, glyph:'K', color:'#E08A3C', armor:1,
     passive:'Dense — Armor 1: every hit on Halden does 1 less. Smash ignores armor.',
     ability:{key:'smash', name:'Seismic Smash', cd:2, range:1, ends:true,
@@ -803,8 +803,8 @@ const ARCH = {
 /* Twelve mutants, three per archetype. Each carries the archetype's base stats with a twist, one unique power, one passive. */
 const MUTANTS = [
   { id:'blaster', arch:'blaster', name:'Vex',  color:'#F2B33D', glyph:'V', tagline:'Ranged artillery', hp:10, aim:70, move:4, dmg:[2,3], range:7, look:'goggles',
-    passive:'Overcharge — Pulse Blast ignores armor and destroys crates it touches.', passiveKey:'overcharge',
-    ability:{key:'blast', name:'Pulse Blast', cd:3, range:5, ends:true, desc:'3 dmg to every unit in a 3×3 area within 5 tiles. Ignores cover and armor; wrecks crates. Ends turn.'} },
+    passive:'Overcharge — a Pulse Blast that kills refunds its charge.', passiveKey:'overcharge',
+    ability:{key:'blast', name:'Pulse Blast', cd:3, range:5, ends:true, desc:'3 dmg to every unit in a 3×3 area within 5 tiles. Always hits; ignores cover and armor; wrecks crates and drums. Three charges per mission. Ends turn.'} },
   { id:'ember', arch:'blaster', name:'Ember', color:'#FF7A45', glyph:'E', tagline:'Kinetic sharpshooter', hp:9, aim:72, move:4, dmg:[2,4], range:7, look:'scarf',
     passive:'Hotshot — flanking shots do +1 extra damage.', passiveKey:'hotshot',
     ability:{key:'concuss', name:'Concussion Round', cd:3, range:6, ends:true, desc:'4 dmg to one hostile in view within 6. Ignores cover, knocks them back a tile and breaks their overwatch. Ends turn.'} },
@@ -1375,7 +1375,7 @@ function checkPerkOffer(){ const offer=CAMP.perkOffer; if(!offer||!offer.length)
   $('pk-later').onclick=()=>{ $('modal-perk').hidden=true; };
   $('modal-perk').hidden=false; return true; }
 const KIT_UPGRADES={
-  blaster:[{id:'wide',name:'Wide Pulse',desc:'Pulse Blast covers a 5×5 area for 2 damage.',flags:{blastRadius:2,blastDmg:2}},{id:'focus',name:'Focused Pulse',desc:'Pulse Blast deals 4 damage; cooldown −1.',mod:{cd:-1},flags:{blastDmg:4}}],
+  blaster:[{id:'wide',name:'Wide Pulse',desc:'Pulse Blast covers a 5×5 area.',flags:{blastRadius:2}},{id:'focus',name:'Focused Pulse',desc:'Pulse Blast deals 4 damage.',flags:{blastDmg:4}}],
   ember:[{id:'breaker',name:'Breaker',desc:'Concussion Round throws 2 tiles and stuns — the target loses its next turn.',flags:{concussKnock:2,concussStun:1}},{id:'follow',name:'Follow-through',desc:'If Concussion Round kills, Ember keeps one action.',flags:{concussMomentum:1}}],
   rook:[{id:'widearc',name:'Wide Arc',desc:'Suppressing Arc reaches 6 tiles.',flags:{suppressRange:6}},{id:'pinning',name:'Pinning Fire',desc:'Suppressed hostiles cannot move this turn.',flags:{suppressRoot:1}}],
   bruiser:[{id:'quake',name:'Quake',desc:'Smash also hits every other adjacent hostile for 3.',flags:{smashAoE:3}},{id:'exec',name:'Executioner',desc:'Smash deals 7 damage.',flags:{smashDmg:7}}],
@@ -1579,7 +1579,7 @@ function startMission(idx,op){
   G.objState.relaysTotal=relayN; G.objState.captivesTotal=capN;
   assignPods();
   G.squad=G.squad.filter(cid=>rosterEntry(cid)&&rosterEntry(cid).alive); { const pool=deployPool(); while(G.squad.length<3&&pool.some(r=>!G.squad.includes(r.cid))) G.squad.push(pool.find(r=>!G.squad.includes(r.cid)).cid); }
-  G.squad.forEach((cid,i)=>{ const s=spawns[i]||spawns[0]; const e=rosterEntry(cid); const d=buildDef(e); const u=makeUnit(d,'player',s.x,s.y,e.name); u.cid=cid; u.aim+=diff().playerAim; if(e.custom&&e.custom.accent) u.color=e.custom.accent; if(perk('plating')) u.shield=2; G.units.push(u); anim(u,'drop',{delay:900+i*260}); setTimeout(()=>{ fxPuff(u.x,u.y,'#6f7f90',0.7,500); Audio.thud(u.x); shake(4); },900+i*260+420); });
+  G.squad.forEach((cid,i)=>{ const s=spawns[i]||spawns[0]; const e=rosterEntry(cid); const d=buildDef(e); const u=makeUnit(d,'player',s.x,s.y,e.name); u.cid=cid; u.aim+=diff().playerAim; if(d.ability&&d.ability.key==='blast'){ u.chargesMax=3+(F(u,'blastCharges')||0); u.charges=u.chargesMax; } if(e.custom&&e.custom.accent) u.color=e.custom.accent; if(perk('plating')) u.shield=2; G.units.push(u); anim(u,'drop',{delay:900+i*260}); setTimeout(()=>{ fxPuff(u.x,u.y,'#6f7f90',0.7,500); Audio.thud(u.x); shake(4); },900+i*260+420); });
   $('mission-label').textContent=`${m.name} · ${G.op}`; $('log').innerHTML='';
   log(`${G.op} — ${m.name}. ${alive('enemy').length} hostiles on the field.`,'sys'); log(`Objective: ${m.brief}`,'sys');
   if(G.adapt.length) log(`Coalition adaptations: ${G.adapt.map(id=>ADAPT.find(a=>a.id===id).name).join(', ')}.`,'aug'); if(G.perks.size) log(`Perks: ${[...G.perks].map(p=>PERKS[p].name).join(', ')}.`,'good'); if(m.intro) log(`${HANDLER}: ${m.intro}`,'sys'); else say('start');
@@ -1842,7 +1842,7 @@ function renderSide(){
     const pv=u.def.passive||''; $('sel-passive').innerHTML=pv.includes(' — ')?`<b>${pv.split(' — ')[0]}</b> — ${pv.split(' — ')[1]}`:pv;
     const can=G.phase==='player'&&!G.busy&&u.ap>0;
     const mk=(k,label,desc,{disabled=false,pressed=false,cd=0,cost=1,jam=false,cls='',tag=''}={})=>{ const b=document.createElement('button'); b.className='abtn '+cls; b.disabled=disabled; b.setAttribute('aria-pressed',String(pressed));
-      b.innerHTML=`<span class="k">${label}</span><span class="d">${desc}</span>`+(tag?`<span class="cd">${tag}</span>`:jam?`<span class="cd jam">JAMMED</span>`:cd>0?`<span class="cd">CD ${cd}</span>`:`<span class="cost">${'<i></i>'.repeat(cost)}</span>`); b.onclick=()=>{ const inPov=G.povView==='pov'&&G.pov&&G.pov.unit===u&&G.pov.target; if(inPov&&k==='shoot'&&G.pov.kind==='enemy'){ povGo(); return; } if(inPov&&TARGETED[k]==='enemy'&&G.pov.kind==='enemy'&&povEnemyOk(u,G.pov.target,k)){ G.mode=k; povGo(); return; } setMode(k); }; act.appendChild(b); };
+      b.innerHTML=`<span class="k">${label}</span><span class="d">${desc}</span>`+(tag?`<span class="cd${/LEFT$/.test(tag)?' ch':''}">${tag}</span>`:jam?`<span class="cd jam">JAMMED</span>`:cd>0?`<span class="cd">CD ${cd}</span>`:`<span class="cost">${'<i></i>'.repeat(cost)}</span>`); b.onclick=()=>{ const inPov=G.povView==='pov'&&G.pov&&G.pov.unit===u&&G.pov.target; if(inPov&&k==='shoot'&&G.pov.kind==='enemy'){ povGo(); return; } if(inPov&&TARGETED[k]==='enemy'&&G.pov.kind==='enemy'&&povEnemyOk(u,G.pov.target,k)){ G.mode=k; povGo(); return; } setMode(k); }; act.appendChild(b); };
     mk('move','Move',`Up to ${u.move} tiles. 1 action; move twice to dash.${u.carrying?' Carrying '+u.carrying.name+'.':''}`,{disabled:!can,pressed:G.mode==='move'});
     if(!u.def.noAttack){ const dn=downedNear(u); if(dn.length&&!u.carrying){ mk('stabilize',`Stabilize ${dn[0].name}`,'Stop the bleeding. They survive the mission, out of the fight. 1 action.',{disabled:!can||dn[0].stabilized,pressed:false}); mk('carry',`Carry ${dn[0].name}`,'Pick them up. −1 move, no overwatch while carrying. 1 action.',{disabled:!can,pressed:false}); }
       if(u.carrying) mk('setdown',`Set down ${u.carrying.name}`,'Put them on an adjacent tile. 1 action.',{disabled:!can,pressed:G.mode==='setdown'}); }
@@ -1851,7 +1851,8 @@ function renderSide(){
       mk('overwatch','Overwatch',`Hold fire. Shoot the first hostile that moves in view (aim −15). Ends turn.`,{disabled:!can||u.ow||!!u.carrying,pressed:u.ow,cost:2});
       const ab=u.def.ability; const isJam=jammed(u);
       for(const pid of [...(G.perks||[])]){ const P=PERKS[pid]; if(!P||P.kind!=='use') continue; const used=G.perkUsed.has(pid); mk('perk:'+pid,P.name,P.short,{disabled:!can||used||(P.cost&&u.ap<P.cost),pressed:G.mode==='perk:'+pid,cost:P.cost||0,cls:'perk'+(used?' used':''),tag:used?'USED':(P.cost?'':'FREE')}); }
-      mk(ab.key,ab.name+(u.def.upgradeName?` · ${u.def.upgradeName}`:''),ab.desc+(u.def.upgradeName?` <i style="color:var(--accent)">${u.def.upgradeDesc||''}</i>`:''),{disabled:!can||u.cd>0||isJam,pressed:G.mode===ab.key,cd:u.cd,cost:ab.ends?2:1,jam:isJam,cls:'power'+(u.readyFlash&&now()-u.readyFlash<2500?' ready':'')});
+      const isCharge=ab.key==='blast'; const spent=isCharge&&!(u.charges>0);
+      mk(ab.key,ab.name+(u.def.upgradeName?` · ${u.def.upgradeName}`:''),ab.desc+(u.def.upgradeName?` <i style="color:var(--accent)">${u.def.upgradeDesc||''}</i>`:''),{disabled:!can||(isCharge?spent:u.cd>0)||isJam,pressed:G.mode===ab.key,cd:isCharge?0:u.cd,cost:ab.ends?2:1,jam:isJam,tag:isCharge&&!isJam?(spent?'SPENT':`${u.charges} LEFT`):'',cls:'power'+(u.readyFlash&&now()-u.readyFlash<2500?' ready':'')+(spent?' spent':'')});
     }
   }
   renderPov();
@@ -1924,7 +1925,7 @@ function setMode(m){ G.armed=null; if(!G.sel||G.phase!=='player'||G.busy) return
   if(G.sel.def.noAttack&&m!=='move') return;
   if(m.startsWith('perk:')){ const pid=m.slice(5), u=G.sel; if(!perk(pid)||G.perkUsed.has(pid)||u.downed) return;
     if(pid==='adrenal'){ G.perkUsed.add(pid); u.ap=2; u.drainedNow=false; Audio.heal(u.x); anim(u,'healed'); fxText(u.x,u.y,'ADRENAL','#9BE28B',true); fxRing(u.x,u.y,'#9BE28B',1); log(`${u.name} takes the adrenal shot — both actions back.`,'good'); G.mode='move'; renderSide(); setHint(); return; }
-    if(pid==='surge'){ if(u.cd<=0){ setHint(`<b>${u.def.ability.name}</b> is already ready — save the surge.`); return; } G.perkUsed.add(pid); u.cd=0; u.readyPing=true; u.readyFlash=now(); Audio.heal(u.x); fxText(u.x,u.y,'SURGE','#B58CF0',true); fxRing(u.x,u.y,'#B58CF0',1); log(`Power Surge — ${u.def.ability.name} is ready again.`,'good'); G.mode='move'; renderSide(); setHint(); return; }
+    if(pid==='surge'){ const isCh=u.def.ability.key==='blast'; if(isCh?u.charges>=u.chargesMax:u.cd<=0){ setHint(`<b>${u.def.ability.name}</b> is already ${isCh?'fully charged':'ready'} — save the surge.`); return; } G.perkUsed.add(pid); if(isCh) u.charges=Math.min(u.chargesMax,u.charges+1); else u.cd=0; u.readyPing=true; u.readyFlash=now(); Audio.heal(u.x); fxText(u.x,u.y,'SURGE','#B58CF0',true); fxRing(u.x,u.y,'#B58CF0',1); log(`Power Surge — ${u.def.ability.name} is ready again.`,'good'); G.mode='move'; renderSide(); setHint(); return; }
     if(pid==='booster'){ G.perkUsed.add(pid); G.boost=true; Audio.crit(u.x); for(const p of active()) fxText(p.x,p.y,'+1 DMG','#FFD27A',true); flash('#FFD27A',0.3,120); log('Mutagen Booster — every shot the squad lands this turn deals +1.','good'); G.mode='move'; renderSide(); setHint(); return; }
     if(pid==='dressing'){ if(u.ap<=0) return; if(u.hp>=u.maxHp){ setHint(`<b>${u.name}</b> is at full health.`); return; } G.perkUsed.add(pid); const h=Math.min(4,u.maxHp-u.hp); u.hp+=h; u.ap-=1; Audio.heal(u.x); anim(u,'healed'); fxText(u.x,u.y,'+'+h,'#5CD68A',true); fxRing(u.x,u.y,'#5CD68A',1); log(`${u.name} applies a field dressing — +${h}.`,'good'); G.mode='move'; afterAction(u); return; }
     if(pid==='smoke'){ G.mode=m; if(G.povView==='pov'){ G.povReturn=true; G.povView='map'; } Audio.select(); renderSide(); setHint(`<b>Smoke Canister</b> — click a tile within 6 of ${u.name}. Hostiles firing into the cloud take −30 aim until your next turn.`); return; } return; }
@@ -2714,17 +2715,17 @@ async function performAt(p,opts={}){
     const cost=n.c<=u.move?1:2; G.busy=true; renderSide(); VO.bark(u,'move',0.3); await doMove(u,pathTo(r,p.x,p.y)); fxRing(u.x,u.y,u.color,0.6); u.ap-=cost; G.busy=false; afterAction(u); return;
   }
   if(G.mode==='shoot'){ if(hostile){ if(inRange(u,target)) await playerShoot(u,target); else setHint(`<b>No shot</b> — out of range or no line of sight.`); } return; }
-  if(G.mode==='blast'){ if(dist(u,p)>u.def.ability.range+0.01){ setHint('<b>Too far</b> — Pulse Blast reaches 5 tiles.'); return; } const BR=F(u,'blastRadius')||1, BD=F(u,'blastDmg')||3;
+  if(G.mode==='blast'){ if(dist(u,p)>u.def.ability.range+0.01){ setHint('<b>Too far</b> — Pulse Blast reaches 5 tiles.'); return; } const BR=F(u,'blastRadius')||1, BD=F(u,'blastDmg')||3; if(!(u.charges>0)){ setHint('<b>Pulse Blast</b> is spent — no charges left this mission.'); return; } u.charges--;
     G.busy=true; renderSide(); anim(u,'cast',{tx:p.x,ty:p.y}); VO.event(u,'blast'); Audio.charge(u.x); await wait(220); fxTracer(u,p,'#FFD27A'); await wait(180); Audio.blast(p.x); fxRing(p.x,p.y,'#F2B33D',BR>1?2.6:1.6); fxFlash(p.x,p.y,'#FFD27A',BR>1?2.4:1.6); shake(BR>1?16:12);
     light(p.x,p.y,'#FFD27A',12,450); flash('#FFD27A',0.35,110); fxSpark(p.x,p.y,'#FFD27A',26,{speed:2.4,up:1.8,life:700,size:0.07});
     const victims=G.units.filter(v=>v.alive&&v.side!=='captive'&&Math.abs(v.x-p.x)<=BR&&Math.abs(v.y-p.y)<=BR); const aliveBefore=victims.filter(v=>v.side==='enemy').length;
     let crates=0; for(let y=p.y-BR;y<=p.y+BR;y++) for(let x=p.x-BR;x<=p.x+BR;x++){ if(tile(x,y)===T.HALF){ G.grid[y][x]=T.FLOOR; fxDebris(x,y); crates++; } }
     log(`${u.name} fires Pulse Blast — ${victims.length} caught in the area${crates?`, ${crates} crate${crates>1?'s':''} destroyed`:''}.`,'sys');
     for(const v of victims){ log(`Blast hits ${v.name} for ${BD}.`,'hit'); applyDamage(v,BD,u,{ignoreArmor:true}); }
-    { const killed=victims.filter(v=>v.side==='enemy'&&!v.alive).length; if(killed>=2){ await wait(250); fxText(p.x,p.y-0.6,killed>=3?'TRIPLE KILL':'MULTI-KILL','#F2B33D','huge'); shake(18); freeze(200); Audio.crit(p.x); Audio.win(); log(`${u.name} — ${killed} down in one blast.`,'good'); } }
+    { const killed=victims.filter(v=>v.side==='enemy'&&!v.alive).length; if(killed>=1&&u.def.passiveKey==='overcharge'&&u.charges<u.chargesMax){ u.charges++; setTimeout(()=>{ fxText(u.x,u.y-0.6,'OVERCHARGE','#F2B33D'); Audio.ready(); },200); log(`Overcharge — the kill refunds Vex's Blast.`,'good'); } if(killed>=2){ await wait(250); fxText(p.x,p.y-0.6,killed>=3?'TRIPLE KILL':'MULTI-KILL','#F2B33D','huge'); shake(18); freeze(200); Audio.crit(p.x); Audio.win(); log(`${u.name} — ${killed} down in one blast.`,'good'); } }
     G.stats.shots++; if(victims.length) G.stats.hits++;
     { const pods=[...new Set(victims.filter(v=>v.side==='enemy'&&!v.alert).map(v=>v.pod))]; let woke=[]; for(const p of pods) woke.push(...wakePod(p)); if(woke.length) await scamper(woke); await checkContact(); }
-    u.cd=u.def.ability.cd; u.ap=0; await wait(400); G.busy=false; afterAction(u); return; }
+    u.cd=0; u.ap=0; await wait(400); G.busy=false; afterAction(u); return; }
   if(G.mode==='smash'){ if(!hostile||dist(u,target)>1.5){ setHint('<b>Smash</b> needs an adjacent hostile.'); return; }
     G.busy=true; renderSide(); anim(u,'lunge',{tx:target.x,ty:target.y}); VO.event(u,'smash'); Audio.lunge(u.x); await wait(180); Audio.smash(target.x); const roll=rnd(1,100); G.stats.shots++;
     if(target.side==='enemy'&&!target.alert) await scamper(wakePod(target.pod));
@@ -2768,7 +2769,7 @@ async function performAt(p,opts={}){
     log(`${u.name} wards ${target.name}${twin?` and ${twin.name}`:''}${cleared?' and clears them':''}.`,'good'); u.cd=u.def.ability.cd; u.ap-=1; await wait(350); G.busy=false; G.mode='move'; afterAction(u); return; }
   if(G.mode==='stim'){ if(!target||target.side!=='player'||target===u||target.def.noAttack||dist(u,target)>4.01){ setHint('<b>Stim</b> needs another ally within 4.'); return; }
     if(target.downed){ G.busy=true; renderSide(); VO.event(u,'stim'); anim(u,'cast',{tx:target.x,ty:target.y}); Audio.heal(target.x); revive(target,3,u); u.cd=u.def.ability.cd; u.ap-=1; await wait(450); G.busy=false; G.mode='move'; afterAction(u); return; }
-    G.busy=true; renderSide(); VO.event(u,'stim'); anim(u,'cast',{tx:target.x,ty:target.y}); anim(target,'healed'); Audio.heal(target.x); const before=target.ap; target.ap=Math.min(2,target.ap+1); target.cd=F(u,'stimReset')?0:Math.max(0,target.cd-1); target.drained=false; target.drainedNow=false;
+    G.busy=true; renderSide(); VO.event(u,'stim'); anim(u,'cast',{tx:target.x,ty:target.y}); anim(target,'healed'); Audio.heal(target.x); const before=target.ap; target.ap=Math.min(2,target.ap+1); if(target.def.ability&&target.def.ability.key==='blast'){ target.charges=Math.min(target.chargesMax||3,(target.charges||0)+1); } else target.cd=F(u,'stimReset')?0:Math.max(0,target.cd-1); target.drained=false; target.drainedNow=false;
     if(F(u,'stimHeal')&&target.hp<target.maxHp){ const h=Math.min(F(u,'stimHeal'),target.maxHp-target.hp); target.hp+=h; fxText(target.x,target.y+0.5,'+'+h,'#5CD68A'); }
     fxText(target.x,target.y,before<target.ap?'+1 ACTION':'READY','#9BE28B',true); fxRing(target.x,target.y,'#9BE28B',1); log(`${u.name} stims ${target.name}.`,'good'); u.cd=u.def.ability.cd; u.ap-=1; await wait(350); G.busy=false; G.mode='move'; afterAction(u); return; }
   if(G.mode==='setdown'){ if(!u.carrying||cheb(u,p)!==1||solid(p.x,p.y)||target){ setHint('<b>Set down</b> — click an open tile next to you.'); return; } G.busy=true; renderSide(); const d=u.carrying; u.carrying=null; u.move+=1; d.carried=false; d.x=p.x; d.y=p.y; u.ap-=1; Audio.thud(p.x); log(`${u.name} sets ${d.name} down.`,'sys'); await wait(250); G.busy=false; G.mode='move'; afterAction(u); return; }

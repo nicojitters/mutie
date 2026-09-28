@@ -109,6 +109,9 @@ h1,h2,h3{margin:0;font-family:var(--font-display);text-wrap:balance;letter-spaci
 .report-camp{margin:0 0 14px;padding:8px 12px;background:var(--panel-2);border:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
 .report-camp b{color:var(--ink)}
 .report-camp .up{color:var(--accent)} .report-camp .lost{color:var(--danger)} .report-camp .new{color:var(--player)} .report-camp .doomline{color:var(--aug)}
+.report-camp .moments{color:var(--focus);padding-bottom:4px;margin-bottom:2px;border-bottom:1px solid var(--line)} .report-camp .moments b{color:var(--focus)}
+.rec{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);margin-bottom:12px} .rec div{padding:4px 8px;background:var(--panel);border-left:2px solid var(--focus)} .rec div i{font-style:normal;color:var(--ink)} .rec div.scar{border-left-color:var(--danger)} .rec div.bond{border-left-color:var(--heal)} .rec div.bond s{color:var(--muted)} .rec .empty{border-left-color:var(--line)}
+.mem.click{cursor:pointer} .mem.click:hover{border-color:var(--focus)}
 .cust{display:grid;grid-template-columns:110px 1fr;gap:8px 12px;align-items:center;font-size:12px;color:var(--muted)}
 .cust input[type=text]{font:inherit;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);padding:6px 8px;width:100%}
 .sw-row{display:flex;gap:6px;flex-wrap:wrap}
@@ -763,6 +766,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
 <p><b>Each family sees the board its own way.</b> A Blaster hovering a Blast tile reads what it would do (hits · kills · wrecks · exposes). A Phaser in Blink sees gold tiles — the ones that flank their target. A Mender's ally strip shows who is in danger right now and what the power leaves them at. A Bruiser's Smash card says when it shreds armor or executes.</p>
 <p><b>The Coalition does not wait.</b> An awake hostile with no shot holds an overwatch lane for one turn, then it comes for you — through the gap, around the wall — and after two dry turns it dashes. Marksmen are the exception: they hold their lane, and their reaction fire has no penalty. Husks blink to your flank. A Grenadier paints a 3×3 on any two of you standing together (no line of sight needed); it lands at the start of the next Coalition turn unless the Grenadier is dead by then. Spread out.</p>
 <p><b>The clock starts at contact.</b> Reinforcements are called in the first time an awake hostile survives a Coalition turn (or when you start a console transmission); the first wave lands a set number of turns after that, and patrols find you a few turns later regardless. Killing a Spotter takes its uplink with it — one more turn. On industrial and rust maps a detonated drum sets the floor alight: fire spreads for a few turns and burns anyone who starts a turn in it or runs through it, both sides.</p>
+<p><b>The record writes itself.</b> Each mutant's sheet keeps a service record — clutch shots, kills at low HP, saves, the people they fight best beside — taken from what actually happened. Going down leaves a scar: −1 max HP for good, and the sheet says who did it. Two mutants who combo together three times are bonded: +5 aim while within 3 tiles of each other. The fallen keep their record in the memorial.</p>
 <p><b>Grafts.</b> Every Coalition augment was grown from mutant tissue. Win a mission after killing a new kind of unit and its graft comes home; fit it to one mutant from their sheet at base (one per mutant — moving it is the choice). Ten to recover, from Ceramic Weave to the Surgeon's Hand.</p>
         <p><b>Fuel drums</b> (the ones with the hazard band) are full cover for anyone — until someone shoots one. Any hit sets it off: 4 damage to everything beside it, armor ignored, crates wrecked, neighbouring drums chain. Bait a pod behind one, or don't stand next to one yourself.</p>
         <p><b>Overwatch</b> holds your shot and fires at the first hostile that moves in view. <b>Husks blink</b> and ignore it. <b>Hunker</b> is the other way to spend a turn you can't shoot well: −20 to be hit and no crits against you until your next turn. A 30% shot, overwatch, hunker, or a move — all four are real answers.</p>
@@ -1396,11 +1400,11 @@ const UPGRADES={
   phaser:[{id:'quick',name:'Quick',desc:'+1 move.',mod:{move:1}},{id:'ghost',name:'Ghost',desc:'+2 HP, +5 aim.',mod:{hp:2,aim:5}}],
   mender:[{id:'reach',name:'Reach',desc:'Power range +2.',mod:{range:2}},{id:'fieldkit',name:'Field Kit',desc:'Power cooldown −1.',mod:{cd:-1}}],
 };
-function freshCampaign(){ return { v:1, roster:MUTANTS.filter(m=>STARTING_IDS.includes(m.id)).map(m=>({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null})), fallen:[], doom:2, recruits:0, lost:false, log:[], perks:[], equipped:[], perkOffer:null, drafted:[], joined:[], grafts:[], diff:'veteran' }; }
+function freshCampaign(){ return { v:1, roster:MUTANTS.filter(m=>STARTING_IDS.includes(m.id)).map(m=>({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null})), fallen:[], doom:2, recruits:0, lost:false, log:[], perks:[], equipped:[], perkOffer:null, drafted:[], joined:[], grafts:[], pairs:{}, mourn:null, diff:'veteran' }; }
 let CAMP=(()=>{ try{ const raw=localStorage.getItem('mutie.campaign'); if(raw){ const c=JSON.parse(raw); if(c&&c.roster) return c; } }catch(e){} return freshCampaign(); })();
 function saveCamp(){ try{ localStorage.setItem('mutie.campaign',JSON.stringify(CAMP)); }catch(e){} }
 const rosterEntry=cid=>CAMP.roster.find(r=>r.cid===cid);
-(function migrateCamp(){ CAMP.perks=CAMP.perks||[]; CAMP.equipped=CAMP.equipped||[]; CAMP.drafted=CAMP.drafted||[]; if(CAMP.perkOffer===undefined) CAMP.perkOffer=null; CAMP.joined=CAMP.joined||[]; CAMP.grafts=CAMP.grafts||[]; if(!['scout','veteran','graft'].includes(CAMP.diff)) CAMP.diff='veteran'; })();
+(function migrateCamp(){ CAMP.perks=CAMP.perks||[]; CAMP.equipped=CAMP.equipped||[]; CAMP.drafted=CAMP.drafted||[]; if(CAMP.perkOffer===undefined) CAMP.perkOffer=null; CAMP.joined=CAMP.joined||[]; CAMP.grafts=CAMP.grafts||[]; CAMP.pairs=CAMP.pairs||{}; for(const r of CAMP.roster){ r.record=r.record||[]; r.scars=r.scars||[]; } if(!['scout','veteran','graft'].includes(CAMP.diff)) CAMP.diff='veteran'; })();
 function togglePerk(id){ if(!CAMP.perks.includes(id)) return; const i=CAMP.equipped.indexOf(id); if(i>=0) CAMP.equipped.splice(i,1); else { if(CAMP.equipped.length>=PERK_SLOTS) CAMP.equipped.shift(); CAMP.equipped.push(id); } saveCamp(); Audio.select(); }
 function renderPerkList(el,note,{editable=true}={}){ el.innerHTML=''; const owned=CAMP.perks.filter(p=>PERKS[p]); const eq=equippedPerks();
   if(!owned.length){ el.innerHTML='<div class="note" style="grid-column:1/-1">None yet. Clearing a campaign mission earns a pick of three.</div>'; if(note) note.textContent=''; return; }
@@ -1495,6 +1499,18 @@ const GRAFT_ORDER=Object.keys(GRAFTS); const GRAFT_BASIC=['ceramic','optics','te
 const graftHolder=id=>CAMP.roster.find(r=>r.alive&&r.graft===id)||null;
 const enemyByType=id=>Object.values(ENEMY).find(e=>e.id===id);
 const srcLabel=g=>{ const e=enemyByType(g.from); const n=e?e.name:g.from; return /^The /.test(n)?n:'the '+n; };
+/* ---------- Consequences & attachment ----------
+   moment(u,text,w): the game noticing something a player would tell a story about. Collected per unit during the mission
+   (G.moments), the best three per mutant go into their roster entry's `record` at finish (capped at 12), the best three overall
+   make the report, the fallen keep theirs in the memorial, the epilogue quotes one per survivor. Bonds: CAMP.pairs counts combos
+   per pair of cids; at BOND_AT the pair is bonded — +5 aim while within 3 tiles of each other (hitChance part `bond`). */
+const BOND_AT=3, RECORD_MAX=12; const lc1=t=>t?t[0].toLowerCase()+t.slice(1):t;
+function moment(u,text,w=1){ if(!u||!u.cid||!G.moments) return; const list=G.moments.get(u.cid)||[]; if(list.some(m=>m.t===text)) return; list.push({t:text,w}); G.moments.set(u.cid,list); }
+const pairKey=(a,b)=>[a,b].sort().join('|');
+const pairCount=(a,b)=>(CAMP.pairs&&CAMP.pairs[pairKey(a,b)])||0;
+const bonded=(a,b)=>!!(a&&b&&a.cid&&b.cid&&a.cid!==b.cid&&pairCount(a.cid,b.cid)>=BOND_AT);
+function bondPartner(u){ if(!u||!u.cid) return null; return alive('player').find(p=>p!==u&&!p.downed&&!p.carried&&bonded(u,p)&&cheb(u,p)<=3)||null; }
+function partnersOf(cid){ const out=[]; for(const k in (CAMP.pairs||{})){ const [a,b]=k.split('|'); if(a!==cid&&b!==cid) continue; const other=a===cid?b:a; const r=rosterEntry(other); const f=CAMP.fallen.find(x=>x.cid===other); out.push({cid:other,name:r?r.name:f?f.name:other,n:CAMP.pairs[k],dead:!r||!r.alive}); } return out.sort((x,y)=>y.n-x.n); }
 function setGraft(cid,id){ const r=rosterEntry(cid); if(!r) return; if(id&&!CAMP.grafts.includes(id)) return; if(id){ const h=graftHolder(id); if(h&&h!==r) h.graft=null; } r.graft=id||null; saveCamp(); }
 const levelFor=xp=>{ let l=1; for(let i=1;i<LEVEL_XP.length;i++) if(xp>=LEVEL_XP[i]) l=i+1; return l; };
 const readyRoster=()=>CAMP.roster.filter(r=>r.alive&&r.wounded<=0);
@@ -1504,6 +1520,7 @@ const deployPool=()=>{ const al=CAMP.roster.filter(r=>r.alive); return readyRost
 function buildDef(entry){ const kit=MUT[entry.kit]||MUT.blaster; const d=Object.assign({},ARCH[kit.arch],kit,{id:kit.id}); d.ability=Object.assign({},kit.ability); d.attack=attackFor(kit.id);
   const L=entry.level; if(L>=2){ d.hp+=1; d.aim+=5; } if(L>=4){ d.hp+=2; d.aim+=5; }
   d.flags={}; if(entry.upgrade){ const up=findUpgrade(entry.kit,entry.upgrade); if(up){ d.upgradeName=up.name; d.upgradeDesc=up.desc; Object.assign(d.flags,up.flags||{}); for(const k in (up.mod||{})){ if(k==='cd') d.ability.cd=Math.max(1,d.ability.cd+up.mod.cd); else if(k==='range') d.ability.range+=up.mod.range; else if(k==='dmg') d.dmg=[d.dmg[0]+1,d.dmg[1]+1]; else d[k]=(d[k]||0)+up.mod[k]; } } }
+  if(entry.scars&&entry.scars.length) d.hp=Math.max(4,d.hp-entry.scars.length);
   if(entry.graft&&GRAFTS[entry.graft]){ const g=GRAFTS[entry.graft]; d.graftName=g.name; d.graftDesc=g.desc; Object.assign(d.flags,g.flags||{}); for(const k in (g.mod||{})){ if(k==='cd') d.ability.cd=Math.max(1,d.ability.cd+g.mod.cd); else if(k==='rng') d.range+=g.mod.rng; else d[k]=(d[k]||0)+g.mod[k]; } }
   d.level=L; d.cid=entry.cid; d.custom=entry.custom; return d; }
 function doomLabel(){ const d=CAMP.doom; return d>=9?'Critical':d>=7?'Severe':d>=5?'Rising':d>=3?'Contained':'Low'; }
@@ -1574,6 +1591,7 @@ function hitChance(a,d,opt={}){
   const cov=(a.melee||d.exposed)?0:coverAgainst(d,a);
   c-= cov===2?40:cov===1?20:0; if(cov) parts.push([cov===2?'full cover':'half cover',cov===2?-40:-20]); if(d.exposed&&!a.melee) parts.push(['exposed',null]);
   if(d.stunned){ c+=30; parts.push(['stunned',30]); }
+  if(a.side==='player'&&a.cid&&bondPartner(a)){ c+=5; parts.push(['bond',5]); }
   if(d.marked&&!a.melee){ c+=20; parts.push(['marked',20]); }
   if(opt.reaction){ if(a.def.id==='marksman') parts.push(['steadied',null]); else if(a.def.passiveKey!=='steady'&&!(a.side==='player'&&perk('steady'))){ c-=15; parts.push(['reaction',-15]); } if(d.def.passiveKey==='slippery'){ c-=20; parts.push(['slippery',-20]); } }
   if(d.hunker){ c-=20; parts.push(['hunkered',-20]); }
@@ -1726,7 +1744,7 @@ function makeCaptive(x,y,name){ const u=makeUnit(VIP,'captive',x,y,name||NAMES.v
 function startMission(idx,op){
   const base=idx<0?SIDE:MISSIONS[idx]; G.perks=equippedPerks(); G.adapt=adaptFor(CAMP.doom,base.act); MADJ=adjustMission(base,idx,G.perks,G.adapt); G.perkUsed=new Set(); G.medevacUsed=false; G.smoke=null; G.boost=false;
   const m=MX(idx); G.missionIdx=idx; G.grid=[]; G.units=[]; G.turn=1; G.phase='player'; G.sel=null; G.mode='move'; G.fx=[]; G.over=false; G.busy=false;
-  G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.actcam=null; G.setups=new Map(); G.salvos=[]; G.saidSalvo=false; G.saidPressure=false; G.killedTypes=new Set(); G.called=null; G.reinfDelay=0; G.fire=new Map(); G.saidFire=false; G.stats={shots:0,hits:0,dmg:0,combos:0}; G.campApplied=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
+  G.pov=null; G.povView='map'; G.povReturn=false; G.armed=null; G.actcam=null; G.setups=new Map(); G.salvos=[]; G.saidSalvo=false; G.saidPressure=false; G.killedTypes=new Set(); G.called=null; G.reinfDelay=0; G.fire=new Map(); G.saidFire=false; G.moments=new Map(); if(CAMP.mourn){ CAMP.mourn=null; saveCamp(); } G.stats={shots:0,hits:0,dmg:0,combos:0}; G.campApplied=false; G.op=op||opName(); G.reinforced=0; G.fallen=[]; G.evac=new Set(); G.hold=new Set(); G.theme=THEMES[m.theme||MISSION_THEME[m.id]]||THEMES.roof;
   G.objState={relays:0,relaysTotal:0,freed:0,captivesTotal:0,shipped:false,holdCount:0,summons:0,evacOpen:!(m.evacAt||m.evacAfterHold)};
   const spawns=[]; let relayN=0, capN=0;
   const drums=drumSet(m);
@@ -1785,7 +1803,7 @@ function renderHub(){
   const d=CAMP.doom; $('doom').innerHTML=`<div class="row"><span class="t">Graft Index · ${doomLabel()}</span><span class="note num">${d}/10 · ${diff().name}</span></div><div class="bar"><i style="width:${d*10}%"></i></div><div class="note">${CAMP.lost?'The Coalition has fielded a Husk army. This campaign is lost — start a new one.':'Rises after every mission. Sabotage, broadcasts and the Surgeon push it back. At 10, the Coalition fields a Husk army and the campaign is lost.'}</div>`;
   const ro=$('roster'); ro.innerHTML=''; const alive_=CAMP.roster.filter(r=>r.alive);
   for(const r of alive_){ const kit=MUT[r.kit]; const b=document.createElement('button'); b.className='rc'; b.style.borderLeftColor=r.custom&&r.custom.accent?r.custom.accent:kit.color; const L=r.level; const nx=LEVEL_XP[Math.min(LEVEL_XP.length-1,L)]; const prev=LEVEL_XP[L-1]; const pct=L>=4?100:Math.round(100*(r.xp-prev)/Math.max(1,nx-prev));
-    b.innerHTML=`<div class="n">${r.name} <span class="lv">L${L}</span>${r.wounded>0?'<span class="st w">Wounded</span>':''}${r.pendingUpgrade?'<span class="st u">Upgrade</span>':''}${r.recruit&&r.missions===0?'<span class="st new">New</span>':''}</div><div>${famName(kit)} · <span style="color:${kit.color}">${kit.ability.name}</span>${r.upgrade?` · <span style="color:var(--accent)">${(findUpgrade(r.kit,r.upgrade)||{}).name||''}</span>`:''}${r.graft&&GRAFTS[r.graft]?` · <span style="color:var(--aug)">${GRAFTS[r.graft].name}</span>`:''}</div><div>${r.missions} mission${r.missions===1?'':'s'} · ${r.kills} kill${r.kills===1?'':'s'} · XP ${r.xp}</div><div class="xp"><i style="width:${pct}%"></i></div>`;
+    b.innerHTML=`<div class="n">${r.name} <span class="lv">L${L}</span>${r.wounded>0?'<span class="st w">Wounded</span>':''}${r.pendingUpgrade?'<span class="st u">Upgrade</span>':''}${r.recruit&&r.missions===0?'<span class="st new">New</span>':''}</div><div>${famName(kit)} · <span style="color:${kit.color}">${kit.ability.name}</span>${r.upgrade?` · <span style="color:var(--accent)">${(findUpgrade(r.kit,r.upgrade)||{}).name||''}</span>`:''}${r.graft&&GRAFTS[r.graft]?` · <span style="color:var(--aug)">${GRAFTS[r.graft].name}</span>`:''}</div><div>${r.missions} mission${r.missions===1?'':'s'} · ${r.kills} kill${r.kills===1?'':'s'} · XP ${r.xp}${(r.scars||[]).length?` · <span style="color:var(--danger)">${r.scars.length} scar${r.scars.length>1?'s':''}</span>`:''}${partnersOf(r.cid).some(b=>b.n>=BOND_AT&&!b.dead)?` · <span style="color:var(--heal)">bonded</span>`:''}</div><div class="xp"><i style="width:${pct}%"></i></div>`;
     b.onclick=()=>{ Audio.select(); openMutant(r.cid); }; ro.appendChild(b); }
   $('roster-note').textContent=`${readyRoster().length} ready · ${alive_.filter(r=>r.wounded>0).length} wounded`;
   renderPerkList($('perks'),$('perks-note'));
@@ -1794,7 +1812,7 @@ function renderHub(){
     $('grafts-note').textContent=owned.length?`${owned.filter(g=>graftHolder(g)).length}/${owned.length} fitted · ${GRAFT_ORDER.length-owned.length} still out there`:`${GRAFT_ORDER.length} out there`; }
   { const nextM=MISSIONS.find(mm=>!PROG.cleared.includes(mm.id))||MISSIONS[MISSIONS.length-1]; const n=adaptCount(CAMP.doom,nextM.act); $('adapt-note').textContent=`${n} active for ${ACTS[nextM.act]}`; $('adapt-box').innerHTML=`<div class="note">Program Graft iterates. Each act, and every three points of Graft Index, the Coalition fields another modification. Push the Index down and they lose one.</div><div class="adapt" id="adapt-list"></div>`; renderAdaptList($('adapt-list'),CAMP.doom,nextM.act); }
   setTimeout(checkPerkOffer,50);
-  const me=$('memorial'); me.innerHTML=''; if(!CAMP.fallen.length){ me.innerHTML='<div class="note">No one yet. Keep it that way.</div>'; } else for(const f of CAMP.fallen){ const kit=MUT[f.kit]; const d2=document.createElement('div'); d2.className='mem'; d2.innerHTML=`<span><b>${f.name}</b> · ${famName(kit)} · ${kit.ability.name}</span><span>${f.missions} missions · ${f.kills} kills · fell at ${f.mission}</span>`; me.appendChild(d2); }
+  const me=$('memorial'); me.innerHTML=''; if(!CAMP.fallen.length){ me.innerHTML='<div class="note">No one yet. Keep it that way.</div>'; } else for(const f of CAMP.fallen){ const kit=MUT[f.kit]; const d2=document.createElement('div'); d2.className='mem click'; d2.innerHTML=`<span><b>${f.name}</b> · ${famName(kit)} · ${kit.ability.name}</span><span>${f.missions} missions · ${f.kills} kills · fell at ${f.mission}${f.by?` — ${f.by}`:''}</span>`; d2.onclick=()=>{ Audio.select(); openFallen(f); }; me.appendChild(d2); }
   $('memorial-note').textContent=CAMP.fallen.length?`${CAMP.fallen.length} lost`:'';
 }
 /* Campaign epilogue: shown after Last Light (and from the hub once every campaign mission is cleared). All of it reads CAMP. */
@@ -1812,8 +1830,8 @@ function showEpilogue(){
   ];
   $('ep-text').innerHTML=ps.map(t=>`<p>${t}</p>`).join('');
   $('ep-stats').innerHTML=[[PROG.cleared.length,'missions cleared'],[kills,'confirmed kills'],[fallen.length,'lost'],[`${fin.doom??CAMP.doom}/10`,'final Graft Index']].map(([v,l])=>`<div><div class="v num">${v}</div><div class="l">${l}</div></div>`).join('');
-  const ro=$('ep-roster'); ro.innerHTML=''; for(const r of [...aliveR].sort((a,b)=>(b.missions-a.missions)||(b.kills-a.kills)||(b.level-a.level))){ const kit=MUT[r.kit]; const d=document.createElement('div'); d.className='mem'; d.innerHTML=`<span><b>${r.name}</b><span class="lv">L${r.level}</span> · ${famName(kit)}</span><span>${r.missions} mission${r.missions===1?'':'s'} · ${r.kills} kill${r.kills===1?'':'s'}</span>`; ro.appendChild(d); }
-  const fw=$('ep-fallen-wrap'), fl=$('ep-fallen'); fl.innerHTML=''; fw.hidden=!fallen.length; for(const f of fallen){ const kit=MUT[f.kit]; const d=document.createElement('div'); d.className='mem'; d.innerHTML=`<span><b>${f.name}</b> · ${famName(kit)} · ${kit.ability.name}</span><span>fell at ${f.mission} · ${f.kills} kill${f.kills===1?'':'s'}</span>`; fl.appendChild(d); }
+  const ro=$('ep-roster'); ro.innerHTML=''; for(const r of [...aliveR].sort((a,b)=>(b.missions-a.missions)||(b.kills-a.kills)||(b.level-a.level))){ const kit=MUT[r.kit]; const d=document.createElement('div'); d.className='mem'; const last=(r.record||[]).slice(-1)[0]; d.innerHTML=`<span><b>${r.name}</b><span class="lv">L${r.level}</span> · ${famName(kit)}${last?` <i class="note">— ${lc1(last.t)}, ${last.m}</i>`:''}</span><span>${r.missions} mission${r.missions===1?'':'s'} · ${r.kills} kill${r.kills===1?'':'s'}</span>`; ro.appendChild(d); }
+  const fw=$('ep-fallen-wrap'), fl=$('ep-fallen'); fl.innerHTML=''; fw.hidden=!fallen.length; for(const f of fallen){ const kit=MUT[f.kit]; const d=document.createElement('div'); d.className='mem'; const lastF=(f.record||[]).slice(-1)[0]; d.innerHTML=`<span><b>${f.name}</b> · ${famName(kit)}${lastF?` <i class="note">— ${lc1(lastF.t)}, ${lastF.m}</i>`:''}</span><span>fell at ${f.mission}${f.by?` — ${f.by}`:''} · ${f.kills} kill${f.kills===1?'':'s'}</span>`; fl.appendChild(d); }
   VO.stop(); setTimeout(()=>VO.control('It is out. All of it. Stand down. It is daylight.',3),500);
   showScreen('epilogue'); window.scrollTo(0,0);
 }
@@ -1828,6 +1846,7 @@ function openMutant(cid){ const r=rosterEntry(cid); const kit=MUT[r.kit]; const 
     ${r.upgrade?`<div class="note" style="margin-bottom:10px">Upgrade: <b style="color:var(--accent)">${(findUpgrade(r.kit,r.upgrade)||{}).name||''}</b> — ${(findUpgrade(r.kit,r.upgrade)||{}).desc||''}</div>`:''}
     ${!r.upgrade&&!r.pendingUpgrade?`<div class="note" style="margin-bottom:10px">At level 3, choose: ${upgradesFor(r.kit).map(u=>`<b>${u.name}</b>`).join(' or ')}.</div>`:''}
     ${r.pendingUpgrade?`<button class="btn primary small" id="mu-upgrade" style="margin-bottom:12px">Choose level-3 upgrade</button>`:''}
+    ${sheetHistory(r)}
     <div class="eyebrow" style="margin:6px 0 8px">Graft <span class="note" style="text-transform:none;letter-spacing:0;font-weight:400">— one per mutant; fitting it here takes it off whoever has it</span></div>
     <div class="perks graftpick" id="mu-grafts"></div>
     <div class="eyebrow" style="margin:12px 0 8px">Appearance</div>
@@ -1845,6 +1864,15 @@ function openMutant(cid){ const r=rosterEntry(cid); const kit=MUT[r.kit]; const 
   const up=$('mu-upgrade'); if(up) up.onclick=()=>{ $('modal-mutant').hidden=true; offerUpgrade(r.cid); };
   $('modal-mutant').hidden=false;
 }
+/* Service record + scars + bonds block, shared by the mutant sheet and the memorial sheet. */
+function sheetHistory(r,{dead=false}={}){ const rec=r.record||[], scars=r.scars||[], bonds=r.cid?partnersOf(r.cid):[]; const rows=[];
+  for(const b of bonds){ const on=b.n>=BOND_AT; rows.push(`<div class="bond">${on?'<i>Bonded</i> with ':'Works with '}${b.dead?`<s>${b.name}</s> <span class="note">(lost)</span>`:`<i>${b.name}</i>`} · ${b.n} combo${b.n===1?'':'s'} together${on?' — +5 aim within 3 tiles':` — ${BOND_AT-b.n} more to bond`}</div>`); }
+  for(const sc of scars) rows.push(`<div class="scar"><i>Scar</i> — ${sc.t} · ${sc.m} · −1 max HP</div>`);
+  for(const e of [...rec].reverse()) rows.push(`<div><i>${e.t}</i> <span class="note">· ${e.m}</span></div>`);
+  if(!rows.length) rows.push(`<div class="empty">${dead?'No record survived.':'No record yet. The record writes itself — clutch shots, saves, kills at low HP, the people they fight best beside.'}</div>`);
+  return `<div class="eyebrow" style="margin:6px 0 8px">Service record</div><div class="rec">${rows.join('')}</div>`; }
+function openFallen(f){ const kit=MUT[f.kit]; $('mu-title').textContent=`${f.name} · ${famName(kit)} · fallen`; $('mu-sub').textContent=`Level ${f.level||1} · ${f.kills} kills · ${f.missions} missions · fell at ${f.mission} — ${f.by||'the Coalition'}${f.turn?`, turn ${f.turn}`:''}`;
+  $('mu-body').innerHTML=`<div class="ability-line" style="margin-bottom:12px"><em>${kit.ability.name}</em> — ${kit.ability.desc}</div>${sheetHistory(f,{dead:true})}`; $('modal-mutant').hidden=false; }
 function offerUpgrade(cid){ const r=rosterEntry(cid); const kit=MUT[r.kit]; const ups=upgradesFor(r.kit); $('up-title').textContent=`${r.name} — Level 3`; $('up-text').textContent='Pick one. This is permanent.';
   const box=$('up-choices'); box.innerHTML=''; for(const u of ups){ const b=document.createElement('button'); b.className='btn'; b.innerHTML=`<b>${u.name}</b>${u.desc}`; b.onclick=()=>{ r.upgrade=u.id; r.pendingUpgrade=false; saveCamp(); Audio.heal(7.5); $('modal-upgrade').hidden=true; renderHub(); if(G.screen==='brief') renderArchCards(); }; box.appendChild(b); }
   $('modal-upgrade').hidden=false; }
@@ -1871,7 +1899,7 @@ function enemyCodesFor(m){ const set=new Set(); for(const row of m.map) for(cons
 function openBriefing(i){
   MADJ=null; const m=MX(i); G.missionIdx=i; G.op=opName(); const adj=adjustMission(m,i,equippedPerks(),adaptFor(CAMP.doom,m.act));
   $('b-act').textContent=i<0?`Side op · Sector ${m.sector} · Tier ${m.tier+1}`:`${ACTS[m.act]} · Mission ${i+1} of ${MISSIONS.length}`; $('b-name').textContent=m.name; $('b-op').textContent=G.op;
-  $('b-intro').textContent=m.intro||''; $('b-desc').textContent=m.desc;
+  { const mourn=(CAMP.mourn||[]).filter(Boolean); const list=a=>a.length<=1?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1]; $('b-intro').textContent=(mourn.length?`First op without ${list(mourn)}. Make it count. `:'')+(m.intro||''); } $('b-desc').textContent=m.desc;
   const objNames={eliminate:'Eliminate',sabotage:'Sabotage',rescue:'Rescue',extract:'Extraction',hold:'Hold',assassinate:'Assassination'};
   $('b-obj').innerHTML=`<em>${objNames[m.objective]}</em> — ${m.brief}`;
   const params=[]; params.push(`<span>Graft Index <b>${CAMP.doom}/10 · ${doomLabel()}</b> · <b>${diff().name}</b></span>`); params.push(m.reinforceAt>50?`<span>Reinforcements: <b>none — she grafts her own</b></span>`:`<span>Reinforcements <b>${callDelay(adj)} turns after contact</b>, patrols by turn ${ceilTurn(adj)}${adj.reinforceAt!==m.reinforceAt?` <i class="note">(base ${m.reinforceAt}${adj.reinforceAt>m.reinforceAt?' — slower':' — faster'})</i>`:''}${m.objective==='eliminate'?' <i class="note">— they keep coming; clear it fast</i>':''}</span>`);
@@ -2004,7 +2032,7 @@ function renderSide(){
   else{
     $('sel-name').textContent=`${u.name} · ${u.def.id==='vip'?'Captive':famName(u.def)}`; $('sel-name').style.color=u.color;
     $('sel-stats').innerHTML=`HP <b class="num">${u.hp}/${u.maxHp}</b>${u.armor?` · Armor <b class="num">${u.armor}</b>`:''} · Aim <b class="num">${u.aim}</b> · Rng <b class="num">${u.range}</b>`;
-    const pv=u.def.passive||''; $('sel-passive').innerHTML=(pv.includes(' — ')?`<b>${pv.split(' — ')[0]}</b> — ${pv.split(' — ')[1]}`:pv)+(u.def.graftName?` <span class="graft"><b>${u.def.graftName}</b> — ${u.def.graftDesc}</span>`:'');
+    const pv=u.def.passive||''; $('sel-passive').innerHTML=(pv.includes(' — ')?`<b>${pv.split(' — ')[0]}</b> — ${pv.split(' — ')[1]}`:pv)+(u.def.graftName?` <span class="graft"><b>${u.def.graftName}</b> — ${u.def.graftDesc}</span>`:'')+(()=>{ const bp=bondPartner(u); const any=alive('player').find(p=>p!==u&&bonded(u,p)); return any?` <span class="graft" style="color:var(--heal)"><b>Bond</b> — ${bp?`+5 aim, ${bp.name} is close`:`${any.name} is out of reach (within 3 tiles for +5 aim)`}</span>`:''; })();
     const can=G.phase==='player'&&!G.busy&&u.ap>0;
     const mk=(k,label,desc,{disabled=false,pressed=false,cd=0,cost=1,jam=false,cls='',tag=''}={})=>{ const b=document.createElement('button'); b.className='abtn '+cls; b.disabled=disabled; b.setAttribute('aria-pressed',String(pressed));
       b.innerHTML=`<span class="k">${label}</span><span class="d">${desc}</span>`+(tag?`<span class="cd${/LEFT$/.test(tag)?' ch':''}">${tag}</span>`:jam?`<span class="cd jam">JAMMED</span>`:cd>0?`<span class="cd">CD ${cd}</span>`:`<span class="cost">${'<i></i>'.repeat(cost)}</span>`); b.onclick=()=>{ const inPov=G.povView==='pov'&&G.pov&&G.pov.unit===u&&G.pov.target; if(inPov&&k==='shoot'&&G.pov.kind==='enemy'){ povGo(); return; } if(inPov&&TARGETED[k]==='enemy'&&G.pov.kind==='enemy'&&povEnemyOk(u,G.pov.target,k)){ G.mode=k; povGo(); return; } setMode(k); }; act.appendChild(b); };
@@ -2093,7 +2121,7 @@ $('pov-prev').onclick=()=>povCycle(-1); $('pov-next').onclick=()=>povCycle(1); $
 function select(u){ G.armed=null; if(G.phase!=='player'||G.busy) return; if(G.sel!==u){ VO.bark(u,'select',0.35); anim(u,'select'); fxRing(u.x,u.y,'#FFFFFF',0.5); } G.sel=u; G.mode='move'; enterPOV(u,{view:'pov'}); G.povReturn=false; Audio.select(); renderSide(); setHint(); }
 function setMode(m){ G.armed=null; if(!G.sel||G.phase!=='player'||G.busy) return;
   if(m==='stabilize'){ const u=G.sel; const d=downedNear(u)[0]; if(!d||u.ap<=0||d.stabilized) return; d.stabilized=true; u.ap-=1; Audio.heal(d.x); anim(u,'cast',{tx:d.x,ty:d.y}); fxRing(d.x,d.y,'#5CD68A',1); fxText(d.x,d.y,'STABLE','#5CD68A',true); log(`${u.name} stabilizes ${d.name}.`,'good'); say('stabilized',d.name); VO.bark(u,'mend',0.8); afterAction(u); return; }
-  if(m==='carry'){ const u=G.sel; const d=downedNear(u)[0]; if(!d||u.ap<=0||u.carrying) return; u.carrying=d; d.carried=true; d.x=u.x; d.y=u.y; u.move=Math.max(1,u.move-1); u.ow=false; u.ap-=1; Audio.thud(u.x); fxRing(u.x,u.y,'#3FC1E3',0.8); log(`${u.name} picks up ${d.name}.`,'sys'); VO.bark(u,'move',0.8); afterAction(u); return; }
+  if(m==='carry'){ const u=G.sel; const d=downedNear(u)[0]; if(!d||u.ap<=0||u.carrying) return; u.carrying=d; d.carried=true; d.x=u.x; d.y=u.y; u.move=Math.max(1,u.move-1); u.ow=false; u.ap-=1; moment(u,`Carried ${d.name} under fire`,3); Audio.thud(u.x); fxRing(u.x,u.y,'#3FC1E3',0.8); log(`${u.name} picks up ${d.name}.`,'sys'); VO.bark(u,'move',0.8); afterAction(u); return; }
   if(m==='hunker'){ const u=G.sel; if(u.ap<=0||u.hunker||u.def.noAttack) return; u.hunker=true; u.ap=0; u.ow=false; Audio.thud(u.x); VO.bark(u,'hunker',0.6); fxRing(u.x,u.y,'#AEBFD0',0.9); fxText(u.x,u.y-0.4,'HUNKER','#AEBFD0'); log(`${u.name} hunkers down — −20 to be hit, no crits, until your next turn.`,'sys'); afterAction(u); return; }
   if(m==='overwatch'){ const u=G.sel; if(u.ap<=0||u.ow||u.def.noAttack||u.carrying) return; u.ow=true; u.ap=0; Audio.overwatch(u.x); VO.bark(u,'ow',0.6); fxRing(u.x,u.y,'#F2B33D',0.9); log(`${u.name} goes on overwatch.`,'sys'); afterAction(u); return; }
   if(G.sel.def.noAttack&&m!=='move') return;
@@ -2177,7 +2205,7 @@ function applyDamage(target,amount,source,opt={}){
   if(target.def.boss&&target.hp>0&&target.hp<=9&&!target.voHurt){ target.voHurt=true; VO.surgeon('hurt'); }
   fxText(target.x,target.y,'-'+dealt,opt.crit?'#FFD27A':'#FF6B62',true); fxFlash(target.x,target.y,target.side==='enemy'?'#FF8A80':target.side==='obj'?'#FFD27A':'#7FE2FF'); shake(dealt>=4?9:5);
   if(target.hp<=0&&target.side==='player'&&!target.def.noAttack&&!target.downed){ // bleed-out instead of death
-    target.hp=0; target.downed=true; target.bleed=3; target.stabilized=false; target.ap=0; target.ow=false; target.marked=false; target.brace=false; target.shield=0; target.anim=null;
+    target.hp=0; target.downed=true; target.bleed=3; target.stabilized=false; target.ap=0; target.ow=false; target.marked=false; target.brace=false; target.shield=0; target.anim=null; target.downedBy=source?(source.name||source.def.name):(G.fire&&G.fire.size&&fireAt(target)?'the fire':'a salvo'); target.downedTurn=G.turn;
     if(target.carrying){ dropCarried(target); }
     fxText(target.x,target.y-0.4,'DOWN','#FF6B62',true); fxRing(target.x,target.y,'#FF6B62',1.2); shake(10); Audio.down(target.x); flash('#FF6B62',0.5,140); anim(target,'downed');
     if(perk('medevac')&&!G.medevacUsed){ G.medevacUsed=true; target.stabilized=true; setTimeout(()=>{ fxText(target.x,target.y-0.9,'MEDEVAC · STABLE','#5CD68A'); },500); log(`Medevac Protocol — ${target.name} is stabilized automatically.`,'good'); }
@@ -2192,6 +2220,7 @@ const isDrumDef=u=>!!(u&&u.def&&u.def.hazard);
 function setup(target,by,kind){ if(!target||!by||by.side!=='player'||target.side!=='enemy') return; const cur=G.setups.get(target.id); if(cur&&cur.turn===G.turn&&cur.by===by) return; G.setups.set(target.id,{by,kind,turn:G.turn}); }
 const SETUP_WORDS={mark:'marked it',expose:'exposed it',shred:'shredded it',stun:'stunned it',suppress:'pinned it',taunt:'pulled it',concuss:'rocked it'};
 function combo(by,fin,target,kind){ G.stats.combos=(G.stats.combos||0)+1; by.combos=(by.combos||0)+1; fin.combos=(fin.combos||0)+1; freeze(140);
+  if(by.cid&&fin.cid){ CAMP.pairs=CAMP.pairs||{}; const k=pairKey(by.cid,fin.cid); CAMP.pairs[k]=(CAMP.pairs[k]||0)+1; if(CAMP.pairs[k]===1){ moment(by,`First combo with ${fin.name} — set up the ${target.def.name} for the kill`,2); moment(fin,`First combo with ${by.name} — finished the ${target.def.name} they set up`,2); } if(CAMP.pairs[k]===BOND_AT){ setTimeout(()=>{ fxText(fin.x,fin.y-1.6,`BONDED · ${by.name} & ${fin.name}`,'#7BE0C8','huge'); },900); log(`${by.name} and ${fin.name} are bonded — +5 aim within 3 tiles of each other.`,'good'); moment(by,`Bonded with ${fin.name}`,3); moment(fin,`Bonded with ${by.name}`,3); } }
   setTimeout(()=>{ fxText(target.x,target.y-1.1,`COMBO · ${by.name} → ${fin.name}`,'#F2B33D','huge'); Audio.win(); flash('#F2B33D',0.25,140); light(target.x,target.y,'#F2B33D',8,500); },340);
   log(`COMBO — ${by.name} ${SETUP_WORDS[kind]||'set it up'}, ${fin.name} finished it. +1 XP each.`,'good'); say('combo'); }
 function expose(target,by,why){ if(!target||!target.alive||target.side!=='enemy'||target.exposed) return; target.exposed=true; fxText(target.x,target.y-0.7,'EXPOSED','#FF6B62'); fxRing(target.x,target.y,'#FF6B62',0.7); log(`${target.name} is exposed${why?' — '+why:''}: no cover against anyone until your next turn.`,'good'); setup(target,by,'expose'); }
@@ -2212,6 +2241,13 @@ function decoyBoom(d){ if(!d.boom) return; const hs=alive('enemy').filter(e=>che
   for(const e of hs){ log(`Afterimage detonates — ${e.name} takes ${d.boom}.`,'hit'); applyDamage(e,d.boom,null,{ignoreArmor:true}); } }
 function killUnit(target,source){ target.hp=0; target.alive=false; target.ow=false; target.downed=false; if(target.def&&target.def.decoy&&target.boom) setTimeout(()=>decoyBoom(target),120); if(target.carrying) dropCarried(target); if(target.carried){ const c=G.units.find(u=>u.carrying===target); if(c) c.carrying=null; target.carried=false; }
   if(source) source.kills=(source.kills||0)+1;
+  if(target.side==='player'&&target.cid){ target.killedBy=source?(source.name||source.def.name):(target.bleed<=0?`bled out${target.downedBy?' — '+target.downedBy:''}`:'the field'); target.killedTurn=G.turn; }
+  if(source&&source.side==='player'&&source.cid&&target.side==='enemy'){ const tn=target.def.name; const rest=alive('enemy').filter(e=>e!==target&&e.alert).length; const bleeding=alive('player').filter(p=>p.downed&&p!==source);
+    if(target.def.boss) moment(source,`Put down ${target.name}`,6);
+    if(source.hp<=3&&!source.downed) moment(source,`Dropped a ${tn} at ${source.hp} HP`,3);
+    if(rest===0&&bleeding.length) moment(source,`Ended the fight with ${bleeding.map(p=>p.name).join(' and ')} bleeding out`,4);
+    if(source.kills===1&&(rosterEntry(source.cid)||{}).missions===0) moment(source,`First kill, first day — a ${tn}`,2);
+    if(source.kills>=4) moment(source,`${source.kills} kills in one op`,2); }
   if(target.side==='enemy'&&target.def.verb==='mark'&&MX(G.missionIdx).reinforceAt<50){ G.reinfDelay=(G.reinfDelay||0)+1; setTimeout(()=>{ fxText(target.x,target.y-0.9,'UPLINK DOWN','#FF9A6B'); },300); log(`Spotter down — its uplink goes with it. Reinforcements delayed a turn.`,'good'); }
   if(target.side==='enemy'){ (G.killedTypes||(G.killedTypes=new Set())).add(target.def.id); if(source&&source.side==='player'&&source.alive&&F(source,'gLeech')&&source.hp<source.maxHp){ const h=Math.min(F(source,'gLeech'),source.maxHp-source.hp); source.hp+=h; anim(source,'healed'); fxText(source.x,source.y,'+'+h,'#4FD1C5'); log(`Siphon Gland — ${source.name} takes ${h} back.`,'good'); } }
   if(source&&source.side==='player'&&target.side==='enemy'&&G.setups){ const st=G.setups.get(target.id); if(st&&st.by!==source&&st.by.alive&&st.turn>=G.turn-1) combo(st.by,source,target,st.kind); G.setups.delete(target.id); }
@@ -2228,6 +2264,7 @@ function killUnit(target,source){ target.hp=0; target.alive=false; target.ow=fal
     if(G.sel===target) G.sel=null;
 }
 function revive(d,hp,by){ if(d.carried){ const c=G.units.find(u=>u.carrying===d); if(c){ c.carrying=null; c.move+=1; } d.carried=false; let spot=null; for(const dir of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){ const x=d.x+dir.x,y=d.y+dir.y; if(inb(x,y)&&!solid(x,y)&&!unitAt(x,y)){ spot={x,y}; break; } } if(spot){ d.x=spot.x; d.y=spot.y; } }
+  moment(by,`Brought ${d.name} back up${d.bleed===1?' with a turn to spare':''}`,d.bleed===1?4:3); moment(d,`Went down; ${by.name} brought them back`,1);
   d.downed=false; d.stabilized=false; d.bleed=0; d.hp=hp; d.ap=0; anim(d,'standUp'); fxRing(d.x,d.y,'#5CD68A',1.2); fxText(d.x,d.y,'BACK UP','#5CD68A',true); light(d.x,d.y,'#5CD68A',6,500); flash('#5CD68A',0.3,120); log(`${by.name} brings ${d.name} back up — ${hp} HP.`,'good'); say('revived',d.name); VO.bark(d,'select',0.9); }
 function dropCarried(c){ const d=c.carrying; if(!d) return; c.carrying=null; c.move+=1; d.carried=false; let spot=null; for(const dir of [{x:0,y:0},{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){ const x=c.x+dir.x,y=c.y+dir.y; if(inb(x,y)&&!solid(x,y)&&(dir.x===0&&dir.y===0?true:!unitAt(x,y))){ spot={x,y}; break; } } if(spot){ d.x=spot.x; d.y=spot.y; } log(`${c.name} sets ${d.name} down.`,'sys'); }
 const anim=(u,k,extra)=>{ if(u) u.anim=Object.assign({k,t0:now()},extra||{}); };
@@ -2246,6 +2283,7 @@ async function shoot(a,d,opt={}){
     if(crit){ Audio.crit(d.x); fxText(d.x,d.y-0.8,'CRIT','#FFD27A',true); freeze(110); flash('#FFD27A',0.35,80); log(`${a.name} CRITS ${d.name} for ${dmg} — ${h.chance}%${covTxt}${mk}.`,'hit'); } else { Audio.hit(d.x); log(`${a.name} hits ${d.name} for ${dmg} — ${h.chance}%${covTxt}${mk}.`,'hit'); }
     fxSpark(d.x,d.y,d.side==='enemy'?'#FFB3AE':'#9FE8FF',crit?18:10,{speed:crit?1.6:1});
     applyDamage(d,dmg,a,{crit});
+    if(a.side==='player'&&a.cid&&d.side==='enemy'&&h.chance<=35&&!opt.reaction){ const down=alive('player').some(p=>p.downed); if(!d.alive) moment(a,`Landed a ${h.chance}% shot to drop the ${d.def.name}${down?' with a squadmate down':''}`,down?4:3); else if(down) moment(a,`Hit a ${h.chance}% shot with a squadmate down`,2); }
     if(a.side==='player'&&d.alive&&d.side==='enemy'&&F(a,'gMark')&&!a.markedTurn&&!d.marked){ a.markedTurn=true; d.marked=true; Audio.mark(a.x); fxRing(d.x,d.y,'#FF6B62',0.9); fxText(d.x,d.y-0.8,'MARKED','#FF6B62'); log(`${a.name}'s Target Ganglion marks ${d.name} — the squad is +20 to hit it.`,'good'); setup(d,a,'mark'); }
     if(d.alive&&d.brace&&F(d,'braceThorns')&&a.alive&&a.side==='enemy'){ const th=F(d,'braceThorns'); fxText(a.x,a.y-0.6,'REBOUND','#C96A3A'); fxSpark(a.x,a.y,'#C96A3A',8,{speed:1}); log(`${d.name}'s Rebound hits ${a.name} for ${th}.`,'hit'); applyDamage(a,th,d,{ignoreArmor:true}); }
     if(a.side==='player'){ if(!d.alive&&d.side==='enemy') VO.bark(a,'kill',0.6); else VO.bark(a,'hit',0.35); }
@@ -2264,7 +2302,7 @@ async function doMove(u,path){
   }
   if(u.alive&&u.side==='player'){ checkCaptive(u); await checkContact(); }
 }
-function checkCaptive(u){ for(const cap of G.units.filter(c=>c.alive&&c.side==='captive')){ if(cheb(cap,u)<=1){ cap.side='player'; cap.immobile=false; anim(cap,'standUp'); cap.ap=G.phase==='player'?2:0; G.objState.freed++; Audio.freed(); setTimeout(()=>VO.say('wren',VO.LINES.freed[Math.floor(Math.random()*VO.LINES.freed.length)],2),400); fxRing(cap.x,cap.y,'#8FD3C7',1.2); log(`${u.name} frees ${cap.name}.`,'good'); say('freed',cap.name); banner(`${cap.name} freed`,'good'); } } }
+function checkCaptive(u){ for(const cap of G.units.filter(c=>c.alive&&c.side==='captive')){ if(cheb(cap,u)<=1){ cap.side='player'; cap.immobile=false; anim(cap,'standUp'); cap.ap=G.phase==='player'?2:0; G.objState.freed++; moment(u,`Freed ${cap.name}`,3); Audio.freed(); setTimeout(()=>VO.say('wren',VO.LINES.freed[Math.floor(Math.random()*VO.LINES.freed.length)],2),400); fxRing(cap.x,cap.y,'#8FD3C7',1.2); log(`${u.name} frees ${cap.name}.`,'good'); say('freed',cap.name); banner(`${cap.name} freed`,'good'); } } }
 
 
 /* ---------- 3D renderer (Three.js) — falls back to the 2D canvas if the library is missing ---------- */
@@ -2948,7 +2986,7 @@ async function performAt(p,opts={}){
     log(`${u.name} fires Pulse Blast — ${victims.length} caught in the area${crates?`, ${crates} crate${crates>1?'s':''} destroyed`:''}.`,'sys');
     for(const v of victims){ log(`Blast hits ${v.name} for ${BD}.`,'hit'); applyDamage(v,BD,u,{ignoreArmor:true}); }
     if(wrecked.length) exposeByWreck(wrecked,u);
-    { const killed=victims.filter(v=>v.side==='enemy'&&!v.alive).length; if(killed>=1&&u.def.passiveKey==='overcharge'&&u.charges<u.chargesMax){ u.charges++; setTimeout(()=>{ fxText(u.x,u.y-0.6,'OVERCHARGE','#F2B33D'); Audio.ready(); },200); log(`Overcharge — the kill refunds Vex's Blast.`,'good'); } if(killed>=2){ await wait(250); fxText(p.x,p.y-0.6,killed>=3?'TRIPLE KILL':'MULTI-KILL','#F2B33D','huge'); shake(18); freeze(200); Audio.crit(p.x); Audio.win(); log(`${u.name} — ${killed} down in one blast.`,'good'); } }
+    { const killed=victims.filter(v=>v.side==='enemy'&&!v.alive).length; if(killed>=1&&u.def.passiveKey==='overcharge'&&u.charges<u.chargesMax){ u.charges++; setTimeout(()=>{ fxText(u.x,u.y-0.6,'OVERCHARGE','#F2B33D'); Audio.ready(); },200); log(`Overcharge — the kill refunds Vex's Blast.`,'good'); } if(killed>=2){ moment(u,`${killed>=3?'Triple':'Double'} kill with one Pulse Blast`,killed>=3?4:2); await wait(250); fxText(p.x,p.y-0.6,killed>=3?'TRIPLE KILL':'MULTI-KILL','#F2B33D','huge'); shake(18); freeze(200); Audio.crit(p.x); Audio.win(); log(`${u.name} — ${killed} down in one blast.`,'good'); } }
     G.stats.shots++; if(victims.length) G.stats.hits++;
     { const pods=[...new Set(victims.filter(v=>v.side==='enemy'&&!v.alert).map(v=>v.pod))]; let woke=[]; for(const p of pods) woke.push(...wakePod(p)); if(woke.length) await scamper(woke); await checkContact(); }
     u.cd=0; u.ap=0; await wait(400); G.busy=false; afterAction(u); return; }
@@ -3195,7 +3233,10 @@ function finish(win,reason){
         for(const u of deployed.filter(u=>u.alive&&u.downed)){ const onPad=G.evac.has(key(u.x,u.y)); if(win&&(!evacMission||onPad)){ lines.push(`<b>${u.name}</b> recovered${u.stabilized?' — stabilized in the field':' — still breathing when the shooting stopped'}.`); }
           else { u.alive=false; u.downed=false; u.resolvedLoss=true; const why=win?'left on the field':'lost when the squad fell'; lines.push(`<span class="lost"><b>${u.name}</b> ${why}. Added to the memorial.</span>`); if(win) say('leftBehind',u.name); } } }
       for(const u of deployed){ const r=rosterEntry(u.cid); if(!r) continue; const before=r.level; r.missions++; r.kills+=u.kills||0;
-        if(!u.alive){ r.alive=false; CAMP.fallen.push({name:r.name,kit:r.kit,mission:m.name,kills:r.kills,missions:r.missions}); if(!u.resolvedLoss) lines.push(`<span class="lost"><b>${r.name}</b> killed in action. Added to the memorial.</span>`); if(r.graft&&GRAFTS[r.graft]){ lines.push(`<b>${GRAFTS[r.graft].name}</b> recovered from ${r.name} — back on the bench.`); r.graft=null; } continue; }
+        if(!u.alive){ r.alive=false; const rec=(r.record||[]).slice(); const best=(G.moments.get(r.cid)||[]).sort((a,b)=>b.w-a.w).slice(0,3); for(const mo of best) rec.push({m:m.name,t:mo.t}); CAMP.fallen.push({cid:r.cid,name:r.name,kit:r.kit,mission:m.name,kills:r.kills,missions:r.missions,level:r.level,by:u.killedBy||(u.resolvedLoss?(win?'left on the field':'lost when the squad fell'):'the field'),turn:u.killedTurn||G.turn,record:rec.slice(-RECORD_MAX),scars:r.scars||[]}); (CAMP.mourn=CAMP.mourn||[]).push(r.name); if(!u.resolvedLoss) lines.push(`<span class="lost"><b>${r.name}</b> killed in action${u.killedBy?` — ${u.killedBy}, turn ${u.killedTurn}`:''}. Added to the memorial.</span>`); if(r.graft&&GRAFTS[r.graft]){ lines.push(`<b>${GRAFTS[r.graft].name}</b> recovered from ${r.name} — back on the bench.`); r.graft=null; } continue; }
+        if(u.alive&&!u.downed&&u.hp===1) moment(u,'Walked out with 1 HP',3); if(u.alive&&u.downed) moment(u,`Went down to ${u.downedBy||'the Coalition'} and was carried home`,2);
+        { r.record=r.record||[]; const best=(G.moments.get(r.cid)||[]).sort((a,b)=>b.w-a.w).slice(0,3); for(const mo of best) r.record.push({m:m.name,t:mo.t}); if(r.record.length>RECORD_MAX) r.record=r.record.slice(-RECORD_MAX); }
+        if(u.downed){ r.scars=r.scars||[]; r.scars.push({m:m.name,t:`${u.downedBy||'Coalition fire'}, turn ${u.downedTurn||'?'}`}); lines.push(`<span class="lost"><b>${r.name}</b> carries a scar — ${u.downedBy||'Coalition fire'}, turn ${u.downedTurn||'?'}. −1 max HP, for good.</span>`); }
         r.xp+=2+(u.kills||0)+(u.combos||0); if(u.combos) lines.push(`<span class="up"><b>${r.name}</b> +${u.combos} XP for combo${u.combos>1?'s':''}.</span>`); r.level=levelFor(r.xp); if(u.hp/u.maxHp<0.5||u.downed){ r.wounded=u.downed?2:1; lines.push(`<b>${r.name}</b> wounded — sits out the next ${u.downed?'two missions':'mission'}.`); }
         if(r.level>before){ lines.push(`<span class="up"><b>${r.name}</b> reached level ${r.level}${r.level===2?' (+1 HP, +5 aim)':r.level===4?' (+2 HP, +5 aim)':''}.</span>`); if(r.level>=3&&!r.upgrade&&!r.pendingUpgrade){ r.pendingUpgrade=true; pendingUps.push(r.cid); } } }
       for(const r of CAMP.roster){ if(r.alive&&r.wounded>0&&!deployed.some(u=>u.cid===r.cid)) r.wounded--; }
@@ -3213,6 +3254,7 @@ function finish(win,reason){
       // graft harvest: the first win after killing a new Coalition unit type brings its augment home (one per mission)
       if(win&&G.killedTypes){ const got=GRAFT_ORDER.filter(id=>!CAMP.grafts.includes(id)&&G.killedTypes.has(GRAFTS[id].from)); const pick=got.find(id=>!GRAFT_BASIC.includes(id))||got[0];
         if(pick){ CAMP.grafts.push(pick); const g=GRAFTS[pick], src=enemyByType(g.from); G.graftGot=pick; lines.push(`<span class="new"><b>Graft recovered: ${g.name}</b> — cut from ${srcLabel(g)}. ${g.desc} Fit it to a mutant at base.</span>`); } }
+      { const all=[]; for(const [cid,list] of G.moments){ const r=rosterEntry(cid); const f=CAMP.fallen.find(x=>x.cid===cid); const nm=r?r.name:f?f.name:cid; for(const mo of list) all.push({nm,...mo}); } const top=all.sort((a,b)=>b.w-a.w).slice(0,3); if(top.length) lines.unshift(`<span class="moments"><b>Moments.</b> ${top.map(x=>`<b>${x.nm}</b> — ${lc1(x.t)}`).join(' · ')}.</span>`); }
       CAMP.offers=null; saveCamp(); const rc=$('res-camp'); rc.innerHTML=lines.join(''); rc.hidden=!lines.length;
       if(pendingUps.length) setTimeout(()=>offerUpgrade(pendingUps[0]),1500); }
     if(win){ lost.length?say('winLoss',lost.join(' and ')):say('win'); } else say('lose');
@@ -3332,5 +3374,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,blastPreview,flankTiles,allyResult,GRAFTS,setGraft,graftHolder,finish,renderHub,openMutant,waveTurn,fireAt,igniteAround,threatAfterMove,threatMoveAt,pathThreats,threatZone,anim,fxTracer,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
+window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,blastPreview,flankTiles,allyResult,GRAFTS,setGraft,graftHolder,finish,renderHub,openMutant,waveTurn,fireAt,igniteAround,moment,bonded,partnersOf,openFallen,openBriefing,threatAfterMove,threatMoveAt,pathThreats,threatZone,anim,fxTracer,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

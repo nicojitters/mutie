@@ -451,6 +451,25 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   delay, ignition, spread, burning both sides and burn-out. Sims after: M1 8/8 · M2 7/8 · M3 4/6 (bot makes contact on turn 1–2,
   so the slack is for careful players, as intended).
 
+## Consequences & attachment pass (2026-09-27, Cameron's brief: weight from permadeath, emotion from names, stories from systems)
+- **Service records.** `moment(u,text,w)` collects story beats into `G.moments` (per cid, de-duplicated): boss kill (6), the fight
+  ended with a squadmate bleeding out (4), a ≤35% shot that dropped its target (3–4), a kill at ≤3 HP (3), Blast double/triple (2/4),
+  revive (3–4 if with a turn to spare), carry (3), freeing a captive (3), walked out at 1 HP (3), first kill on the first day (2),
+  4+ kills in an op (2), first combo with a partner (2), bonding (3), went down and was carried home (1). `finish()` writes the best
+  three per mutant into `entry.record[{m,t}]` (cap `RECORD_MAX=12`), the best three overall become the report's **Moments** line
+  (`.moments`), the fallen carry theirs in `CAMP.fallen[].record`, and the epilogue quotes the last one per survivor and per fallen.
+- **Scars.** Recovering from downed pushes `{m,t:"<downedBy>, turn N"}` onto `entry.scars`; `buildDef` takes −1 max HP per scar
+  (floor 4). `applyDamage` records `downedBy`/`downedTurn` when a mutant goes down (source name, else fire/salvo).
+- **Bonds.** `combo()` increments `CAMP.pairs[pairKey(a,b)]`; at `BOND_AT=3` the pair is bonded (float, log, moment). `hitChance`
+  adds `+5 bond` for a player whose bonded partner is standing within 3 tiles (`bondPartner`); the unit panel says whether the
+  partner is close; sheets list partners with combo counts (`partnersOf`, struck through when lost); roster cards show "bonded".
+- **Death with a cause.** `killUnit` sets `killedBy`/`killedTurn` on squad deaths ("bled out — Marksman" when the clock ran out);
+  fallen entries carry `cid, level, by, turn, record, scars`; the memorial shows the cause and each entry opens `openFallen(f)`
+  (the mutant modal with `sheetHistory`). `CAMP.mourn` collects the names lost in a mission; `openBriefing` prefixes Control's intro
+  with "First op without X. Make it count." until the next mission starts. Old saves migrate (`record`, `scars`, `pairs`).
+  `test36.mjs` drives combo → bond → +5, a downed-and-recovered scar, records on sheet and report, a death by bleed-out, the memorial
+  sheet and the mourn line.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with

@@ -748,7 +748,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
       <div class="sheet-h"><h2>How to play</h2><button class="btn small" data-close="modal-help">Close</button></div>
       <div class="help">
         <p><b>Two actions per unit.</b> Moving costs one. A long move (dim tiles) costs both. Firing, Overwatch, and most powers end the unit's turn. Powers recharge on a cooldown — except <b>Pulse Blast</b>, which is three charges per mission: throw one at a lone trooper and that is a grenade you will not have later.</p>
-        <p><b>Selecting a mutant drops the camera behind them.</b> Targets line up in a strip sorted by hit chance — shootable ones first, the rest greyed with the reason. Swipe, use ‹ ›, or ← → to cycle; the big button fires at the current target (or uses a targeted power on them — Mend, Ward and Stim swap the strip to your allies). <b>Move</b>, Blast, Blink and the like pull back to the map so you can pick a tile, then the camera returns. <kbd>V</kbd> or the Map/POV button switches views any time; the map still works exactly as before.</p>
+        <p><b>Selecting a mutant drops the camera behind them.</b> Targets line up in a strip sorted by hit chance — shootable ones first, the rest greyed with the reason. Swipe, use ‹ ›, or ← → to cycle; the big button throws the mutant's own attack at the current target — a Pulse Shot, a Shockwave, a Rift Shard, a Suture Dart; nobody here carries a gun (or uses a targeted power on them — Mend, Ward and Stim swap the strip to your allies). <b>Move</b>, Blast, Blink and the like pull back to the map so you can pick a tile, then the camera returns. <kbd>V</kbd> or the Map/POV button switches views any time; the map still works exactly as before.</p>
         <p><b>On a touchscreen,</b> the first tap previews — the path, who it wakes, the hit chance — and a second tap on the same spot confirms. Tapping one of your own mutants selects them straight away.</p>
         <p><b>Read the number.</b> Hover a hostile to see your hit chance. Half cover −20, full cover −40. Get around their cover and you're <b>flanking</b>: cover ignored, +1 damage, a chance to crit.</p>
         <p><b>Cover has a side.</b> Shield icons show which direction a unit is protected from. Bright shields protect against the unit you've selected.</p>
@@ -762,7 +762,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
         <p><b>Side ops</b> are generated strikes: a random sector, objective and Coalition element scaled to where you are in the campaign. They use your roster like any mission — XP, wounds and deaths all count — and a win pushes the Graft Index back by two. Every sector has a code you can replay.</p>
         <p><b>Twelve mutants, four families.</b> You start with three — Vex, Halden and Nix. Another named mutant joins after each campaign mission you clear, until all twelve are on the roster. Every Blaster, Bruiser, Phaser and Mender shares its family's role, but each mutant has a different power and passive. Two Blasters are not the same Blaster. Take three per mission.</p>
         <p><b>Voice</b> uses your browser's built-in speech voices; the cast sounds different on every machine. Every spoken line also appears in Comms. Toggle it in the top bar.</p>
-        <p class="keys"><kbd>1</kbd> Move · <kbd>2</kbd> Fire · <kbd>3</kbd> Power · <kbd>4</kbd> Overwatch · <kbd>5</kbd> Hunker · <kbd>Tab</kbd> next unit · <kbd>Enter</kbd> end turn · <kbd>Esc</kbd> / right-click cancel</p>
+        <p class="keys"><kbd>1</kbd> Move · <kbd>2</kbd> Attack · <kbd>3</kbd> Power · <kbd>4</kbd> Overwatch · <kbd>5</kbd> Hunker · <kbd>Tab</kbd> next unit · <kbd>Enter</kbd> end turn · <kbd>Esc</kbd> / right-click cancel</p>
       </div>
     </div>
   </div>
@@ -808,11 +808,11 @@ const MUTANTS = [
   { id:'blaster', arch:'blaster', name:'Vex',  color:'#F2B33D', glyph:'V', tagline:'Ranged artillery', hp:10, aim:70, move:4, dmg:[2,3], range:7, look:'goggles',
     passive:'Overcharge — a Pulse Blast that kills refunds its charge.', passiveKey:'overcharge',
     ability:{key:'blast', name:'Pulse Blast', cd:3, range:5, ends:true, desc:'3 dmg to every unit in a 3×3 area within 5 tiles. Always hits; ignores cover and armor; wrecks crates and drums. Three charges per mission. Ends turn.'} },
-  { id:'ember', arch:'blaster', name:'Ember', color:'#FF7A45', glyph:'E', tagline:'Kinetic sharpshooter', hp:9, aim:72, move:4, dmg:[2,4], range:7, look:'scarf',
+  { id:'ember', arch:'blaster', name:'Ember', color:'#FF7A45', glyph:'E', tagline:'Kinetic striker', hp:9, aim:72, move:4, dmg:[2,4], range:7, look:'scarf',
     passive:'Hotshot — flanking shots do +1 extra damage.', passiveKey:'hotshot',
-    ability:{key:'concuss', name:'Concussion Round', cd:3, range:6, ends:true, desc:'4 dmg to one hostile in view within 6. Ignores cover, knocks them back a tile and breaks their overwatch. Ends turn.'} },
+    ability:{key:'concuss', name:'Concussive Burst', cd:3, range:6, ends:true, desc:'4 dmg to one hostile in view within 6. Ignores cover, knocks them back a tile and breaks their overwatch. Ends turn.'} },
   { id:'rook', arch:'blaster', name:'Rook',  color:'#D9A441', glyph:'R', tagline:'Suppression specialist', hp:11, aim:66, move:4, dmg:[2,3], range:7, look:'vest',
-    passive:'Steady — reaction fire from Rook has no aim penalty.', passiveKey:'steady',
+    passive:'Steady — reaction shots from Rook have no aim penalty.', passiveKey:'steady',
     ability:{key:'suppress', name:'Suppressing Arc', cd:3, range:4, ends:false, desc:'Every hostile in view within 4 is suppressed until your next turn: −25 aim and no reaction fire. Costs 1 action.'} },
   { id:'bruiser', arch:'bruiser', name:'Halden', color:'#E08A3C', glyph:'H', tagline:'Frontline wall', hp:16, aim:60, move:4, dmg:[2,3], range:5, armor:1, look:'pauldrons',
     passive:'Dense — Armor 1: every hit on Halden does 1 less. Smash ignores armor.', passiveKey:'dense',
@@ -842,6 +842,16 @@ const MUTANTS = [
     passive:'Field medic — allies beside Tobias heal 1 at the start of each turn.', passiveKey:'fieldmedic',
     ability:{key:'stim', name:'Stim', cd:3, range:4, ends:false, desc:'An ally within 4 gets an action back (max 2) and their power cooldown drops by 1; clears drain. Costs 1 action.'} },
 ];
+/* Basic attacks are powers too: no mutant fires a gun. One signature per family (projectile kind, sound, animation), a flavour
+   name and colour per mutant. `def.attack` is merged in buildDef; the Coalition keeps rifles. */
+const ATTACKS={
+  blaster:{name:'Pulse Shot',  kind:'bolt',   sfx:'pulse',  anim:'cast1', color:'#FFD27A', desc:'a bolt of charged force from the palm'},
+  bruiser:{name:'Shockwave',   kind:'wave',   sfx:'slam',   anim:'slam',  color:'#FFA35C', desc:'a fist to the floor — the ground carries the hit'},
+  phaser: {name:'Rift Shard',  kind:'shard',  sfx:'shard',  anim:'cast1', color:'#C9A8FF', desc:'a sliver of folded space, thrown'},
+  mender: {name:'Suture Dart', kind:'needle', sfx:'needle', anim:'cast1', color:'#7BE0C8', desc:'a biotic needle meant for the wrong body'},
+};
+const ATTACK_NAMES={blaster:['Pulse Shot','#FFD27A'],ember:['Heat Lance','#FF8A5C'],rook:['Static Bolt','#E3E36B'],bruiser:['Shockwave','#FFA35C'],mara:['Shield Slam','#E0A070'],grit:['Quake Fist','#D97A4A'],phaser:['Rift Shard','#C9A8FF'],sable:['Void Spike','#A88CFF'],echo:['Echo Pulse','#8FE0FF'],mender:['Suture Dart','#7BE0C8'],iris:['Ward Sting','#9BEFE0'],tobias:['Adrenal Dart','#B4F0A0']};
+const attackFor=(kit)=>{ const m=MUT[kit]||MUT.blaster; const base=ATTACKS[m.arch]||ATTACKS.blaster; const nm=ATTACK_NAMES[kit]; return Object.assign({},base,nm?{name:nm[0],color:nm[1]}:{}); };
 const MUT=Object.fromEntries(MUTANTS.map(m=>[m.id,m]));
 /* The three the player starts with; the rest join over the campaign (see RECRUIT_ORDER). */
 const STARTING_IDS=['blaster','bruiser','phaser'];
@@ -1229,12 +1239,17 @@ const Audio = (()=>{
     blink:(x)=>{ const p=pan(x); tone(300,1800,0.18,'sine',0.14,p); tone(1800,300,0.18,'sine',0.1,p); noise(0.12,0.05,3000,p); },
     huskBlink:(x)=>{ const p=pan(x); tone(1200,2400,0.12,'sine',0.08,p); tone(2400,600,0.2,'triangle',0.08,p,0.05); noise(0.15,0.06,4000,p); },
     // ---- weapons ----
-    shoot:(x,kind='rifle')=>{ const p=pan(x);
+    shoot:(x,kind='rifle')=>{ const p=pan(x); if(kind==='pulse'||kind==='slam'||kind==='shard'||kind==='needle'){ Audio[kind](x); return; }
       if(kind==='marksman'){ noise(0.06,0.5,2500,p); tone(900,120,0.18,'square',0.18,p); tone(70,40,0.25,'sine',0.25,p); }
       else if(kind==='heavy'){ noise(0.16,0.45,600,p,0,4000); tone(180,45,0.22,'square',0.25,p); }
       else if(kind==='pistol'){ noise(0.05,0.3,1800,p); tone(600,150,0.08,'square',0.1,p); }
       else { noise(0.12,0.35,1200,p); tone(420,90,0.14,'square',0.12,p); } },
     reaction:(x)=>{ tone(1400,1400,0.05,'square',0.07,pan(x)); tone(1400,1400,0.05,'square',0.07,pan(x),0.07); },
+    // mutant basic attacks — no gunfire
+    pulse:(x)=>{ const p=pan(x); tone(320,1100,0.16,'sine',0.16,p,0,0.02); tone(1100,600,0.12,'triangle',0.08,p,0.08); noise(0.08,0.08,1800,p,0.02,6000); },
+    slam:(x)=>{ const p=pan(x); tone(110,32,0.32,'sine',0.42,p); noise(0.22,0.25,90,p,0,700); tone(60,45,0.5,'triangle',0.18,p,0.05); },
+    shard:(x)=>{ const p=pan(x); tone(2200,3600,0.07,'sine',0.09,p); tone(1800,2600,0.09,'triangle',0.07,p,0.03); tone(3400,900,0.14,'sine',0.06,p,0.06); noise(0.05,0.05,5000,p,0,12000); },
+    needle:(x)=>{ const p=pan(x); tone(2600,1500,0.06,'sine',0.08,p); noise(0.04,0.06,3000,p,0,9000); tone(900,700,0.05,'triangle',0.05,p,0.05); },
     overwatch:(x)=>{ const p=pan(x); noise(0.04,0.15,2000,p); tone(300,240,0.06,'square',0.08,p,0.05); noise(0.03,0.12,2500,p,0.11); },
     hit:(x)=>{ const p=pan(x); tone(160,40,0.18,'triangle',0.35,p); noise(0.08,0.2,300,p); },
     crit:(x)=>{ const p=pan(x); tone(220,30,0.28,'sawtooth',0.4,p); noise(0.14,0.35,200,p); tone(1200,300,0.1,'square',0.1,p,0.02); },
@@ -1380,7 +1395,7 @@ function checkPerkOffer(){ const offer=CAMP.perkOffer; if(!offer||!offer.length)
   $('modal-perk').hidden=false; return true; }
 const KIT_UPGRADES={
   blaster:[{id:'wide',name:'Wide Pulse',desc:'Pulse Blast covers a 5×5 area.',flags:{blastRadius:2}},{id:'focus',name:'Focused Pulse',desc:'Pulse Blast deals 4 damage.',flags:{blastDmg:4}}],
-  ember:[{id:'breaker',name:'Breaker',desc:'Concussion Round throws 2 tiles and stuns — the target loses its next turn.',flags:{concussKnock:2,concussStun:1}},{id:'follow',name:'Follow-through',desc:'If Concussion Round kills, Ember keeps one action.',flags:{concussMomentum:1}}],
+  ember:[{id:'breaker',name:'Breaker',desc:'Concussive Burst throws 2 tiles and stuns — the target loses its next turn.',flags:{concussKnock:2,concussStun:1}},{id:'follow',name:'Follow-through',desc:'If Concussive Burst kills, Ember keeps one action.',flags:{concussMomentum:1}}],
   rook:[{id:'widearc',name:'Wide Arc',desc:'Suppressing Arc reaches 6 tiles.',flags:{suppressRange:6}},{id:'pinning',name:'Pinning Fire',desc:'Suppressed hostiles cannot move this turn.',flags:{suppressRoot:1}}],
   bruiser:[{id:'quake',name:'Quake',desc:'Smash also hits every other adjacent hostile for 3.',flags:{smashAoE:3}},{id:'exec',name:'Executioner',desc:'Smash deals 7 damage.',flags:{smashDmg:7}}],
   mara:[{id:'bastion',name:'Bastion',desc:'While braced, Mara blocks line of sight like a wall.',flags:{braceLOS:1}},{id:'rebound',name:'Rebound',desc:'While braced, anyone who hits Mara takes 2 damage.',flags:{braceThorns:2}}],
@@ -1446,7 +1461,7 @@ const readyRoster=()=>CAMP.roster.filter(r=>r.alive&&r.wounded<=0);
 const squadNeed=()=>Math.min(3,CAMP.roster.filter(r=>r.alive).length);
 /* Fewer than three fit? Wounded mutants may fill the empty slots (ready ones first) — never a dead end, never a solo op. */
 const deployPool=()=>{ const al=CAMP.roster.filter(r=>r.alive); return readyRoster().length>=3?readyRoster():[...al.filter(r=>r.wounded<=0),...al.filter(r=>r.wounded>0)]; };
-function buildDef(entry){ const kit=MUT[entry.kit]||MUT.blaster; const d=Object.assign({},ARCH[kit.arch],kit,{id:kit.id}); d.ability=Object.assign({},kit.ability);
+function buildDef(entry){ const kit=MUT[entry.kit]||MUT.blaster; const d=Object.assign({},ARCH[kit.arch],kit,{id:kit.id}); d.ability=Object.assign({},kit.ability); d.attack=attackFor(kit.id);
   const L=entry.level; if(L>=2){ d.hp+=1; d.aim+=5; } if(L>=4){ d.hp+=2; d.aim+=5; }
   d.flags={}; if(entry.upgrade){ const up=findUpgrade(entry.kit,entry.upgrade); if(up){ d.upgradeName=up.name; d.upgradeDesc=up.desc; Object.assign(d.flags,up.flags||{}); for(const k in (up.mod||{})){ if(k==='cd') d.ability.cd=Math.max(1,d.ability.cd+up.mod.cd); else if(k==='range') d.ability.range+=up.mod.range; else if(k==='dmg') d.dmg=[d.dmg[0]+1,d.dmg[1]+1]; else d[k]=(d[k]||0)+up.mod[k]; } } }
   d.level=L; d.cid=entry.cid; d.custom=entry.custom; return d; }
@@ -1892,8 +1907,8 @@ function renderSide(){
     if(!u.def.noAttack){ const dn=downedNear(u); if(dn.length&&!u.carrying){ mk('stabilize',`Stabilize ${dn[0].name}`,'Stop the bleeding. They survive the mission, out of the fight. 1 action.',{disabled:!can||dn[0].stabilized,pressed:false}); mk('carry',`Carry ${dn[0].name}`,'Pick them up. −1 move, no overwatch while carrying. 1 action.',{disabled:!can,pressed:false}); }
       if(u.carrying) mk('setdown',`Set down ${u.carrying.name}`,'Put them on an adjacent tile. 1 action.',{disabled:!can,pressed:G.mode==='setdown'}); }
     if(!u.def.noAttack){
-      mk('shoot','Fire',`${u.dmg[0]}–${u.dmg[1]} dmg, range ${u.range}. Ends turn.`,{disabled:!can,pressed:G.mode==='shoot',cost:2,cls:'fire'});
-      mk('overwatch','Overwatch',`Hold fire. Shoot the first hostile that moves in view (aim −15). Ends turn.`,{disabled:!can||u.ow||!!u.carrying,pressed:u.ow,cost:2});
+      const atkName=(u.def.attack&&u.def.attack.name)||'Fire'; mk('shoot',atkName,`${u.dmg[0]}–${u.dmg[1]} dmg, range ${u.range}${u.def.attack?' — '+u.def.attack.desc:''}. Ends turn.`,{disabled:!can,pressed:G.mode==='shoot',cost:2,cls:'fire'});
+      mk('overwatch','Overwatch',`Hold your shot. Hit the first hostile that moves in view (aim −15). Ends turn.`,{disabled:!can||u.ow||!!u.carrying,pressed:u.ow,cost:2});
       mk('hunker','Hunker',`Get small. −20 to be hit and no crits against you until your next turn. Ends turn.`,{disabled:!can||u.hunker,pressed:u.hunker,cost:2});
       const ab=u.def.ability; const isJam=jammed(u);
       for(const pid of [...(G.perks||[])]){ const P=PERKS[pid]; if(!P||P.kind!=='use') continue; const used=G.perkUsed.has(pid); mk('perk:'+pid,P.name,P.short,{disabled:!can||used||(P.cost&&u.ap<P.cost),pressed:G.mode==='perk:'+pid,cost:P.cost||0,cls:'perk'+(used?' used':''),tag:used?'USED':(P.cost?'':'FREE')}); }
@@ -1905,8 +1920,8 @@ function renderSide(){
   $('btn-end').disabled=G.phase!=='player'||G.busy; $('btn-end').classList.toggle('pulse',G.phase==='player'&&!G.busy&&alive('player').some(u=>u.side==='player')&&alive('player').every(u=>u.ap<=0||u.ow));
 }
 function armHint(u,p,target,hostile){ const again='<span class="tap">Tap again to confirm.</span>';
-  if(G.mode==='move'||G.mode==='shoot'){ if(hostile){ if(!inRange(u,target)) return `<b>No shot</b> — ${target.name} is out of range or line of sight.`; const h=hitChance(u,target); return `<b>Fire</b> at ${target.name} — <b>${h.chance}%</b>${h.flanked?' (flanked)':h.cover===2?' vs full cover':h.cover===1?' vs half cover':''}. ${again}`; }
-    if(target) return tooltip(target); if(G.mode==='shoot') return `<b>Fire</b> — tap a hostile.`;
+  if(G.mode==='move'||G.mode==='shoot'){ if(hostile){ if(!inRange(u,target)) return `<b>No shot</b> — ${target.name} is out of range or line of sight.`; const h=hitChance(u,target); return `<b>${(u.def.attack&&u.def.attack.name)||'Fire'}</b> at ${target.name} — <b>${h.chance}%</b>${h.flanked?' (flanked)':h.cover===2?' vs full cover':h.cover===1?' vs half cover':''}. ${again}`; }
+    if(target) return tooltip(target); if(G.mode==='shoot') return `<b>${(u.def.attack&&u.def.attack.name)||'Fire'}</b> — tap a hostile.`;
     const r=reachable(u,u.move*u.ap); const n=r.get(key(p.x,p.y)); if(!n){ G.armed=null; return `<b>Can't reach</b> that tile.`; }
     return `${moveHint(u,p,n,r)} ${again}`; }
   const ab=u.def.ability; const name=G.mode==='setdown'?'Set down':G.mode.startsWith('perk:')?(PERKS[G.mode.slice(5)]||{}).name||'Perk':(ab&&ab.key===G.mode?ab.name:G.mode);
@@ -1961,7 +1976,7 @@ function renderPov(){
   if(!t){ go.textContent='No target'; go.disabled=true; }
   else if(pv.kind==='ally'){ go.innerHTML=`${ab.name} → ${t.name}`; go.disabled=!can||!it.ok||u.cd>0||jammed(u); }
   else if(TARGETED[G.mode]==='enemy'){ go.innerHTML=`${ab.name} → ${t.side==='obj'?t.name:t.def.name}`; go.disabled=!can||!it.ok||u.cd>0||jammed(u); }
-  else { go.innerHTML=it.ok?`Fire at ${t.side==='obj'?t.name:t.def.name} · <b>${it.h.chance}%</b>`:`No shot — ${t.side==='obj'?t.name:t.def.name}`; go.disabled=!can||!it.ok; }
+  else { const an=(u.def.attack&&u.def.attack.name)||'Fire'; go.innerHTML=it.ok?`${an} → ${t.side==='obj'?t.name:t.def.name} · <b>${it.h.chance}%</b>`:`No shot — ${t.side==='obj'?t.name:t.def.name}`; go.disabled=!can||!it.ok; }
   $('pov-prev').disabled=$('pov-next').disabled=pv.list.length<2||G.busy;
 }
 $('pov-prev').onclick=()=>povCycle(-1); $('pov-next').onclick=()=>povCycle(1); $('pov-map').onclick=toggleView; $('btn-pov').onclick=toggleView; $('pov-go').onclick=povGo;
@@ -1996,12 +2011,12 @@ function setHint(t){
     if(TARGETED[m]==='enemy'){ const sp=(m==='phasestrike'&&it.ok)?landingSpot(u,t):null; h.innerHTML=`<b>${u.def.ability.name}</b> → <b>${nm}</b>${it.ok?'':' — out of reach'}.${sp?' On landing: '+exposureHtml(u,sp):''}${nav}`; return; }
     if(it.ok){ const si=t.side==='obj'?null:shotInfo(u,t); const kt=si?killTag(si):''; h.innerHTML=`<b>${nm}</b> — <b>${it.h.chance}%</b>${it.h.flanked?' flanked':it.h.cover===2?' vs full cover':it.h.cover===1?' vs half cover':''}, ${si?(si.lo===si.hi?si.lo:si.lo+'–'+si.hi):u.dmg[0]+'–'+u.dmg[1]} dmg${si&&si.armor?' after '+si.armor+' armor':''}${kt?` — <b>${kt.toLowerCase()}</b>`:''}.${it.h.parts&&it.h.parts.length>1?` <span class="why">${fmtParts(it.h)}</span>`:''}${t.side==='enemy'&&!t.alert?' Firing wakes their pod.':''}${nav}`; } else h.innerHTML=`<b>${nm}</b> — no shot from here.${nav} <b>Move</b> to reposition.`; return; }
   if(m==='move'){ const p=G.hover; if(p&&!unitAt(p.x,p.y)){ const r=reachable(u,u.move*u.ap); const n=r.get(key(p.x,p.y)); if(n){ h.innerHTML=moveHint(u,p,n,r); return; } } h.innerHTML=G.touch?`<b>Move</b> — tap a highlighted tile to preview it (who wakes, who could hit you there), tap again to go.`:`<b>Move</b> — click a highlighted tile. Bright = 1 action, dim = dash (both actions). Hover a tile to see who could hit you there.`; }
-  else if(m==='shoot') h.innerHTML=`<b>Fire</b> — click a hostile or a relay. Hover to see hit chance.`;
+  else if(m==='shoot') h.innerHTML=`<b>${(u.def.attack&&u.def.attack.name)||'Fire'}</b> — click a hostile or a relay. Hover to see hit chance.`;
   else if(m==='blast') h.innerHTML=`<b>Pulse Blast</b> — click a target tile within 5. Hits everything in the 3×3, allies included. Wrecks crates.`;
   else if(m==='smash') h.innerHTML=`<b>Seismic Smash</b> — click an adjacent hostile.`;
   else if(m==='blink'){ const p=G.hover; if(blinkOk(u,p)) h.innerHTML=`<b>Blink</b> here — 1 action, you can still shoot. ${exposureHtml(u,p)}`; else h.innerHTML=`<b>Blink</b> — click any open tile within 6. No line of sight needed. Hover a tile to see who could hit you there.`; }
   else if(m==='mend') h.innerHTML=`<b>Mend</b> — click a wounded or marked ally within 5.`;
-  else if(m==='concuss') h.innerHTML=`<b>Concussion Round</b> — click a hostile in view within 6. Knocks them back and breaks overwatch.`;
+  else if(m==='concuss') h.innerHTML=`<b>Concussive Burst</b> — click a hostile in view within 6. Knocks them back and breaks overwatch.`;
   else if(m==='suppress') h.innerHTML=`<b>Suppressing Arc</b> — fires on every hostile in view within 4. Click anywhere on the map to confirm.`;
   else if(m==='brace') h.innerHTML=`<b>Brace</b> — click anywhere to brace. Allies beside Mara get full cover from her.`;
   else if(m==='rally') h.innerHTML=`<b>Rally</b> — click anywhere. Hostiles in view within 5 will come for Grit; Grit gains a shield.`;
@@ -2025,7 +2040,7 @@ function log(msg,cls){ const l=$('log'); const d=document.createElement('div'); 
 /* ---------- Effects ---------- */
 const now=()=>performance.now();
 function fxText(x,y,text,color,big){ G.fx.push({k:'text',x,y,text,color,big,t0:now(),d:900}); }
-function fxTracer(a,b,color){ G.fx.push({k:'tracer',a:{x:a.x,y:a.y},b:{x:b.x,y:b.y},color,t0:now(),d:220}); }
+function fxTracer(a,b,color,kind='bullet'){ G.fx.push({k:'tracer',a:{x:a.x,y:a.y},b:{x:b.x,y:b.y},color,kind,t0:now(),d:kind==='wave'?300:kind==='needle'?170:220}); }
 function fxFlash(x,y,color,r=0.7){ G.fx.push({k:'flash',x,y,color,r,t0:now(),d:260}); }
 function fxRing(x,y,color,r){ G.fx.push({k:'ring',x,y,color,r,t0:now(),d:450}); }
 function fxDebris(x,y){ for(let i=0;i<8;i++) G.fx.push({k:'debris',x,y,vx:(Math.random()-.5)*3,vy:-Math.random()*3-1,t0:now(),d:600}); }
@@ -2089,12 +2104,12 @@ function dropCarried(c){ const d=c.carrying; if(!d) return; c.carrying=null; c.m
 const anim=(u,k,extra)=>{ if(u) u.anim=Object.assign({k,t0:now()},extra||{}); };
 async function shoot(a,d,opt={}){
   const h=hitChance(a,d,opt); const roll=rnd(1,100); const hit=roll<=h.chance;
-  anim(a,a.melee?'lunge':'fire',{tx:d.x,ty:d.y}); if(a.blinkAim&&!opt.reaction) a.blinkAim=0;
+  const atk=(a.side==='player'&&a.def.attack)||null; anim(a,a.melee?'lunge':(atk?atk.anim:'fire'),{tx:d.x,ty:d.y}); if(a.blinkAim&&!opt.reaction) a.blinkAim=0;
   if(a.side==='enemy'&&G.actcam&&!opt.reaction){ const dd=dist(a,d); G.actcam={x:(a.x+d.x)/2,y:(a.y+d.y)/2,zoom:dd>6?1.12:dd>3?1.24:1.36,pull:0.7}; }
   if(a.side==='player'){ G.stats.shots++; if(hit) G.stats.hits++; }
   const kind=a.def.id==='marksman'?'marksman':(a.def.id==='juggernaut'||a.def.boss||a.def.id==='bulwark')?'heavy':(a.def.id==='spotter'||a.def.id==='jammer'||a.def.id==='siphon')?'pistol':'rifle';
   if(opt.reaction) Audio.reaction(a.x);
-  fxTracer(a,d,a.side==='player'?'#9FE8FF':'#FFB3AE'); if(a.melee) Audio.lunge(a.x); else Audio.shoot(a.x,kind); await wait(200);
+  fxTracer(a,d,atk?atk.color:'#FFB3AE',atk?atk.kind:'bullet'); if(atk&&atk.kind==='wave'){ fxRing(a.x,a.y,atk.color,0.7); shake(3); } if(a.melee) Audio.lunge(a.x); else Audio.shoot(a.x,atk?atk.sfx:kind); await wait(atk&&atk.kind==='wave'?260:200);
   const covTxt=h.flanked?' (flanked)':h.cover===2?' vs full cover':h.cover===1?' vs half cover':''; const mk=h.marked?' [marked]':'';
   if(hit){ let dmg=rnd(a.dmg[0],a.dmg[1]); let crit=false; if(h.flanked){ dmg+=1; if(a.def.passiveKey==='hotshot') dmg+=1; const cc=d.hunker?0:(a.side==='player'?0.25:((G.adapt||[]).includes('frenzy')?0.24:0.12)); if(Math.random()<cc){ crit=true; dmg+=a.side==='player'?2:1; } }
     if(a.side==='player'&&G.boost) dmg+=1; if(opt.ambush){ dmg+=1; fxText(d.x,d.y-1.1,'AMBUSH','#F2B33D'); }
@@ -2505,7 +2520,10 @@ const R3 = (()=>{
       }
       const stripe=new T3.Mesh(geo.rbS,trimM); stripe.scale.set(0.02,0.3,0.015); stripe.position.set(0.19*bulk,0.5,0.125*bulk); body.add(stripe); }
     // weapons
-    if(!d.noAttack&&!d.melee){ const kind=d.id==='marksman'?'marksman':(d.id==='juggernaut'||d.boss)?'heavy':(d.id==='spotter'||d.id==='jammer'||d.id==='siphon'||d.id==='bulwark')?'pistol':'rifle'; const len=kind==='marksman'?0.72:kind==='pistol'?0.24:kind==='heavy'?0.52:0.44; const gun=makeGun(kind,len,isE?'#ff8a70':u.color); gun.position.set(0,-0.15,0.02); gun.quaternion.setFromRotationMatrix(new T3.Matrix4().makeBasis(new T3.Vector3(-1,0,0),new T3.Vector3(0,0,1),new T3.Vector3(0,1,0))); AR.elbow.add(gun); g.userData.gun=gun; g.userData.gunLen=len; g.userData.kind=kind;
+    if(!d.noAttack&&!d.melee&&!isE&&!isCap){ // mutant: no gun — emitter hands (glowing palm cores, forearm rings in the attack colour)
+      const ac=(d.attack&&d.attack.color)||u.color; for(const E of [AL.elbow,AR.elbow]){ const ring=new T3.Mesh(geo.torus,glowM(ac,1.2)); ring.scale.setScalar(0.16); ring.rotation.x=Math.PI/2; ring.position.y=-0.1; E.add(ring); const core=new T3.Mesh(geo.sph,glowM(ac,1.8)); core.scale.setScalar(0.028); core.position.set(0,-0.175,0.02); E.add(core); }
+      const mz=new T3.Sprite(new T3.SpriteMaterial({map:TEX.flash,color:ac,transparent:true,blending:T3.AdditiveBlending,depthWrite:false,toneMapped:false})); mz.scale.setScalar(0.3); mz.position.set(0,-0.18,0.03); mz.visible=false; AR.elbow.add(mz); g.userData.muzzle=mz; g.userData.kind=(d.attack&&d.attack.kind)||'bolt'; }
+    else if(!d.noAttack&&!d.melee){ const kind=d.id==='marksman'?'marksman':(d.id==='juggernaut'||d.boss)?'heavy':(d.id==='spotter'||d.id==='jammer'||d.id==='siphon'||d.id==='bulwark')?'pistol':'rifle'; const len=kind==='marksman'?0.72:kind==='pistol'?0.24:kind==='heavy'?0.52:0.44; const gun=makeGun(kind,len,isE?'#ff8a70':u.color); gun.position.set(0,-0.15,0.02); gun.quaternion.setFromRotationMatrix(new T3.Matrix4().makeBasis(new T3.Vector3(-1,0,0),new T3.Vector3(0,0,1),new T3.Vector3(0,1,0))); AR.elbow.add(gun); g.userData.gun=gun; g.userData.gunLen=len; g.userData.kind=kind;
       const mz=new T3.Sprite(new T3.SpriteMaterial({map:TEX.flash,color:'#FFE9A8',transparent:true,blending:T3.AdditiveBlending,depthWrite:false,toneMapped:false})); mz.scale.setScalar(0.22); mz.position.set(0,0.012,gun.userData.muzzleZ); mz.visible=false; gun.add(mz); g.userData.muzzle=mz; }
     else if(d.melee&&d.id==='sprinter'){ for(const E of [AL.elbow,AR.elbow]){ const blade=new T3.Mesh(geo.rbS,metalM('#b8c2cc',{roughness:0.25})); blade.scale.set(0.015,0.34,0.05); blade.position.set(0,-0.22,0.03); E.add(blade); const edge=new T3.Mesh(geo.rbS,glowM('#ff8a70',1.4)); edge.scale.set(0.006,0.3,0.02); edge.position.set(0,-0.24,0.06); E.add(edge); } }
     switch(d.id){
@@ -2519,7 +2537,7 @@ const R3 = (()=>{
       case 'decoy': { body.traverse(o=>{ if(o.isMesh){ o.material=new T3.MeshPhysicalMaterial({color:'#7FD4FF',emissive:'#2a8fb0',emissiveIntensity:0.8,transparent:true,opacity:0.45,roughness:0.15,metalness:0}); } }); break; }
     }
     body.scale.multiplyScalar(scale*1.5); const mats=[]; body.traverse(o=>{ if(o.isMesh){ const sz=o.scale.x*o.scale.y*o.scale.z; o.castShadow=(o.geometry!==geo.rbS||sz>0.0009)&&o.geometry!==geo.sph||o===head; if(o.geometry===geo.thigh||o.geometry===geo.shin||o.geometry===geo.uarm||o.geometry===geo.farm) o.castShadow=true; if(!o.material.isMeshBasicMaterial){ o.material=o.material.clone(); o.material.userData.e0=o.material.emissive.clone(); o.material.userData.i0=o.material.emissiveIntensity; mats.push(o.material); } } }); g.userData.mats=mats; g.userData.baseScaleY=body.scale.y;
-    g.userData.rest=(!d.noAttack&&!d.melee)?{rx:-0.85,lx:-0.7,lz:0.55}:{rx:-0.15,lx:-0.15,lz:0.08};
+    g.userData.rest=(!d.noAttack&&!d.melee&&isE)?{rx:-0.85,lx:-0.7,lz:0.55}:(!d.noAttack&&!d.melee)?{rx:-0.5,lx:-0.35,lz:0.25}:{rx:-0.15,lx:-0.15,lz:0.08};
     g.position.copy(W(u.x,u.y,0)); g.userData.tx=u.x; g.userData.ty=u.y; unitGroup.add(g); return g;
   }
   const restoreE=g=>{ for(const m of g.userData.mats){ m.emissive.copy(m.userData.e0); m.emissiveIntensity=m.userData.i0; } };
@@ -2558,7 +2576,10 @@ const R3 = (()=>{
   // ---- fx ----
   const sprite=(tex,color,opacity=1,additive=true)=>new T3.Sprite(new T3.SpriteMaterial({map:tex,color,transparent:true,opacity,depthWrite:false,blending:additive?T3.AdditiveBlending:T3.NormalBlending}));
   function ensureFx(f){ if(f.m) return; const t=f.k;
-    if(t==='tracer'){ const a=W(f.a.x,f.a.y,0.55), b=W(f.b.x,f.b.y,0.55); const gline=new T3.BufferGeometry().setFromPoints([a,b]); const line=new T3.Line(gline,new T3.LineBasicMaterial({color:f.color,transparent:true,opacity:0.5,toneMapped:false})); const bolt=sprite(TEX.dot,f.color); bolt.scale.setScalar(0.3); const trail=new T3.Mesh(new T3.PlaneGeometry(1,0.09),basic({map:TEX.trail,color:f.color,transparent:true,depthWrite:false,blending:T3.AdditiveBlending,side:T3.DoubleSide})); const dir=b.clone().sub(a); const len=Math.min(1.1,dir.length()*0.5); trail.scale.x=len; trail.userData.len=len; trail.rotation.y=Math.atan2(dir.x,dir.z)+Math.PI/2; trail.rotation.x=0; f.m=new T3.Group(); f.m.add(line,bolt,trail); f.bolt=bolt; f.trail=trail; f.pa=a; f.pb=b; f.dir=dir.normalize(); fxGroup.add(f.m); }
+    if(t==='tracer'){ const kd=f.kind||'bullet'; const h=kd==='wave'?0.08:0.55; const a=W(f.a.x,f.a.y,h), b=W(f.b.x,f.b.y,h); const gline=new T3.BufferGeometry().setFromPoints([a,b]); const line=new T3.Line(gline,new T3.LineBasicMaterial({color:f.color,transparent:true,opacity:kd==='bullet'?0.5:kd==='needle'?0.7:0.15,toneMapped:false}));
+      const bolt=sprite(kd==='wave'?TEX.ring:kd==='shard'?TEX.flash:TEX.dot,f.color); bolt.scale.setScalar(kd==='bolt'?0.5:kd==='wave'?0.9:kd==='shard'?0.42:kd==='needle'?0.16:0.3);
+      const trail=new T3.Mesh(new T3.PlaneGeometry(1,kd==='needle'?0.04:kd==='bolt'?0.14:0.09),basic({map:TEX.trail,color:f.color,transparent:true,depthWrite:false,blending:T3.AdditiveBlending,side:T3.DoubleSide})); const dir=b.clone().sub(a); const len=Math.min(kd==='needle'?1.6:1.1,dir.length()*0.5); trail.scale.x=len; trail.userData.len=len; trail.rotation.y=Math.atan2(dir.x,dir.z)+Math.PI/2; trail.rotation.x=0; if(kd==='wave'){ trail.visible=false; }
+      f.m=new T3.Group(); f.m.add(line,bolt,trail); f.bolt=bolt; f.trail=trail; f.pa=a; f.pb=b; f.dir=dir.normalize(); f.kd=kd; fxGroup.add(f.m); }
     else if(t==='flash'){ f.m=sprite(TEX.flash,f.color); f.m.position.copy(W(f.x,f.y,0.5)); fxGroup.add(f.m); }
     else if(t==='ring'){ f.m=new T3.Mesh(geo.ringFx,basic({color:f.color,transparent:true,opacity:0.9,side:T3.DoubleSide,depthWrite:false,blending:T3.AdditiveBlending})); f.m.rotation.x=-Math.PI/2; f.m.position.copy(W(f.x,f.y,0.05)); fxGroup.add(f.m); }
     else if(t==='debris'){ f.m=new T3.Mesh(geo.rbS,PM('#7a6a4a')); f.m.scale.setScalar(0.08); f.m.position.copy(W(f.x,f.y,0.4)); f.m.castShadow=true; fxGroup.add(f.m); }
@@ -2567,7 +2588,12 @@ const R3 = (()=>{
     else if(t==='puff'){ f.m=new T3.Mesh(geo.unit,basic({map:TEX.smoke,color:f.color,transparent:true,opacity:0.45,depthWrite:false})); f.m.rotation.x=-Math.PI/2; f.m.rotation.z=Math.random()*6.28; f.m.position.copy(W(f.x,f.y,0.03)); f.m.scale.setScalar(0.2); fxGroup.add(f.m); }
     else if(t==='smoke'){ f.m=sprite(TEX.smoke,'#3a3f48',0.55,false); f.m.scale.setScalar(f.size*1.8); f.m.position.copy(W(f.x,f.y,0.4)); f.m.material.rotation=Math.random()*6.28; fxGroup.add(f.m); } }
   function updFx(f,k){ if(f.m===true) return; const t=f.k; if(t!=='smoke') k=Math.max(0,k);
-    if(t==='tracer'){ const p=Math.min(1,k*1.6); f.bolt.position.lerpVectors(f.pa,f.pb,p); f.trail.position.copy(f.bolt.position).addScaledVector(f.dir,-f.trail.userData.len/2); f.m.children[0].material.opacity=0.5*(1-k); f.bolt.material.opacity=1-k*k; f.trail.material.opacity=1-k; }
+    if(t==='tracer'){ const kd=f.kd||'bullet'; const p=Math.min(1,k*(kd==='needle'?2.4:kd==='wave'?1.3:1.6)); f.bolt.position.lerpVectors(f.pa,f.pb,p);
+      if(kd==='shard'){ f.bolt.position.x+=(Math.random()-0.5)*0.12; f.bolt.position.y+=(Math.random()-0.5)*0.12; f.bolt.material.rotation=k*9; f.bolt.material.opacity=(Math.random()<0.25?0.35:1)*(1-k*k); }
+      else if(kd==='wave'){ f.bolt.material.rotation=k*3; f.bolt.scale.setScalar(0.6+p*0.7); f.bolt.material.opacity=(1-k)*0.9; }
+      else if(kd==='bolt'){ f.bolt.scale.setScalar(0.42+0.12*Math.sin(k*40)); f.bolt.material.opacity=1-k*k; }
+      else f.bolt.material.opacity=1-k*k;
+      f.trail.position.copy(f.bolt.position).addScaledVector(f.dir,-f.trail.userData.len/2); f.m.children[0].material.opacity=(kd==='bullet'?0.5:kd==='needle'?0.7:0.15)*(1-k); f.trail.material.opacity=1-k; }
     else if(t==='flash'){ const s=f.r*(0.35+k*0.55); f.m.scale.setScalar(s); f.m.material.opacity=Math.pow(1-k,1.8)*0.85; f.m.material.rotation=k*0.8; }
     else if(t==='ring'){ const s=0.3+f.r*k*1.2; f.m.scale.setScalar(s); f.m.material.opacity=(1-k)*0.6; }
     else if(t==='debris'){ const p=W(f.x,f.y,0); f.m.position.set(p.x+f.vx*k*0.9,0.4+(-f.vy)*k*0.8-k*k*1.6,p.z+(f.vx*0.4)*k); f.m.rotation.x+=0.2; f.m.rotation.z+=0.15; if(f.m.position.y<0.04) f.m.position.y=0.04; }
@@ -2578,7 +2604,7 @@ const R3 = (()=>{
   // ---- pose / animation ----
   const ease=x=>x<0.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
   function pose(u,g,t,moving){
-    const P=g.userData.parts; if(!P) return; const body=g.userData.body; const a=u.anim; const k=a?(t-a.t0-(a.delay||0))/({fire:520,lunge:520,hit:380,dodge:320,cast:700,blinkIn:320,healed:600,standUp:500,drop:520,select:260}[a.k]||400):2;
+    const P=g.userData.parts; if(!P) return; const body=g.userData.body; const a=u.anim; const k=a?(t-a.t0-(a.delay||0))/({fire:520,cast1:560,slam:640,lunge:520,hit:380,dodge:320,cast:700,blinkIn:320,healed:600,standUp:500,drop:520,select:260}[a.k]||400):2;
     if(a&&k<0){ if(a.k==='drop'){ body.position.y=6; } return; }
     const rest=g.userData.rest||{rx:0,lx:0,lz:0};
     if(u.downed){ body.rotation.x=1.45; body.rotation.z=0.15; body.position.set(0,-0.02,0); P.legL.rotation.x=0.2; P.legR.rotation.x=-0.1; P.kneeL.rotation.x=0.3; P.kneeR.rotation.x=0.1; P.armL.rotation.x=0.4; P.armR.rotation.x=-0.6; P.armL.rotation.z=0; P.armR.rotation.z=0; const rm=g.userData.ring.material; rm.color.set(u.stabilized?'#5CD68A':'#FF6B62'); rm.opacity=u.stabilized?0.7:0.4+0.6*Math.abs(Math.sin(t/220)); for(const m of g.userData.mats){ m.emissive.copy(m.userData.e0); m.emissiveIntensity=m.userData.i0*0.25; } if(g.userData.muzzle) g.userData.muzzle.visible=false; return; }
@@ -2592,12 +2618,16 @@ const R3 = (()=>{
     if(moving){ const w=Math.sin(t/70); P.legL.rotation.x=w*0.75; P.legR.rotation.x=-w*0.75; P.kneeL.rotation.x=Math.max(0,-w)*0.9; P.kneeR.rotation.x=Math.max(0,w)*0.9; P.armL.rotation.x=rest.lx-w*0.25; P.armR.rotation.x=rest.rx+w*0.25; bobY=Math.abs(w)*0.05; body.rotation.x=0.08; }
     else if(u.ow){ P.armR.rotation.x=-1.35; P.armL.rotation.x=-1.1; P.armL.rotation.z=0.5; bobY=-0.04; P.head.rotation.y=0.35*Math.sin(t/600); }
     // cover crouch: standing beside cover, an idle unit hunkers behind it (deeper for full cover); eased in and out so stops don't snap
-    { const wantCr=(!moving&&!u.ow&&u.side!=='captive'&&!u.def.noAttack&&!(a&&k<1&&(a.k==='fire'||a.k==='lunge'||a.k==='cast'||a.k==='drop')))?(u.hunker?1.2:(()=>{ const cov=adjacentCover(u); if(!cov.length) return 0; const f=nearestFoe(u); const rel=f?cov.filter(c=>protects(u,c,f)):cov; const use=rel.length?rel:cov; return use.some(c=>c.val===2)?1:0.62; })()):0; const wantCrN=wantCr;
+    { const wantCr=(!moving&&!u.ow&&u.side!=='captive'&&!u.def.noAttack&&!(a&&k<1&&(a.k==='fire'||a.k==='cast1'||a.k==='slam'||a.k==='lunge'||a.k==='cast'||a.k==='drop')))?(u.hunker?1.2:(()=>{ const cov=adjacentCover(u); if(!cov.length) return 0; const f=nearestFoe(u); const rel=f?cov.filter(c=>protects(u,c,f)):cov; const use=rel.length?rel:cov; return use.some(c=>c.val===2)?1:0.62; })()):0; const wantCrN=wantCr;
       const cr=g.userData.cr=(g.userData.cr||0)+(wantCrN-(g.userData.cr||0))*(frozen?0:0.12); if(cr>0.01){ const e=cr; P.legL.rotation.x-=0.62*e; P.legR.rotation.x-=0.78*e; P.kneeL.rotation.x+=1.0*e; P.kneeR.rotation.x+=1.15*e; bobY-=0.15*e; body.rotation.x+=0.16*e; P.armR.rotation.x+=0.18*e; P.armL.rotation.x+=0.1*e; P.head.rotation.x=-0.12*e; } }
     if(a&&k<1){
       const dirTo=(tx,ty)=>{ const fx=tx-u.x, fy=ty-u.y; if(fx||fy) body.rotation.y=Math.atan2(fx,fy); };
       switch(a.k){
-        case 'fire': { dirTo(a.tx,a.ty); P.armR.rotation.x=-1.5; P.armL.rotation.x=-1.2; P.armL.rotation.z=0.5; if(k<0.18){ body.position.z=-0.06*(1-k/0.18); P.armR.rotation.x=-1.5+0.25*(1-k/0.18); if(g.userData.muzzle){ g.userData.muzzle.visible=k<0.1; g.userData.muzzle.material.rotation=t/40; if(k<0.1){ const wp=new T3.Vector3(); g.userData.muzzle.getWorldPosition(wp); muzzleLight.position.copy(wp); muzzleLight.intensity=2.2*(1-k/0.1); } } } break; }
+        case 'fire': { dirTo(a.tx,a.ty); P.armR.rotation.x=-1.5; P.armL.rotation.x=-1.2; P.armL.rotation.z=0.5; if(k<0.18){ body.position.z=-0.06*(1-k/0.18); P.armR.rotation.x=-1.5+0.25*(1-k/0.18); if(g.userData.muzzle){ g.userData.muzzle.visible=k<0.1; g.userData.muzzle.material.rotation=t/40; if(k<0.1){ const wp=new T3.Vector3(); g.userData.muzzle.getWorldPosition(wp); muzzleLight.position.copy(wp); muzzleLight.color.set('#ffd27a'); muzzleLight.intensity=2.2*(1-k/0.1); } } } break; }
+        case 'cast1': { dirTo(a.tx,a.ty); const wind=k<0.22?k/0.22:1; P.armR.rotation.x=-0.5-1.15*wind; P.armR.rotation.z=-0.05; P.armL.rotation.x=-0.35-0.3*wind; P.armL.rotation.z=0.35; body.rotation.x=0.12*wind; body.position.z=k<0.3?0.08*Math.sin(Math.PI*k/0.3):0;
+          if(g.userData.muzzle){ const on=k>0.18&&k<0.36; g.userData.muzzle.visible=on; g.userData.muzzle.material.rotation=t/30; g.userData.muzzle.scale.setScalar(0.28+0.25*Math.sin(Math.PI*Math.min(1,Math.max(0,(k-0.18)/0.18)))); if(on){ const wp=new T3.Vector3(); g.userData.muzzle.getWorldPosition(wp); muzzleLight.position.copy(wp); muzzleLight.color.set(g.userData.muzzle.material.color); muzzleLight.intensity=2.4*(1-(k-0.18)/0.18); } } break; }
+        case 'slam': { dirTo(a.tx,a.ty); const up=k<0.3?k/0.3:1, down=k<0.3?0:Math.min(1,(k-0.3)/0.18); const arm=-2.5*up+2.1*down; P.armR.rotation.x=arm; P.armL.rotation.x=arm; P.armL.rotation.z=0.25; P.armR.rotation.z=-0.25; body.rotation.x=-0.25*up+0.75*down; bobY-=0.22*down; P.kneeL.rotation.x+=0.9*down; P.kneeR.rotation.x+=0.9*down; P.legL.rotation.x-=0.5*down; P.legR.rotation.x-=0.5*down;
+          if(g.userData.muzzle){ g.userData.muzzle.visible=false; } if(down>0.9&&k<0.6&&g.userData.body){ const wp=new T3.Vector3(); g.userData.body.getWorldPosition(wp); muzzleLight.position.copy(wp).setY(0.3); muzzleLight.color.set('#FFA35C'); muzzleLight.intensity=2.0*(1-(k-0.48)/0.12); } break; }
         case 'lunge': { dirTo(a.tx,a.ty); const e=Math.sin(Math.PI*Math.min(1,k)); body.position.z=0.5*e; body.rotation.x=0.35*e; P.armR.rotation.x=-2.2*e; P.armL.rotation.x=-1.0*e; P.kneeL.rotation.x=0.6*e; break; }
         case 'hit': { const e=Math.sin(Math.PI*k); body.rotation.x=-0.45*e; body.position.z=0.08*e; for(const m of g.userData.mats){ m.emissive.setRGB(0.9*(1-k),0.1*(1-k),0.1*(1-k)); m.emissiveIntensity=1; } break; }
         case 'dodge': { const e=Math.sin(Math.PI*k); body.rotation.z=0.3*e; bobY-=0.08*e; P.kneeL.rotation.x=0.5*e; P.kneeR.rotation.x=0.5*e; break; }
@@ -2657,7 +2687,7 @@ const R3 = (()=>{
       if(g.userData.ring&&!u.downed){ g.userData.ring.rotation.z=(u.side==='player'?1:-1)*t/2600; }
       // facing
       const dx=target.x-g.position.x, dz=target.z-g.position.z; let face=null; if(Math.hypot(dx,dz)>0.02) face=Math.atan2(dx,dz); else { const f=(G.pov&&G.pov.unit===u&&G.povView==='pov'&&G.pov.target&&G.pov.target.alive)?G.pov.target:nearestFoe(u); if(f) face=Math.atan2((f.x-u.x),(f.y-u.y)); }
-      if(face!==null&&u.side!=='obj'&&!(u.anim&&(u.anim.k==='fire'||u.anim.k==='lunge'||u.anim.k==='cast'))){ const cur=g.userData.body.rotation.y; let d=face-cur; while(d>Math.PI) d-=2*Math.PI; while(d<-Math.PI) d+=2*Math.PI; g.userData.body.rotation.y=cur+d*0.2; }
+      if(face!==null&&u.side!=='obj'&&!(u.anim&&(u.anim.k==='fire'||u.anim.k==='cast1'||u.anim.k==='slam'||u.anim.k==='lunge'||u.anim.k==='cast'))){ const cur=g.userData.body.rotation.y; let d=face-cur; while(d>Math.PI) d-=2*Math.PI; while(d<-Math.PI) d+=2*Math.PI; g.userData.body.rotation.y=cur+d*0.2; }
       if(u.side!=='obj') pose(u,g,t,Math.hypot(dx,dz)>0.02);
       if(g.userData.spin) g.userData.spin.rotation.z=t/500; if(g.userData.pulse&&g.userData.pulse.material.emissive) g.userData.pulse.material.emissiveIntensity=1.2+0.7*Math.sin(t/300);
       if(u.side==='enemy'&&!u.alert){ g.traverse(o=>{ if(o.isMesh&&o.material.transparent!==true&&!o.userData.dimmed){ o.userData.dimmed=true; o.material=o.material.clone(); o.material.transparent=true; o.material.opacity=0.45; } }); }
@@ -2794,7 +2824,7 @@ async function performAt(p,opts={}){
   if(G.mode==='concuss'){ if(!hostile||target.side!=='enemy'||!inRange(Object.assign({},u,{range:6}),target)){ setHint('<b>Concussion Round</b> needs a hostile in view within 6.'); return; }
     G.busy=true; renderSide(); VO.event(u,'concuss'); anim(u,'fire',{tx:target.x,ty:target.y}); Audio.shoot(u.x,'heavy'); fxTracer(u,target,'#FF7A45'); await wait(200); G.stats.shots++; G.stats.hits++;
     if(target.side==='enemy'&&!target.alert) await scamper(wakePod(target.pod));
-    log(`${u.name} puts a Concussion Round into ${target.name} — 4 dmg, thrown back.`,'hit'); applyDamage(target,4,u);
+    log(`${u.name} hits ${target.name} with a Concussive Burst — 4 dmg, thrown back.`,'hit'); applyDamage(target,4,u);
     if(target.alive){ target.ow=false; const dx=Math.sign(target.x-u.x), dy=Math.sign(target.y-u.y); const K=F(u,'concussKnock')||1; for(let i=0;i<K;i++){ const nx=target.x+dx, ny=target.y+dy; if(inb(nx,ny)&&!solid(nx,ny)&&!unitAt(nx,ny)){ target.x=nx; target.y=ny; } else break; } anim(target,'hit'); fxRing(target.x,target.y,'#FF7A45',0.8);
       if(F(u,'concussStun')){ target.stunned=true; fxText(target.x,target.y-0.6,'STUNNED','#FF7A45',true); log(`${target.name} is stunned — loses its next turn.`,'sys'); } }
     shake(10); await checkContact(); u.cd=u.def.ability.cd; if(!target.alive&&F(u,'concussMomentum')){ u.ap=1; fxText(u.x,u.y,'FOLLOW-THROUGH','#FF7A45'); log(`Follow-through — ${u.name} keeps an action.`,'good'); } else u.ap=0; await wait(350); G.busy=false; afterAction(u); return; }
@@ -3109,5 +3139,5 @@ function loop(){ if(R3){ R3.render(now()); } else draw(); requestAnimationFrame(
 /* ---------- Boot ---------- */
 function start(){ showScreen('menu'); loop(); }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start();
-window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,threatAfterMove,threatMoveAt,pathThreats,threatZone,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
+window.MUTIE={G,startMission,endTurn,hitChance,coverAgainst,hasLOS,reachable,ARCH,ENEMY,MISSIONS,select,setMode,jammed,objectiveComplete,evacStatus,genMission,launchSide,CAMP:()=>CAMP,rosterEntry,KIT_UPGRADES,upgradesFor,buildDef,PERKS,ADAPT,adaptFor,adjustMission,checkPerkOffer,MX,R3,povGo,povCycle,toggleView,performAt,enterPOV,exposureAt,threatAfterMove,threatMoveAt,pathThreats,threatZone,anim,fxTracer,DIFF,setDiff:(id)=>{ if(DIFF[id]){ CAMP.diff=id; saveCamp(); } },unlockAll:()=>{ for(const m of MUTANTS) if(!CAMP.roster.some(r=>r.cid===m.id)) CAMP.roster.push({cid:m.id,kit:m.id,name:m.name,level:1,xp:0,kills:0,missions:0,wounded:0,alive:true,upgrade:null,pendingUpgrade:false,custom:null}); saveCamp(); }};
 </script>

@@ -36,7 +36,7 @@ well-placed teleport or a missed 80% shot can swing the whole fight.
 - **Pods.** Enemies spawn unaware in pods (clustered within 3 tiles at spawn). A pod wakes when a mutant is within
   7 tiles with line of sight, or fires on a member; it scampers to cover on waking. Hovering a move tile shows
   which unaware enemies it would wake. Reinforcements and summons arrive awake. The player paces the fight.
-- **Placeholder art until mechanics are fun.** Units are colored circles with a glyph on purpose.
+- **Placeholder art until mechanics are fun.** (Historical — the 3D figures shipped 2026-09-27; the 2D fallback still draws circles with a glyph.) Everything a mutant does on the board should read as a power, never as a gun.
 - **Guerrilla stance.** The squad is outgunned and picks its fights; missions are strikes, not sieges.
 
 ## Campaign layer (Phase 8 — built in-page)
@@ -339,6 +339,21 @@ specimen tanks, no motes) · transmitter (cable trays, lattice mast with beacons
   says what the shading is. Deliberately *not* Into-the-Breach intent: it shows where they can hurt you, not what they will do.
 - **Reinforcement edge.** With `reinforceAt−turn ≤ 2`, the right-edge arrival columns (`x ≥ COLS−3`, free floor) breathe red
   and the foot reads "Reinforcements in N · right edge". `test27–29.mjs` cover breakdown, heat map and zones.
+
+## Signature basic attacks (2026-09-27, Cameron's brief: no mutant fires a gun)
+`ATTACKS[family]` = `{name, kind, sfx, anim, color, desc}` — blaster **Pulse Shot** (bolt, `cast1`), bruiser **Shockwave** (wave
+along the floor, `slam`), phaser **Rift Shard** (jittering shard, `cast1`), mender **Suture Dart** (needle, `cast1`); `ATTACK_NAMES`
+gives each of the twelve a flavour name/colour (Heat Lance, Static Bolt, Shield Slam, Quake Fist, Void Spike, Echo Pulse, Ward
+Sting, Adrenal Dart…). `attackFor(kit)` merges them and `buildDef` sets `def.attack`; the Coalition has none and keeps its rifles.
+`shoot()` reads `a.def.attack` for the animation, `fxTracer(a,b,color,kind)` (bullet | bolt | wave | shard | needle — wave runs
+at floor height with a ring sprite and a launch ring at the attacker's feet) and `Audio.shoot(x,sfx)` (`pulse`/`slam`/`shard`/
+`needle` voices; enemy kinds unchanged). Figures: mutants get emitter rings and palm cores on both forearms in the attack colour
+plus a palm flash sprite as `userData.muzzle`; `makeGun` is enemy-only; mutant rest pose is hands-low, not low-ready. New poses in
+`pose()`: `cast1` (one-arm push, flash at k 0.18–0.36 with the muzzle light tinted to the attack) and `slam` (both fists up then
+down, body dips, warm ground light). Every "Fire" surface uses the attack name: action button (+ `desc`), `#pov-go`
+("Pulse Shot → Trooper · 70%"), hints, touch arm text; Overwatch copy says "Hold your shot". Text tidy: Ember is a "Kinetic
+striker", Concussion Round → **Concussive Burst** (same key `concuss`), Steady says "reaction shots". `og.png` regenerated without
+the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTracer` are exposed for it).
 
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries

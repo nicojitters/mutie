@@ -700,7 +700,38 @@ the rifle. `shotattack.mjs` freezes each family mid-attack (`MUTIE.anim`/`fxTrac
   inner panels scroll. Desktop 1024×768 → 1920×1080: every screen and sheet fits with no inner scroll except the log; 800×600 fits the
   page with a few inner scrolls.
 
-## Pixel-art units (2026-09-28, Cameron: "detailed, evocative pixel art rather than violent Roblox") — default look
+## Toon characters (2026-09-28, Cameron: "Toon 3D is the move") — default look
+`TOON` (top-level module, just before `R3`) builds every unit as a toon-shaded 3D character in code: MeshToonMaterial with a 3-step
+gradient, glow parts as MeshBasic with HDR colour (×1.8–2.4, so the bloom pass picks them up), and an inverted-hull ink outline.
+- **Rig.** `rig(o)` makes the joints `fig()` already had — torso (pelvis at origin, torso pieces at absolute heights ~0.84–1.6), head pivot,
+  hip → knee, shoulder → elbow → hand — in toon units (~1.9 tall, +z = front). Defaults `hipX .1, hipY .87, thigh .37, shin .37, shX .23,
+  shY 1.42, up .27, fore .25, headY 1.72`; a character overrides them in `rig:{}` (Halden/Grit/Juggernaut wide, Husk hunched, `scale`).
+  `tfig(u)` (in R3) wraps it: body scale 0.75 × `rig.scale`, dummies for `parts.torso`/`parts.shoulders` (pose() writes breathing there),
+  elbows pre-bent −0.35, so **pose() drives toon figures unchanged**. `g.userData.legK` (toon thigh / old thigh) scales pose's bob so
+  crouch/kneel/drop still meet the floor. Mutant muzzle sprite hangs off `handR` in a ×2 wrapper; Coalition guns come from `C.rifle(kind)`
+  (barrel down the forearm, `R.muzzleAt` → a `muzzle` anchor). `Rg.spin` (Surgeon halo, Jammer ring) feeds `g.userData.spin`.
+- **Characters** are data in `TOON.CH[id]` = `{rig, pal:{skin,hair,acc}, build(k,R,P)}` keyed by `def.id` (twelve kits, `vip` for the
+  captive, the eleven Coalition ids; decoys build Echo in translucent cyan). The kit `k` mirrors the scratch toolkit: `add(geo,mat,pos,rot,
+  scl,outline,parent)` (parent defaults to the torso bone), `limb/tube/lathe/ribbon/rocky/glowSprite`, `head(o)` (faces: eyes normal|fierce|
+  calm|glow|none, brows, mouth smile|grin|set|lips, lashes, blush), `hairCap/spikes`, `legs(o)`/`arms(o)` for plain limbs, `band/sleeve`,
+  `S.L|S.R` bones and `each(fn)`; `k.coal()` adds the Coalition kit (`legs, torso, pauldron, stripe, arms, helmet{face slit|lens, crest},
+  graft, rifle`). Limb dressing is authored in the bone's own space (down = −y).
+- **Bake.** After a build every bone's meshes are merged per material (one draw per material per bone; sprites/transparent/`keep` meshes
+  stay separate) and one ink mesh per bone is generated with a per-vertex `inkW` (outline/0.016). The ink material expands the hull in
+  **screen space** (`TOON.INK.px` buffer pixels, `res` = drawing buffer; set per frame in `render()`: 1.2 on the map, 1.9 in POV, ×dpr^0.8),
+  so line weight is the same at every zoom. Figures cast shadows but don't receive them (self-shadow acne on toon bands). Built rigs are
+  cached per character + customisation JSON and cloned per unit; `tfig` clones materials per unit so hit/heal flashes stay local.
+  Swiftshader, M2: toon ≈ standard frame time; ~16k tris and ~40 draws per character.
+- **Customiser**: skin/hair/accent swap the palette keys; headgear helmet/hood adds a shell over the head.
+- **Unaware dimming** now keeps the original material (`userData.m0`) and restores it on alert (hit flashes used to land on a stale
+  material); ink hulls hide while dimmed and while dying (a cloned ink material would lose its outline shader — `Material.copy` drops
+  `onBeforeCompile`).
+- `R3.style('toon')` sets `FIG_LOOK` (composite runs as Standard); switching to or from toon clears the unit meshes so they rebuild.
+  `SETTINGS.lookV` 2 migrates everyone to Toon once. Scratch sources: the standalone lineup renders came first (`toon/chars/*.js`); the
+  in-game module is `toon/game/toonmod.js` + `ch_mutants.js` + `ch_coalition.js` (inlined verbatim). `shottoon.mjs` (SET=enemies|mutantsA|
+  mutantsB — every type in a row, plus unaware/elite), `shottoonpose.mjs` (POV fire/hit, cast1/slam/downed), `perftoon.mjs`.
+
+## Pixel-art units (2026-09-28, Cameron: "detailed, evocative pixel art rather than violent Roblox") — Look: Pixel art
 `PIX` (top-level module, before `R3`) draws every unit as a hand-shaded pixel sprite in code — no image files. A 2D forward-kinematic
 rig (`joints`: hip → thighs/shins, spine with lean, shoulders, elbows/hands, neck/head; whole-body `rot` about the hip for lying) is
 rasterized into a 64×64 grid by `cap` (capsules), `ell`, `poly`, `trunk` (polygon shaded as a cylinder per scanline — torsos, jackets,
@@ -722,7 +753,7 @@ plane at ×1.9 for bloom). `sprUpdate` picks view/mirror from body facing vs the
 uploads only when the frame key changes. Colours go through `sprLUT` (inverse of the composite's ACES at the current exposure) so the
 authored palette survives tone mapping. Dying units play `fall` then `downed` while the group fades. Labels sit higher in this look.
 Iterate art with the sheet harness (scratch `sheet.mjs`: loads PIX alone in a blank page and tiles characters × states at N×).
-Looks now cycle Standard · Pixel art · Pixel scene · Comic (the old `pixunit` pass is still in `R3.style` but not offered).
+Looks now cycle Toon · Standard · Pixel art · Pixel scene · Comic (the old `pixunit` pass is still in `R3.style` but not offered).
 
 ## Look prototypes (2026-09-28, Cameron: "make the most of the visuals" — pixel units on a 3D board, plus alternatives)
 Switchable post styles on the RT path, nothing about the game changes: `R3.style('standard'|'pixunit'|'pixel'|'comic')`, `SETTINGS.look`

@@ -977,7 +977,7 @@ button,.navbtn,.linkbtn{touch-action:manipulation}
   </div>
   <div id="modal-help" class="overlay modal" hidden>
     <div class="sheet help-sheet">
-      <div class="sheet-h"><h2>How to play</h2><span style="display:flex;gap:6px;align-items:center"><button class="btn small" id="look-toggle" title="Visual style prototypes: Standard · Pixel units (pixel-art figures on the 3D board) · Pixel (whole scene) · Comic (ink, bands, halftone). Key L in a mission. Needs WebGL2.">Look: Standard</button><button class="btn small" id="detail-toggle" title="Lean keeps the board to what changes your next decision; every number is still one hover or POV card away. Key D in a mission.">Board detail: Lean</button><button class="btn small" data-close="modal-help">Close</button></span></div>
+      <div class="sheet-h"><h2>How to play</h2><span style="display:flex;gap:6px;align-items:center"><button class="btn small" id="look-toggle" title="Visual style: Toon (ink-outlined characters, the default) · Standard · Pixel art (sprite figures) · Pixel (whole scene) · Comic (ink, bands, halftone). Key L in a mission.">Look: Standard</button><button class="btn small" id="detail-toggle" title="Lean keeps the board to what changes your next decision; every number is still one hover or POV card away. Key D in a mission.">Board detail: Lean</button><button class="btn small" data-close="modal-help">Close</button></span></div>
       <div class="seg help-tabs" id="help-tabs"><button data-t="basics" aria-pressed="true">Basics</button><button data-t="combat" aria-pressed="false">Combat</button><button data-t="enemy" aria-pressed="false">The Coalition</button><button data-t="camp" aria-pressed="false">Campaign</button><button data-t="opts" aria-pressed="false">Options</button></div>
       <div class="help" id="help-body">
         <p data-t="basics"><b>Two actions per unit.</b> Moving costs one. A long move (dim tiles) costs both. Firing, Overwatch, and most powers end the unit's turn. Powers recharge on a cooldown — except <b>Pulse Blast</b>, which is three charges per mission: throw one at a lone trooper and that is a grenade you will not have later.</p>
@@ -2644,7 +2644,7 @@ function light(x,y,color,intensity=6,dur=350){ G.light={x,y,color,intensity,t0:n
    SETTINGS (localStorage mutie.settings, per device): speed normal|fast|snap, endGuard. tempo() scales every scripted pause, the
    insertion, banners and the kill cam; Snap also drops the enemy action-cam glides. Holding Shift in the Coalition phase = Snap. */
 const BADGE_CAP=2;
-const SETTINGS=(()=>{ let s={speed:'normal',endGuard:true,detail:'lean',look:'sprite'}; try{ const raw=localStorage.getItem('mutie.settings'); if(raw) s=Object.assign(s,JSON.parse(raw)); }catch(e){} if(!s.lookV){ s.look='sprite'; s.lookV=1; } return s; })();
+const SETTINGS=(()=>{ let s={speed:'normal',endGuard:true,detail:'lean',look:'toon'}; try{ const raw=localStorage.getItem('mutie.settings'); if(raw) s=Object.assign(s,JSON.parse(raw)); }catch(e){} if((s.lookV||0)<2){ s.look='toon'; s.lookV=2; } return s; })();
 function saveSettings(){ try{ localStorage.setItem('mutie.settings',JSON.stringify(SETTINGS)); }catch(e){} }
 const SPEEDS={normal:{name:'Speed ×1',f:1},fast:{name:'Speed ×2',f:0.5},snap:{name:'Speed ×4',f:0.25}};
 const tempo=()=>((G.ffwd&&G.phase==='enemy')?0.25:(SPEEDS[SETTINGS.speed]||SPEEDS.normal).f);
@@ -3144,6 +3144,518 @@ const PIX=(()=>{
   return {W,H,CH,frame,specFor,FCOUNT,ramp,POSES};
 })();
 
+/* ---- TOON: toon-shaded 3D characters (Look: Toon, the default) ----
+   Every unit is built in code on a small skeleton that matches the rig pose() already drives: pelvis/torso, head pivot, hip → knee,
+   shoulder → elbow → hand. Characters are data + a build function in TOON.CH (toon units: ~1.9 tall, +z = front); the unit body scales
+   them to the board. After a build, every bone's meshes are merged per material (one draw per material per bone) and an inverted-hull
+   ink outline is generated per bone, expanded in screen space (INK.px pixels) so line weight stays constant on the map and in POV.
+   Built rigs are cached per character + customisation and cloned per unit (geometry shared, materials cloned by the renderer). */
+const TOON=(()=>{
+  let T=null, GRAD=null, DOT=null, INKM=null; const MC=new Map(), CACHE=new Map(); const INK={px:{value:1.4},res:{value:null}};
+  function init(){ if(T) return true; T=window.THREE; if(!T) return false;
+    GRAD=new T.DataTexture(new Uint8Array([92,92,92,255, 170,170,170,255, 255,255,255,255]),3,1,T.RGBAFormat); GRAD.magFilter=GRAD.minFilter=T.NearestFilter; GRAD.generateMipmaps=false; GRAD.needsUpdate=true;
+    INK.res.value=new T.Vector2(1040,700);
+    const c=document.createElement('canvas'); c.width=c.height=64; const x=c.getContext('2d'); const g=x.createRadialGradient(32,32,0,32,32,32); g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(0.4,'rgba(255,255,255,0.35)'); g.addColorStop(1,'rgba(255,255,255,0)'); x.fillStyle=g; x.fillRect(0,0,64,64); DOT=new T.CanvasTexture(c);
+    return true; }
+  const toon=(c)=>{ const k='t'+c; let m=MC.get(k); if(!m){ m=new T.MeshToonMaterial({color:new T.Color(c),gradientMap:GRAD}); MC.set(k,m); } return m; };
+  const glow=(c,s=1.8)=>{ const k='g'+c+s; let m=MC.get(k); if(!m){ m=new T.MeshBasicMaterial({color:new T.Color(c).multiplyScalar(s)}); m.userData.glow=true; MC.set(k,m); } return m; };
+  const flat=(c)=>{ const k='f'+c; let m=MC.get(k); if(!m){ m=new T.MeshBasicMaterial({color:new T.Color(c)}); MC.set(k,m); } return m; };
+  const ds=(m)=>{ if(m.side===T.DoubleSide) return m; let d=m.userData.dsm; if(!d){ d=m.clone(); d.side=T.DoubleSide; d.userData={glow:m.userData.glow}; m.userData.dsm=d; } return d; };
+  function inkMat(){ if(INKM) return INKM; INKM=new T.MeshBasicMaterial({color:0x150d17,side:T.BackSide});
+    INKM.onBeforeCompile=s=>{ s.uniforms.uPx=INK.px; s.uniforms.uRes=INK.res; s.vertexShader='attribute float inkW;\nuniform float uPx;\nuniform vec2 uRes;\n'+s.vertexShader.replace('#include <project_vertex>',
+      'vec4 mvPosition=modelViewMatrix*vec4(transformed,1.0); gl_Position=projectionMatrix*mvPosition; vec3 nV=normalize(normalMatrix*normal); vec2 dI=(projectionMatrix*vec4(nV,0.0)).xy; float lI=length(dI); if(lI>1e-5) dI/=lI; gl_Position.xy+=dI*uPx*inkW*gl_Position.w*2.0/uRes;'); };
+    INKM.customProgramCacheKey=()=>'toonink'; return INKM; }
+  // ---------- skeleton ----------
+  function rig(o){ const r=Object.assign({hipX:0.1,hipY:0.87,thigh:0.37,shin:0.37,shX:0.23,shY:1.42,up:0.27,fore:0.25,headY:1.72,headZ:0.02,scale:1},o||{});
+    const body=new T.Group(); const mk=(parent,pos,name)=>{ const g=new T.Group(); g.position.set(pos[0],pos[1],pos[2]); g.userData.bone=1; g.name=name; parent.add(g); return g; };
+    const torso=mk(body,[0,0,0],'torso'), head=mk(body,[0,r.headY,r.headZ],'head');
+    const legL=mk(body,[-r.hipX,r.hipY,0],'legL'), kneeL=mk(legL,[0,-r.thigh,0],'kneeL'), legR=mk(body,[r.hipX,r.hipY,0],'legR'), kneeR=mk(legR,[0,-r.thigh,0],'kneeR');
+    const armL=mk(body,[-r.shX,r.shY,0],'armL'), elbowL=mk(armL,[0,-r.up,0],'elbowL'), armR=mk(body,[r.shX,r.shY,0],'armR'), elbowR=mk(armR,[0,-r.up,0],'elbowR');
+    const hand=(p,n)=>{ const g=new T.Group(); g.position.set(0,-r.fore,0); g.name=n; p.add(g); return g; };
+    return {r,body,torso,head,legL,kneeL,legR,kneeR,armL,elbowL,armR,elbowR,handL:hand(elbowL,'handL'),handR:hand(elbowR,'handR')}; }
+  // ---------- kit (the toolkit the character files use) ----------
+  let seed=7; const rnd=()=>{ seed=(seed*16807)%2147483647; return seed/2147483647; };
+  function kit(R){ const r=R.r; const V=a=>new T.Vector3(a[0],a[1],a[2]);
+    const add=(geo,mat,pos=[0,0,0],rot=[0,0,0],scl=[1,1,1],outline=0.016,parent=R.torso)=>{ const m=new T.Mesh(geo,mat); m.position.set(pos[0],pos[1],pos[2]); m.rotation.set(rot[0],rot[1],rot[2]); m.scale.set(scl[0],scl[1],scl[2]); if(outline) m.userData.inkW=Math.min(1.3,outline/0.016); parent.add(m); return m; };
+    const cap=(rad,l,seg=12)=>new T.CapsuleGeometry(rad,Math.max(0.001,l),3,Math.min(seg,12));
+    const sph=(rad,a=16,b=12)=>new T.SphereGeometry(rad,Math.min(a,18),Math.min(b,12));
+    const cyl=(a,b,h,s=16,open=false)=>new T.CylinderGeometry(a,b,h,Math.min(s,16),1,open);
+    const box=(x,y,z)=>new T.BoxGeometry(x,y,z);
+    function orient(m,A,B,up=[0,1,0]){ m.position.copy(V(A)).add(V(B)).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(V(up),V(B).sub(V(A)).normalize()); return m; }
+    function limb(a,b,rad,mat,outline=0.016,parent=R.torso,rad2){ const len=V(a).distanceTo(V(b)); const g=rad2?new T.CylinderGeometry(rad2,rad,len,12):cap(rad,len); return orient(add(g,mat,[0,0,0],[0,0,0],[1,1,1],outline,parent),a,b); }
+    function tube(pts,rad,mat,parent=R.torso,outline=0){ const c=new T.CatmullRomCurve3(pts.map(V)); return add(new T.TubeGeometry(c,Math.max(6,pts.length*5),rad,5,false),mat,[0,0,0],[0,0,0],[1,1,1],outline,parent); }
+    function lathe(prof,mat,scl=[1.05,1,0.8],outline=0.016,t0=0,tl=Math.PI*2,parent=R.torso){ const g=new T.LatheGeometry(prof.map(([x,y])=>new T.Vector2(x,y)),20,t0,tl); return add(g,tl<Math.PI*2-0.01?ds(mat):mat,[0,0,0],[0,0,0],scl,outline,parent); }
+    function ring(y,rr,rad,mat,scl=[1.06,0.82,1],parent=R.torso){ return add(new T.TorusGeometry(rr,rad,5,24),mat,[0,y,0],[Math.PI/2,0,0],scl,0,parent); }
+    function torus(rr,rad,mat,pos,rot,scl=[1,1,1],outline=0,parent=R.torso,arc=Math.PI*2){ return add(new T.TorusGeometry(rr,rad,6,20,arc),mat,pos,rot,scl,outline,parent); }
+    function glowSprite(pos,rgb,size,alpha=0.7,parent=R.torso){ const [a,b,c]=rgb.split(',').map(Number); const s=new T.Sprite(new T.SpriteMaterial({map:DOT,color:new T.Color(a/255,b/255,c/255),transparent:true,opacity:alpha,blending:T.AdditiveBlending,depthWrite:false})); s.position.set(pos[0],pos[1],pos[2]); s.scale.set(size,size,1); parent.add(s); return s; }
+    function rocky(geo,amt){ if(geo.index) geo=geo.toNonIndexed(); const p=geo.attributes.position; const map=new Map(); for(let i=0;i<p.count;i++){ const k=[p.getX(i),p.getY(i),p.getZ(i)].map(v=>v.toFixed(3)).join(); if(!map.has(k)) map.set(k,[(rnd()-0.5)*amt,(rnd()-0.5)*amt,(rnd()-0.5)*amt]); const d=map.get(k); p.setXYZ(i,p.getX(i)+d[0],p.getY(i)+d[1],p.getZ(i)+d[2]); } geo.computeVertexNormals(); return geo; }
+    function ribbon(pts,w0,w1,mat,twist=0,fray=true,parent=R.torso,outline=0){ const curve=new T.CatmullRomCurve3(pts.map(V)); const N=24,pos=[],idx=[]; for(let i=0;i<=N;i++){ const t=i/N,p=curve.getPointAt(t),tg=curve.getTangentAt(t); const up=new T.Vector3(0,1,0).applyAxisAngle(tg,twist*t); const sd=new T.Vector3().crossVectors(tg,up).normalize(); const w=(w0+(w1-w0)*t)*(fray&&i>N-3?(i%2?0.35:1):1); pos.push(...p.clone().addScaledVector(sd,w).toArray(),...p.clone().addScaledVector(sd,-w).toArray()); if(i<N){ const k=i*2; idx.push(k,k+1,k+2,k+1,k+3,k+2); } }
+      const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals(); return add(g,ds(mat),[0,0,0],[0,0,0],[1,1,1],outline,parent); }
+    const PROF={ m:[[0.001,0.84],[0.2,0.85],[0.21,0.95],[0.2,1.08],[0.24,1.28],[0.26,1.38],[0.21,1.48],[0.11,1.53],[0.001,1.54]],
+      f:[[0.001,0.82],[0.205,0.83],[0.225,0.9],[0.18,0.99],[0.14,1.08],[0.17,1.2],[0.21,1.32],[0.19,1.45],[0.1,1.52],[0.001,1.53]],
+      big:[[0.001,0.86],[0.29,0.87],[0.31,0.95],[0.34,1.1],[0.39,1.3],[0.39,1.42],[0.33,1.52],[0.18,1.6],[0.001,1.62]],
+      slim:[[0.001,0.84],[0.18,0.85],[0.19,0.95],[0.18,1.08],[0.21,1.28],[0.23,1.38],[0.19,1.48],[0.1,1.53],[0.001,1.54]] };
+    const shell=(base,grow=0.025,y0=0.9,y1=1.6)=>PROF[base].filter(([,y])=>y>=y0&&y<=y1).map(([x,y])=>[Math.max(0.05,x+grow),y]);
+    // head: o = {sex, skin, r, pos, rx, ry, rz, eyes, eyeColor, brow, browColor, mouth, lipColor, lashes, blush, ear, nose}
+    function head(o,parent=R.head){ const h=new T.Group(); const p=o.pos||[0,0,0]; h.position.set(p[0],p[1],p[2]); h.rotation.set(o.rx||0,o.ry||0,o.rz||0); parent.add(h); const Rr=o.r||0.175; const sk=toon(o.skin); const f=o.sex==='f';
+      add(cyl(Rr*0.32,Rr*0.37,0.16,10),sk,[0,-Rr*1.1,0],[0,0,0],[1,1,1],0.01,h);
+      add(sph(Rr,20,14),sk,[0,0,0],[0,0,0],f?[0.86,1.03,0.95]:[0.92,1.03,0.98],0.014,h);
+      if(o.ear!==false) add(sph(Rr*0.26,8,6),sk,[-Rr*0.9,-0.01,0],[0,0,0],[0.55,1,0.5],0.01,h);
+      if(o.nose!==false) add(new T.ConeGeometry(Rr*(f?0.14:0.17),Rr*0.36,8),sk,[0,-0.02,Rr*1.03],[Math.PI/2,0,0],[1,1,1],0.008,h);
+      const E=o.eyes||'normal', dark=flat('#150d17'), white=flat('#ffffff');
+      if(E!=='none') for(const x of [-Rr*0.34,Rr*0.36]){ const s=x>0?1:-1;
+        if(E==='glow'){ add(sph(Rr*0.12,8,6),glow(o.eyeColor||'#9BE7FF',2.2),[x,Rr*0.15,Rr*0.88],[0,0,-s*0.3],[1.4,0.55,0.5],0,h); continue; }
+        const ey=E==='fierce'?[0.95,0.8,0.55]:E==='calm'?[0.95,0.75,0.55]:[0.85,f?1.25:1.1,0.55];
+        add(sph(Rr*(f?0.17:0.14),10,8),dark,[x,Rr*0.1,Rr*0.88],[0,0,0],ey,0,h); add(sph(Rr*0.045,6,4),white,[x+Rr*0.05,Rr*0.18,Rr*0.97],[0,0,0],[1,1,1],0,h);
+        if(o.lashes) for(let i=0;i<(f?3:2);i++) add(box(Rr*0.11,Rr*0.035,Rr*0.045),dark,[x+s*Rr*0.13+s*i*Rr*0.022,Rr*0.25+i*Rr*0.055,Rr*0.885],[0,0,s*(0.5+i*0.35)],[1,1,1],0,h);
+        const bz={level:0.05*s,down:-0.28*s,cocky:(s>0?0.35:0.05),soft:0.15*s}[o.brow||'level']; add(box(Rr*0.34,Rr*(f?0.05:0.07),Rr*0.07),flat(o.browColor||'#2a1a14'),[x,Rr*0.38,Rr*0.87],[0,0,bz],[1,1,1],0,h); }
+      const M=o.mouth||'set';
+      if(M==='smile'||M==='grin'){ add(new T.CircleGeometry(Rr*(M==='grin'?0.2:0.16),10,Math.PI,Math.PI),white,[0.01,-Rr*0.42,Rr*0.93],[0,0,0.12],[1,1,1],0,h); add(new T.TorusGeometry(Rr*(M==='grin'?0.2:0.16),Rr*0.03,4,10,Math.PI),dark,[0.01,-Rr*0.42,Rr*0.935],[0,0,Math.PI+0.12],[1,1,1],0,h); }
+      if(M==='set') add(box(Rr*0.3,Rr*0.05,Rr*0.06),flat('#3a1e18'),[0.01,-Rr*0.5,Rr*0.95],[0,0,0],[1,1,1],0,h);
+      if(M==='lips'){ add(cap(Rr*0.05,Rr*0.17,6),toon(o.lipColor||'#B85A70'),[0,-Rr*0.41,Rr*0.93],[0,0,Math.PI/2-0.08],[1,1,0.7],0,h); add(cap(Rr*0.045,Rr*0.15,6),toon(o.lipColor2||'#D9788C'),[0,-Rr*0.47,Rr*0.915],[0,0,Math.PI/2-0.08],[1,1,0.7],0,h); }
+      if(o.blush) add(sph(Rr*0.1,8,6),toon(o.blush),[Rr*0.57,-Rr*0.2,Rr*0.74],[0,0,0],[1,0.6,0.4],0,h);
+      h.R=Rr; R.headR=Rr; R.headG=h; return h; }
+    const hairCap=(h,mat,o={})=>add(new T.SphereGeometry(h.R*1.06,18,10,0,Math.PI*2,0,Math.PI*(o.cover||0.5)),mat,[0,0.01,-0.01],[o.tilt??-0.3,0,0],[0.93,1.05,1.0],0.012,h);
+    function spikes(h,mat,list){ for(const [x,y,z,rx,rz,len] of list) add(new T.ConeGeometry(h.R*0.32,len,6),mat,[x,y+len*0.45,z],[rx,0,rz],[1,1,1],0.012,h); }
+    // rig-aware limbs
+    const S={L:{leg:R.legL,knee:R.kneeL,arm:R.armL,elbow:R.elbowL,hand:R.handL,s:-1},R:{leg:R.legR,knee:R.kneeR,arm:R.armR,elbow:R.elbowR,hand:R.handR,s:1}};
+    const each=fn=>{ fn(S.L,-1,'L'); fn(S.R,1,'R'); };
+    const ankAbs=r.hipY-r.thigh-r.shin;
+    function legs(o){ const bs=o.bs||1; each(X=>{ limb([0,0,0],[0,-r.thigh,0],o.rT||0.08,o.pant,0.016,X.leg); limb([0,0,0],[0,-r.shin,0],o.rS||0.065,o.shin||o.pant,0.016,X.knee);
+      const by=-r.shin+(0.08*bs-ankAbs); add(cap(0.07*bs,0.13*bs),o.boot,[0,by,0.05*bs],[Math.PI/2,0,0],[1,1.05,1],0.016,X.knee);
+      if(o.sole) add(box(0.16*bs,0.03*bs,0.3*bs),o.sole,[0,-r.shin+(0.016*bs-ankAbs),0.06*bs],[0,0,0],[1,1,1],0.01,X.knee);
+      if(o.knee) add(sph((o.rS||0.065)*1.12),o.knee,[0,0,0.03],[0,0,0],[1,1.1,0.8],0.012,X.knee); }); }
+    function arms(o){ each(X=>{ limb([0,0,0],[0,-r.up,0],o.rU||0.058,o.up,0.016,X.arm); add(sph((o.rU||0.058)*1.15),o.sh||o.up,[0,0,0],[0,0,0],[1,1,1],0.014,X.arm); limb([0,0,0],[0,-r.fore,0],o.rF||0.048,o.fore||o.up,0.016,X.elbow); if(o.hand) add(sph(o.rH||(o.rF||0.048)*1.1),o.hand,[0,0,0.005],[0,0,0],[1,1.15,1],0.012,X.hand); }); }
+    const band=(parent,len,t,rr,w,mat)=>add(new T.TorusGeometry(rr,w,5,16),mat,[0,-len*t,0],[Math.PI/2,0,0],[1,1,1],0,parent);
+    const sleeve=(parent,len,t0,t1,r0,r1,mat,outline=0.012)=>add(new T.CylinderGeometry(r0,r1,len*(t1-t0),14,1,true),ds(mat),[0,-len*(t0+t1)/2,0],[0,0,0],[1,1,1],outline,parent);
+    const K={T,R,r,V,add,cap,sph,cyl,box,orient,limb,tube,lathe,ring,torus,glowSprite,rocky,ribbon,PROF,shell,head,hairCap,spikes,S,each,legs,arms,band,sleeve,toon,glow,flat,ds};
+    K.coal=()=>COAL(K); return K; }
+  // ---------- Coalition kit: gunmetal plate over a black undersuit, red accents, slit-visor helmets, grafts grown from mutant tissue ----------
+  function COAL(k){ const {T,R,r,add,cap,sph,cyl,box,limb,tube,lathe,orient,V,rocky,glowSprite,ds,toon,glow,each}=k;
+    const M={ plate:toon('#6E7A8C'), plateD:toon('#434B58'), plateL:toon('#98A4B4'), suit:toon('#1E2128'), suitD:toon('#15171C'), red:toon('#B8322E'), redG:glow('#FF3B30'),
+      flesh:toon('#D9828C'), fleshD:toon('#A85664'), vein:toon('#7A2E44'), boneM:toon('#EDE0CA'), gun:toon('#2A2D33'), gunL:toon('#484C55'), sole:toon('#0c0d10') };
+    function legs(s=1){ each(X=>{ limb([0,0,0],[0,-r.thigh,0],0.078*s,M.suit,0.016,X.leg); limb([0,0,0],[0,-r.shin,0],0.064*s,M.suit,0.016,X.knee);
+      add(cyl(0.088*s,0.08*s,r.thigh*0.5,14),M.plateD,[0,-r.thigh*0.55,0],[0,0,0],[1,1,1],0.012,X.leg);
+      add(cyl(0.078*s,0.07*s,r.shin*0.62,14),M.plate,[0,-r.shin*0.43,0],[0,0,0],[1,1,1],0.012,X.knee);
+      add(sph(0.062*s),M.plateL,[0,0,0.05*s],[0,0,0],[1,1.1,0.7],0.012,X.knee);
+      const ank=r.hipY-r.thigh-r.shin; add(cap(0.075*s,0.14*s),M.plateD,[0,-r.shin+(0.08*s-ank),0.05*s],[Math.PI/2,0,0],[1,1.1,1],0.016,X.knee); add(box(0.17*s,0.035*s,0.32*s),M.sole,[0,-r.shin+(0.018*s-ank),0.06*s],[0,0,0],[1,1,1],0.01,X.knee); }); }
+    function torso(prof='m',scl=[1.08,1,0.84]){ const P=k.PROF[prof]; lathe(P,M.suit,scl);
+      lathe(k.shell(prof,0.035,1.0,1.52),M.plate,scl,0.016,-Math.PI*0.35,Math.PI*0.7); lathe(k.shell(prof,0.03,1.0,1.5),M.plateD,scl,0.014,Math.PI*0.65,Math.PI*0.7);
+      const f=P.find(([,y])=>y>=1.3)[0]*scl[2]+0.045; add(new T.ConeGeometry(0.05,0.07,3),M.red,[0,1.34,f],[Math.PI/2,Math.PI,0],[1.4,1,0.25],0.006);
+      for(const y of [1.02,1.1]) add(box(0.2,0.05,0.04),M.plateD,[0,y,P.find(([,yy])=>yy>=y)[0]*scl[2]+0.012],[0,0,0],[1,1,1],0.008);
+      const top=P.find(([,y])=>y>=0.86)[0]; add(cyl(top+0.02,top+0.03,0.1),M.plateD,[0,0.9,0],[0,0,0],scl,0.01); }
+    const pauldron=(pos,s=1,col=M.plate)=>add(new T.SphereGeometry(0.12*s,14,8,0,Math.PI*2,0,Math.PI*0.55),ds(col),pos,[0,0,pos[0]>0?-0.4:0.4],[1.1,0.9,1],0.014);
+    const stripe=(pos,s=1,rz=0)=>add(box(0.03*s,0.1*s,0.1*s),M.red,pos,[0,0,rz],[1,1,1],0.006);
+    function arms(s=1,handMat){ each(X=>{ limb([0,0,0],[0,-r.up,0],0.058*s,M.suit,0.016,X.arm); limb([0,0,0],[0,-r.fore,0],0.05*s,M.suit,0.016,X.elbow);
+      add(cyl(0.06*s,0.052*s,r.fore*0.6,12),M.plate,[0,-r.fore*0.45,0],[0,0,0],[1,1,1],0.012,X.elbow); add(sph(0.05*s),handMat||M.suitD,[0,0,0],[0,0,0],[1,1.1,1],0.012,X.hand); }); }
+    function helmet(o={}){ const h=new T.Group(); const p=o.pos||[0,0,0]; h.position.set(p[0],p[1],p[2]); h.rotation.set(o.rx||0,o.ry||0,0); R.head.add(h); const Rr=o.r||0.16;
+      add(cyl(Rr*0.4,Rr*0.45,0.14,10),M.suitD,[0,-Rr*1.05,0],[0,0,0],[1,1,1],0.01,h);
+      add(sph(Rr,20,14),M.plate,[0,0,0],[0,0,0],[0.95,1.02,1.04],0.014,h);
+      add(new T.SphereGeometry(Rr*1.03,18,8,Math.PI*0.5-1.0,2.0,Math.PI*0.5,Math.PI*0.32),ds(M.plateD),[0,0,0.004],[0,0,0],[0.95,1.02,1.04],0.01,h);
+      add(new T.TorusGeometry(Rr*1.0,Rr*0.09,5,18,Math.PI*0.8),M.plateL,[0,Rr*0.3,0],[Math.PI/2-0.25,0,Math.PI*0.1],[0.96,1.04,1],0.008,h);
+      for(const x of [-Rr*0.95,Rr*0.95]) add(cyl(Rr*0.28,Rr*0.3,Rr*0.16,12),M.plateD,[x,-Rr*0.1,-Rr*0.05],[0,0,Math.PI/2],[1,1,1],0.008,h);
+      add(box(Rr*0.2,Rr*0.5,Rr*0.2),M.plateD,[0,-Rr*0.7,Rr*0.9],[0.3,0,0],[1,1,1],0.008,h);
+      const vc=o.visor||'#FF3B30';
+      if((o.face||'slit')==='slit') add(new T.SphereGeometry(Rr*1.035,20,4,Math.PI*0.5-0.85,1.7,Math.PI*0.44,Math.PI*0.07),glow(vc,2.4),[0,0,0.004],[0,0,0],[0.95,1.02,1.04],0.006,h);
+      if(o.face==='lens'){ add(cyl(Rr*0.34,Rr*0.3,Rr*0.4,14),M.gun,[Rr*0.25,Rr*0.12,Rr*0.95],[Math.PI/2,0,0],[1,1,1],0.01,h); add(sph(Rr*0.28,12,8),glow(vc,2.4),[Rr*0.25,Rr*0.12,Rr*1.15],[0,0,0],[1,1,0.35],0,h); }
+      if(o.crest) add(box(Rr*0.14,Rr*0.4,Rr*1.4),toon(o.crest),[0,Rr*0.95,-Rr*0.1],[0,0,0],[1,1,1],0.008,h);
+      h.R=Rr; R.headR=Rr; R.headG=h; return h; }
+    function graft(pos,rr=0.1,parent=R.torso,nubs=3){ add(rocky(sph(rr,10,8),rr*0.35),M.flesh,pos,[0,0,0],[1,0.85,1],0.012,parent);
+      for(let i=0;i<4;i++){ const a=i*1.6; tube([[pos[0]+Math.cos(a)*rr*0.9,pos[1]+Math.sin(a)*rr*0.7,pos[2]+rr*0.5],[pos[0]+Math.cos(a)*rr*1.4,pos[1]+Math.sin(a)*rr*1.2,pos[2]+rr*0.2],[pos[0]+Math.cos(a+0.4)*rr*1.8,pos[1]+Math.sin(a+0.4)*rr*1.5,pos[2]-rr*0.1]],0.007,M.vein,parent); }
+      for(let i=0;i<nubs;i++){ const a=i*2.1+0.4; add(new T.ConeGeometry(rr*0.18,rr*0.5,5),M.boneM,[pos[0]+Math.cos(a)*rr*0.6,pos[1]+Math.sin(a)*rr*0.6,pos[2]+rr*0.7],[Math.PI/2-0.5*Math.sin(a),0,-0.5*Math.cos(a)],[1,1,1],0.008,parent); }
+      for(const a of [0.8,2.6,4.4]) add(box(rr*0.5,rr*0.1,rr*0.1),M.plateL,[pos[0]+Math.cos(a)*rr,pos[1]+Math.sin(a)*rr*0.85,pos[2]+rr*0.3],[0,0,a],[1,1,1],0.005,parent); }
+    // gun in the right hand, barrel running down the forearm (−y of the elbow) so it comes up on target with the arm. kind: rifle|long|pistol|heavy
+    function rifle(kind='rifle'){ const g=new T.Group(); g.position.set(0,-r.fore-0.01,0.03); g.rotation.x=Math.PI/2; R.elbowR.add(g); // local +z = barrel
+      const L={rifle:[0.1,0.5,0.34],long:[0.1,0.62,0.7],pistol:[0.06,0.22,0.1],heavy:[0.16,0.6,0.4]}[kind]; const w=L[0]/0.1;
+      add(box(0.07*w,0.11*w,L[1]*0.55),M.gun,[0,0.03,L[1]*0.12],[0,0,0],[1,1,1],0.01,g);
+      add(cyl(0.018*w,0.018*w,L[2],8),M.gunL,[0,0.05,L[1]*0.4+L[2]/2],[Math.PI/2,0,0],[1,1,1],0.008,g);
+      if(kind!=='pistol'){ add(box(0.05,0.1,0.2),M.gun,[0,0.0,-L[1]*0.25],[0.15,0,0],[1,1,1],0.01,g); add(box(0.045,0.13,0.06),M.gunL,[0,-0.07,L[1]*0.12],[0.25,0,0],[1,1,1],0.008,g); add(box(0.075,0.02,0.2),M.red,[0,0.09,L[1]*0.1],[0,0,0],[1,1,1],0,g); }
+      add(box(0.04,0.1,0.045),M.gun,[0,-0.05,-0.02],[-0.2,0,0],[1,1,1],0.008,g);
+      if(kind==='long'){ add(cyl(0.03,0.03,0.2,10),M.gunL,[0,0.12,L[1]*0.1],[Math.PI/2,0,0],[1,1,1],0.008,g); add(cyl(0.028,0.028,0.01,10),M.redG,[0,0.12,L[1]*0.1+0.1],[Math.PI/2,0,0],[1,1,1],0,g); }
+      if(kind==='heavy'){ add(cyl(0.07,0.07,0.12,12),M.gunL,[0.08,-0.06,L[1]*0.1],[0,0,Math.PI/2],[1,1,1],0.01,g); for(let i=0;i<3;i++) add(cyl(0.012,0.012,L[2],6),M.gunL,[Math.cos(i*2.1)*0.03,0.05+Math.sin(i*2.1)*0.03,L[1]*0.4+L[2]/2],[Math.PI/2,0,0],[1,1,1],0.006,g); }
+      R.muzzleAt=[0,-r.fore-0.01-(L[1]*0.4+L[2]),0.03+0.05]; return g; }
+    return {M,legs,torso,pauldron,stripe,arms,helmet,graft,rifle}; }
+  // ---------- bake: merge each bone's meshes per material, plus one ink hull per bone ----------
+  function merge(list,ink){ let nv=0,ni=0; for(const e of list){ const p=e.g.attributes.position; nv+=p.count; ni+=e.g.index?e.g.index.count:p.count; }
+    const pos=new Float32Array(nv*3), nrm=new Float32Array(nv*3), idx=new Uint32Array(ni), w=ink?new Float32Array(nv):null; let vo=0,io=0; const v=new T.Vector3(), nm=new T.Matrix3();
+    for(const e of list){ const g=e.g; if(!g.attributes.normal) g.computeVertexNormals(); const P=g.attributes.position, N=g.attributes.normal; nm.getNormalMatrix(e.m); const flip=e.m.determinant()<0;
+      for(let i=0;i<P.count;i++){ v.fromBufferAttribute(P,i).applyMatrix4(e.m); const o=(vo+i)*3; pos[o]=v.x; pos[o+1]=v.y; pos[o+2]=v.z; v.fromBufferAttribute(N,i).applyMatrix3(nm).normalize(); nrm[o]=v.x; nrm[o+1]=v.y; nrm[o+2]=v.z; if(w) w[vo+i]=e.w; }
+      const I=g.index, n=I?I.count:P.count; for(let j=0;j+2<n;j+=3){ const a=I?I.getX(j):j; let b=I?I.getX(j+1):j+1, c=I?I.getX(j+2):j+2; if(flip){ const t=b; b=c; c=t; } idx[io++]=a+vo; idx[io++]=b+vo; idx[io++]=c+vo; }
+      vo+=P.count; }
+    const g=new T.BufferGeometry(); g.setAttribute('position',new T.BufferAttribute(pos,3)); g.setAttribute('normal',new T.BufferAttribute(nrm,3)); if(w) g.setAttribute('inkW',new T.BufferAttribute(w,1)); g.setIndex(new T.BufferAttribute(io<ni?idx.slice(0,io):idx,1)); g.computeBoundingSphere(); return g; }
+  function bake(R){ R.body.updateMatrixWorld(true); const inv=new T.Matrix4();
+    for(const b of [R.torso,R.head,R.legL,R.kneeL,R.legR,R.kneeR,R.armL,R.elbowL,R.armR,R.elbowR]){ inv.copy(b.matrixWorld).invert(); const meshes=[], keep=[];
+      const walk=o=>{ for(const c of o.children){ if(c.userData.bone) continue; if(c.isSprite||(c.isMesh&&(c.material.transparent||c.userData.keep))){ keep.push(c); continue; } if(c.isMesh) meshes.push(c); walk(c); } }; walk(b);
+      const byMat=new Map(), inks=[];
+      for(const m of meshes){ const e={g:m.geometry,m:new T.Matrix4().multiplyMatrices(inv,m.matrixWorld)}; if(!byMat.has(m.material)) byMat.set(m.material,[]); byMat.get(m.material).push(e); if(m.userData.inkW) inks.push({g:e.g,m:e.m,w:m.userData.inkW}); }
+      const kept=keep.map(o=>[o,new T.Matrix4().multiplyMatrices(inv,o.matrixWorld)]);
+      for(const c of [...b.children]) if(!c.userData.bone) b.remove(c);
+      for(const [mat,list] of byMat){ const mesh=new T.Mesh(merge(list,false),mat); mesh.castShadow=!mat.userData.glow; mesh.receiveShadow=false; mesh.userData.toon=true; b.add(mesh); }
+      if(inks.length){ const mesh=new T.Mesh(merge(inks,true),inkMat()); mesh.userData.ink=true; b.add(mesh); }
+      for(const [o,m] of kept){ m.decompose(o.position,o.quaternion,o.scale); b.add(o); } }
+    for(const [n,p] of [['handL',R.elbowL],['handR',R.elbowR]]){ const g=new T.Group(); g.position.set(0,-R.r.fore,0); g.name=n; p.add(g); R[n]=g; }
+    if(R.muzzleAt){ const g=new T.Group(); g.position.set(...R.muzzleAt); g.name='muzzle'; R.elbowR.add(g); } }
+  function names(R,body){ const out={r:R.r,body}; for(const n of ['torso','head','legL','kneeL','legR','kneeR','armL','elbowL','armR','elbowR','handL','handR','muzzle','spin']) out[n]=body.getObjectByName(n)||null; return out; }
+  // ---------- build (cached) ----------
+  const CH={};
+  function build(id,o={}){ if(!init()) return null; if(!CH[id]) id=o.fallback&&CH[o.fallback]?o.fallback:'trooper'; const cu=o.custom||null; const key=id+'|'+(cu?JSON.stringify(cu):'');
+    let proto=CACHE.get(key);
+    if(!proto){ const sp=CH[id]; const P=Object.assign({},sp.pal||{}); if(cu){ if(cu.skin) P.skin=cu.skin; if(cu.hair) P.hair=cu.hair; if(cu.accent) P.acc=cu.accent; }
+      seed=7; const R=rig(sp.rig); const k=kit(R); sp.build(k,R,P);
+      if(cu&&(cu.head==='helmet'||cu.head==='hood')&&R.headG){ const h=R.headG, Rr=h.R; if(cu.head==='helmet'){ k.add(new T.SphereGeometry(Rr*1.18,18,10,0,Math.PI*2,0,Math.PI*0.55),toon('#3A424E'),[0,0.01,-0.01],[-0.2,0,0],[0.95,1.05,1.02],0.014,h); k.add(new T.SphereGeometry(Rr*1.2,18,4,Math.PI*0.5-0.8,1.6,Math.PI*0.42,Math.PI*0.08),glow(P.acc||'#7FD4FF',2.2),[0,0,0],[0,0,0],[0.95,1.05,1.02],0.006,h); }
+        else { const hm=toon(P.acc?shadeCol(P.acc,0.6):'#3a3a48'); k.add(new T.SphereGeometry(Rr*1.3,18,12,Math.PI*0.5+0.8,Math.PI*2-1.6,0,Math.PI*0.72),ds(hm),[0,0.02,-0.02],[0.12,0,0],[1,1.08,1.1],0.014,h); } }
+      bake(R); proto={R,body:R.body}; CACHE.set(key,proto); }
+    const body=proto.body.clone(true); return names(proto.R,body); }
+  const shadeCol=(hex,f)=>{ const c=new T.Color(hex); c.multiplyScalar(f); return '#'+c.getHexString(); };
+  return {CH,build,INK,init,get ready(){ return !!T; }};
+})();
+
+/* TOON characters — the twelve mutants and the captive. Toon units, +z = front; torso pieces use absolute heights (pelvis at 0.87). */
+(()=>{ const CH=TOON.CH;
+  // zigzag glow line down a limb bone (local −y), riding the front surface
+  const zig=(k,parent,len,t0,t1,z,mat,rad=0.008,amp=0.012,x=0)=>{ const pts=[]; for(let i=0;i<=5;i++){ const t=t0+(t1-t0)*i/5; pts.push([x+(i%2?amp:-amp*0.8),-len*t,z]); } return k.tube(pts,rad,mat,parent); };
+  // ---------------- BLASTERS ----------------
+  CH.blaster={ // Vex: puffy mustard bomber, shearling collar, charge-cell bandolier, wrapped forearms, goggles on spiky hair, a live orb in the palm
+    rig:{hipX:0.12,shX:0.3,shY:1.4,up:0.3,fore:0.27,headY:1.78},
+    pal:{skin:'#B97C55',hair:'#2E1B13',acc:'#EBA935'},
+    build(k,R,P){ const {T,add,cap,sph,cyl,box,tube,toon,glow,flat,S,each,legs,band}=k; const r=R.r;
+      const jk=toon(P.acc), jkD=toon('#B06E1E'), wrap=toon('#DFD2B6'), skin=toon(P.skin), cell=glow('#FFD27A');
+      legs({pant:toon('#3C3845'),boot:toon('#6C2229'),sole:toon('#2a1014'),rT:0.1,rS:0.085,bs:1.15});
+      add(cap(0.25,0.32),jk,[0,1.2,0],[0,0,0],[1.05,1,0.78]); add(cyl(0.24,0.22,0.09),jkD,[0,0.9,0],[0,0,0],[1.02,1,0.8]);
+      add(new T.TorusGeometry(0.15,0.075,8,18),toon('#EEE2C6'),[0,1.52,0],[Math.PI/2,0,0],[1.15,0.95,1]);
+      const pts=[[-0.22,1.46,0.12],[-0.05,1.28,0.25],[0.12,1.06,0.22],[0.22,0.93,0.1]]; tube(pts,0.028,toon('#4E2E1F'),R.torso,0.012);
+      const cv=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p))); for(const t of [0.3,0.5,0.7]){ const p=cv.getPointAt(t); add(cyl(0.04,0.04,0.11,10),toon('#A3A9B3'),[p.x,p.y,p.z+0.035],[0,0,0.75]); add(cyl(0.028,0.028,0.07,8),cell,[p.x+0.01,p.y,p.z+0.06],[0,0,0.75],[1,1,1],0); }
+      each(X=>{ k.limb([0,0,0],[0,-r.up,0],0.085,jk,0.016,X.arm); add(sph(0.1),jk,[0,0,0],[0,0,0],[1,1,1],0.014,X.arm); add(new T.TorusGeometry(0.08,0.035,8,16),jkD,[0,0,0],[Math.PI/2,0,0],[1,1,1],0.012,X.elbow);
+        k.limb([0,0,0],[0,-r.fore,0],0.066,wrap,0.016,X.elbow); for(let i=0;i<3;i++){ band(X.elbow,r.fore,0.25+i*0.22,0.068,0.012,toon('#AC9C7E')); add(box(0.03,0.02,0.02),cell,[0,-r.fore*(0.3+i*0.22),0.066],[0,0,0],[1,1,1],0,X.elbow); }
+        add(sph(0.075),skin,[0,0,0.005],[0,0,0],[1,1.1,1],0.012,X.hand); });
+      add(sph(0.055,12,8),glow('#FFE9A8',2.2),[0,-0.07,0.09],[0,0,0],[1,1,1],0.01,R.handR); k.glowSprite([0,-0.07,0.1],'255,220,140',0.32,0.8,R.handR);
+      const h=k.head({sex:'m',skin:P.skin,r:0.2,eyes:'normal',brow:'cocky',browColor:'#150d17',mouth:'grin'});
+      const hair=toon(P.hair); add(sph(0.205),hair,[0,0.05,-0.035],[0,0,0],[0.98,0.8,0.95],0.016,h);
+      k.spikes(h,hair,[[0,0.2,0,-0.1,0,0.22],[-0.1,0.18,-0.05,-0.5,0,0.21],[0.1,0.19,-0.02,0.35,0,0.21],[-0.05,0.14,-0.13,-0.9,0.3,0.21],[0.06,0.13,-0.14,-0.9,-0.3,0.21],[-0.16,0.08,-0.06,-0.6,0.9,0.19],[0.15,0.1,-0.06,-0.3,-0.9,0.19],[0,0.16,0.08,0.4,0,0.16],[-0.12,0.13,0.06,0.2,0.7,0.16],[0.12,0.14,0.06,0.3,-0.6,0.16]]);
+      add(new T.TorusGeometry(0.215,0.02,6,24),toon('#2a201c'),[0,0.12,0.01],[Math.PI/2-0.35,0,0],[1,1,1],0.008,h);
+      for(const x of [-0.07,0.07]){ const g=new T.Group(); g.position.set(x,0.19,0.17); g.rotation.x=-0.55; h.add(g); add(new T.TorusGeometry(0.048,0.016,6,16),toon('#8a8c95'),[0,0,0],[0,0,0],[1,1,1],0.008,g); add(new T.CircleGeometry(0.042,16),glow('#F0A838',1.3),[0,0,0.004],[0,0,0],[1,1,1],0,g); } } };
+  CH.ember={ // Ember: sleeveless training top, joggers, wrapped fists with heat cracks, scarf, high ponytail with glowing tips
+    rig:{}, pal:{skin:'#EAC2A6',hair:'#7A2A1C',acc:'#E8643A'},
+    build(k,R,P){ const {T,add,cap,sph,cyl,box,toon,glow,each,legs,PROF,lathe}=k; const r=R.r;
+      const skin=toon(P.skin), top=toon(P.acc), topD=toon('#B2432A'), jog=toon('#34323A'), fire=glow('#FFB060'), fireD=glow('#FF8A3C'), scarf=toon('#C9502E');
+      legs({pant:jog,boot:toon('#F2EEE8'),sole:top,rT:0.082,rS:0.064}); each(X=>add(cyl(0.07,0.075,0.05),toon('#2a282e'),[0,-r.shin+0.04,0],[0,0,0],[1,1,1],0.008,X.knee));
+      lathe(PROF.f,jog); lathe([[0.15,1.02],[0.145,1.08],[0.175,1.2],[0.215,1.32],[0.205,1.44],[0.14,1.5],[0.1,1.53]],top,[1.07,1,0.82],0.014);
+      add(sph(0.1),top,[0,1.28,0.1],[0,0,0],[1.5,0.72,0.6],0.012); add(new T.TorusGeometry(0.155,0.012,5,20),topD,[0,1.03,0],[Math.PI/2,0,0],[1.07,0.82,1],0.006); add(cyl(0.2,0.215,0.05),toon('#2a282e'),[0,0.88,0],[0,0,0],[1.06,1,0.8],0.008);
+      each(X=>{ k.limb([0,0,0],[0,-r.up,0],0.052,skin,0.016,X.arm); add(sph(0.06),skin,[0,0,0],[0,0,0],[1,1,1],0.014,X.arm); k.limb([0,0,0],[0,-r.fore,0],0.046,skin,0.016,X.elbow);
+        zig(k,X.elbow,r.fore,0.05,0.7,0.042,fireD,0.009); add(sph(0.056),toon('#EDE6DA'),[0,0,0.005],[0,0,0],[1.05,1,1.1],0.012,X.hand); for(let i=0;i<3;i++) add(sph(0.012,6,4),fire,[(i-1)*0.022,-0.02,0.05],[0,0,0],[1,1,1],0,X.hand); });
+      add(new T.TorusGeometry(0.1,0.045,8,18),scarf,[0,1.52,0],[Math.PI/2+0.15,0,0],[1.1,1,1],0.012);
+      k.ribbon([[-0.06,1.52,-0.08],[-0.1,1.54,-0.26],[-0.16,1.58,-0.44],[-0.2,1.54,-0.6],[-0.26,1.6,-0.76]],0.05,0.065,scarf,1.2);
+      k.ribbon([[-0.02,1.5,-0.1],[-0.02,1.44,-0.26],[0.04,1.46,-0.42],[0.06,1.38,-0.56]],0.04,0.05,toon('#A8412A'),-0.8);
+      const h=k.head({sex:'f',skin:P.skin,eyes:'fierce',brow:'down',browColor:'#3a1a14',mouth:'grin',lashes:true,blush:'#F2A898'});
+      const hair=toon(P.hair); add(new T.SphereGeometry(0.185,18,10,0,Math.PI*2,0,Math.PI*0.5),hair,[0,0.01,-0.01],[-0.3,0,0],[0.92,1.05,1.0],0.012,h); add(sph(0.09),hair,[-0.02,0.1,0.1],[0.4,0,0.3],[1.2,0.45,0.6],0.01,h);
+      add(cyl(0.03,0.03,0.03,8),toon('#2a282e'),[0,0.18,-0.1],[0.6,0,0],[1,1,1],0.006,h);
+      for(const [x,y,z,rx,rad,hh] of [[0,0.2,-0.12,-0.5,0.058,0.1],[-0.02,0.14,-0.24,-1.3,0.055,0.18],[-0.05,0.0,-0.33,-2.3,0.05,0.2],[-0.08,-0.16,-0.36,-2.8,0.042,0.18]]) add(cap(rad,hh,10),hair,[x,y,z],[rx,0,0],[1,1,0.8],0.01,h);
+      add(new T.ConeGeometry(0.04,0.12,6),fire,[-0.09,-0.3,-0.37],[Math.PI+0.3,0,0],[1,1,1],0,h); add(sph(0.036,8,6),fireD,[-0.09,-0.25,-0.37],[0,0,0],[1,1,1],0,h); } };
+  CH.rook={ // Rook: ochre plate-carrier over charcoal, knee pads, dark bob with a glowing static headband, arcs down bare forearms
+    rig:{}, pal:{skin:'#8A5A3C',hair:'#1E1A1C',acc:'#D9A441'},
+    build(k,R,P){ const {T,add,sph,cyl,box,toon,glow,each,legs,PROF,lathe,shell,band}=k; const r=R.r;
+      const ochre=toon(P.acc), ochreD=toon('#A87A2A'), char=toon('#33373E'), charD=toon('#22252A'), volt=glow('#F4F48A',2), pad=toon('#4A4F58'), skin=toon(P.skin);
+      legs({pant:char,boot:toon('#2A2320'),sole:toon('#120e0c'),rT:0.08,rS:0.064,bs:1.08,knee:pad}); each(X=>add(cyl(0.085,0.08,0.06),ochreD,[0,-0.18,0],[0,0,0],[1,1,1],0.01,X.leg));
+      lathe(PROF.f,char); lathe(shell('f',0.035,0.95,1.47),ochre,[1.05,1,0.82]); add(cyl(0.2,0.215,0.08),charD,[0,0.87,0],[0,0,0],[1.05,1,0.8],0.01);
+      for(const x of [-0.11,0,0.11]) add(box(0.075,0.1,0.05),ochreD,[x,1.06,0.2],[0,0,0],[1,1,1],0.01); add(box(0.3,0.03,0.02),charD,[0,1.29,0.2],[0,0,0],[1,1,1],0);
+      for(const x of [-0.13,0.13]) k.limb([x,1.47,0.12],[x*1.2,1.45,-0.12],0.03,ochreD,0.01); add(box(0.1,0.04,0.05),volt,[0.12,1.24,0.2],[0,0,0],[1,1,1],0);
+      each(X=>{ k.limb([0,0,0],[0,-r.up,0],0.058,char,0.016,X.arm); add(sph(0.066),char,[0,0,0],[0,0,0],[1,1,1],0.014,X.arm); k.limb([0,0,0],[0,-r.fore,0],0.047,skin,0.016,X.elbow); band(X.elbow,r.fore,0.1,0.052,0.014,pad); zig(k,X.elbow,r.fore,0.2,0.85,0.045,volt,0.006,0.02); add(sph(0.05),skin,[0,0,0.005],[0,0,0],[1,1.15,1],0.012,X.hand); });
+      const h=k.head({sex:'f',skin:P.skin,eyes:'fierce',brow:'down',browColor:'#1a110c',mouth:'lips',lipColor:'#6A3A34',lipColor2:'#7E4A42',lashes:true});
+      const hair=toon(P.hair); k.hairCap(h,hair,{cover:0.5,tilt:-0.4}); add(new T.SphereGeometry(h.R*1.1,18,10,Math.PI*0.86,Math.PI*1.28,Math.PI*0.3,Math.PI*0.42),k.ds(hair),[0,-0.02,-0.01],[0,0,0],[0.97,1.02,1.02],0.012,h);
+      add(new T.TorusGeometry(h.R*1.04,h.R*0.12,6,24),char,[0,h.R*0.42,0],[Math.PI/2-0.2,0,0],[0.93,1.02,1],0.008,h); add(new T.TorusGeometry(h.R*1.09,h.R*0.035,4,24),volt,[0,h.R*0.42,0.005],[Math.PI/2-0.2,0,0],[0.93,1.02,1],0,h); } };
+  // ---------------- BRUISERS ----------------
+  CH.bruiser={ // Halden: broad, bald, grey-streaked beard, open work vest, stone forearms and fists veined with magma
+    rig:{hipX:0.17,shX:0.44,shY:1.44,up:0.31,fore:0.28,headY:1.92,scale:1.04},
+    pal:{skin:'#7a4e36',acc:'#C0692C'},
+    build(k,R,P){ const {T,add,cap,sph,cyl,box,toon,glow,each,legs,lathe,rocky,tube}=k; const r=R.r;
+      const stone=toon('#77706a'), skin=toon(P.skin), vest=toon(P.acc), vestD=toon('#8a4a1e'), magma=glow('#FF8A3C',2);
+      legs({pant:toon('#3b3531'),boot:toon('#2e2420'),sole:toon('#1a1412'),rT:0.13,rS:0.11,bs:1.4});
+      lathe([[0.001,0.86],[0.29,0.87],[0.31,0.95],[0.34,1.1],[0.39,1.3],[0.39,1.42],[0.33,1.52],[0.18,1.6],[0.001,1.62]],toon('#3a3432'),[1.1,1,0.8]);
+      lathe([[0.3,0.9],[0.32,0.95],[0.35,1.1],[0.4,1.3],[0.4,1.42],[0.34,1.52],[0.24,1.57]],vest,[1.14,1,0.84],0.016,Math.PI*0.13,Math.PI*1.74);
+      add(box(0.1,0.08,0.02),vestD,[-0.26,1.14,0.24],[0,-0.7,0],[1,1,1],0.01); add(box(0.09,0.07,0.02),vestD,[0.24,1.14,0.24],[0,0.7,0],[1,1,1],0.01);
+      add(cyl(0.325,0.32,0.07),toon('#2e2420'),[0,0.9,0],[0,0,0],[1.12,1,0.84]); add(box(0.08,0.06,0.03),toon('#9a9a96'),[0.05,0.9,0.27]);
+      add(rocky(new T.IcosahedronGeometry(0.2,1),0.05),stone,[-0.16,1.4,0.18],[0.3,0.4,0],[1.05,0.95,0.55],0.016);
+      tube([[-0.26,1.48,0.28],[-0.2,1.42,0.3],[-0.18,1.36,0.29],[-0.1,1.32,0.27]],0.013,magma);
+      each((X,s)=>{ k.limb([0,0,0],[0,-r.up,0],0.105,skin,0.016,X.arm);
+        add(rocky(cap(0.13,r.fore,6),0.045),stone,[0,-r.fore/2,0],[0,0,0],[1,1,1],0.018,X.elbow); add(rocky(new T.IcosahedronGeometry(0.14,1),0.05),stone,[0,0,0.02],[0.3*s,0.5,0.2],[1,1.05,1],0.016,X.hand);
+        zig(k,X.elbow,r.fore,0.1,0.9,0.15,magma,0.012,0.03); tube([[-0.06,0.06,0.16],[0,0,0.17],[0.07,-0.04,0.15]],0.012,magma,X.hand);
+        add(rocky(new T.IcosahedronGeometry(0.19,1),0.06),stone,[0.03*s,0.07,0],[0.2,0.3,0.4*s],[1.2,0.85,1.05],0.016,X.arm);
+        tube([[-0.1*s,0.16,0.14],[0,0.1,0.22],[0.08*s,0.02,0.2]],0.012,magma,X.arm); k.glowSprite([0,-0.02,0.12],'255,140,50',0.3,0.35,X.hand); });
+      const h=k.head({sex:'m',skin:P.skin,r:0.2,eyes:'normal',brow:'level',browColor:'#2a1a14',mouth:'none'});
+      add(cap(0.03,0.2,8),toon('#6a4230'),[0,0.062,0.165],[-0.25,0,Math.PI/2],[1,1,1],0.01,h);
+      add(sph(0.2),toon('#4a4340'),[0.015,-0.1,0.07],[0.25,0,0],[0.82,0.52,0.72],0.014,h); add(sph(0.045),toon('#7a736b'),[0.03,-0.175,0.18],[0,0,0],[1,0.8,0.5],0,h);
+      add(cap(0.022,0.08,8),toon('#4a4340'),[0.02,-0.065,0.195],[0,0,Math.PI/2],[1,1,1],0.008,h); add(box(0.05,0.01,0.01),k.flat('#2a1a14'),[0.02,-0.1,0.2],[0,0,0],[1,1,1],0,h); } };
+  CH.mara={ // Mara: quilted terracotta work jacket, cargo trousers, braid; the near sleeve torn away and a banded bone shield fused to the forearm
+    rig:{hipX:0.14,shX:0.3,shY:1.44,up:0.29,fore:0.26,headY:1.78},
+    pal:{skin:'#C19A6B',hair:'#3A2216',acc:'#C4643A'},
+    build(k,R,P){ const {T,add,cap,sph,cyl,box,toon,each,legs,lathe,tube}=k; const r=R.r;
+      const skin=toon(P.skin), jk=toon(P.acc), jkD=toon('#94482A'), cargoD=toon('#464a30'), bone=toon('#E8DCC0'), boneD=toon('#B9A888'), paint=toon('#7a2a1a');
+      legs({pant:toon('#5C6040'),boot:toon('#3a2c22'),sole:toon('#1e1712'),rT:0.1,rS:0.08,bs:1.2}); each((X,s)=>add(box(0.04,0.12,0.1),cargoD,[0.09*s,-0.2,0.02],[0,0,0],[1,1,1],0.008,X.leg));
+      lathe([[0.001,0.84],[0.25,0.85],[0.26,0.92],[0.23,1.02],[0.22,1.1],[0.26,1.24],[0.3,1.36],[0.29,1.46],[0.16,1.55],[0.001,1.56]],jk,[1.08,1,0.82]);
+      add(sph(0.12),jk,[0,1.3,0.12],[0,0,0],[1.6,0.7,0.62],0.012); for(const y of [0.98,1.1,1.22,1.34]) add(new T.TorusGeometry(0.245+(y>1.2?0.04:0),0.006,4,24),jkD,[0,y,0],[Math.PI/2,0,0],[1.1,0.84,1],0);
+      add(new T.TorusGeometry(0.14,0.035,6,18),jkD,[0,1.53,0],[Math.PI/2,0,0],[1.1,0.9,1],0.01); add(box(0.012,0.5,0.012),toon('#c8ccd6'),[0.04,1.2,0.24],[0.05,0,0],[1,1,1],0); add(cyl(0.255,0.26,0.05),toon('#2a221c'),[0,0.87,0],[0,0,0],[1.08,1,0.82],0.008);
+      // right: jacket sleeve · left: bare, bone shield
+      const RS=k.S.R, LS=k.S.L; k.limb([0,0,0],[0,-r.up,0],0.082,jk,0.016,RS.arm); add(sph(0.09),jk,[0,0,0],[0,0,0],[1,1,1],0.014,RS.arm); k.limb([0,0,0],[0,-r.fore,0],0.07,jk,0.016,RS.elbow); add(cyl(0.07,0.07,0.04),jkD,[0,-r.fore+0.02,0],[0,0,0],[1,1,1],0.006,RS.elbow); add(sph(0.07),skin,[0,-0.03,0.005],[0,0,0],[1,1.1,1],0.012,RS.hand);
+      add(new T.CylinderGeometry(0.09,0.085,0.07,14,1,true),k.ds(jkD),[0,0,0],[0,0,-0.2],[1,1,1],0.008,LS.arm); k.limb([0,0,0],[0,-r.up,0],0.078,skin,0.016,LS.arm); k.limb([0,0,0],[0,-r.fore,0],0.068,skin,0.016,LS.elbow); add(sph(0.07),skin,[0,-0.03,0.005],[0,0,0],[1,1.1,1],0.012,LS.hand);
+      const sh=new T.Group(); sh.position.set(-0.08,-0.14,0.02); sh.rotation.set(0,-1.25,0); LS.elbow.add(sh); const Rr=0.52;
+      for(let i=0;i<7;i++){ const th0=Math.PI*0.5-0.66+i*0.185, wdt=1.02*(0.5+0.5*Math.sin(Math.PI*(i+0.5)/7)); add(new T.SphereGeometry(Rr+(i%2)*0.006,20,3,Math.PI*0.5-wdt/2,wdt,th0,0.22),k.ds(i%2?boneD:bone),[0,0,-Rr+0.02],[0,0,0],[1,1.15,1],0.012,sh); }
+      add(sph(0.06),boneD,[0,0.04,0.02],[0,0,0],[1,1.1,0.5],0.01,sh);
+      const gp=pts=>tube(pts,0.006,paint,sh); { const pts=[]; for(let a=0.4;a<Math.PI*2-0.1;a+=0.4) pts.push([Math.cos(a)*0.08-0.03,Math.sin(a)*0.08+0.17,0.018]); gp(pts); gp([[-0.1,0.1,0.02],[0.04,0.25,0.02]]); } for(let i=0;i<4;i++) gp([[0.08+i*0.02,-0.2,0.012],[0.085+i*0.02,-0.12,0.016]]);
+      const h=k.head({sex:'f',skin:P.skin,r:0.18,eyes:'normal',brow:'level',browColor:'#2a1a12',mouth:'set',lashes:true});
+      const hair=toon(P.hair); add(new T.SphereGeometry(0.19,18,10,0,Math.PI*2,0,Math.PI*0.52),hair,[0,0.01,-0.01],[-0.28,0,0],[0.93,1.05,1.0],0.012,h); add(sph(0.08),hair,[0,0.13,0.1],[0.5,0,0],[1.4,0.4,0.5],0.008,h);
+      for(let i=0;i<7;i++) add(sph(0.05-i*0.003,10,8),hair,[(i%2?0.018:-0.018),-0.02-i*0.075,-0.19-Math.sin(i*0.5)*0.02],[0,0,0],[1,1.15,0.9],0.009,h); add(cyl(0.025,0.02,0.03,8),jk,[0,-0.55,-0.19],[0,0,0],[1,1,1],0.005,h); } };
+  CH.grit={ // Grit: huge; red mohawk, scarred grin, bone studs erupting from the shoulders, open leather vest on a bare chest, chain, taped fists
+    rig:{hipX:0.15,shX:0.4,shY:1.46,up:0.31,fore:0.28,headY:1.84,scale:1.05},
+    pal:{skin:'#C98B62',acc:'#C23A22'},
+    build(k,R,P){ const {T,add,sph,cyl,box,toon,each,legs,PROF,lathe,shell,tube,band}=k; const r=R.r;
+      const skinM=toon(P.skin), leather=toon('#4A2A1E'), leatherD=toon('#34190F'), bone=toon('#EDE3CC'), tape=toon('#E6DDC8'), steel=toon('#8C8F96'), crease=toon('#9A5E3E');
+      legs({pant:toon('#3A4658'),boot:toon('#2A1C14'),sole:toon('#120c08'),rT:0.11,rS:0.088,bs:1.35}); each(X=>add(cyl(0.1,0.095,0.12,14),toon('#2A1C14'),[0,-r.shin+0.09,0],[0,0,0],[1,1,1],0.012,X.knee));
+      lathe(PROF.big,skinM,[1.08,1,0.82]); for(const s of [-1,1]) tube([[0.01*s,1.44,0.33],[0.12*s,1.3,0.335],[0.24*s,1.32,0.3]],0.007,crease);
+      lathe(shell('big',0.03,0.9,1.56),leather,[1.08,1,0.82],0.016,Math.PI*0.28,Math.PI*1.44); lathe([[0.32,1.5],[0.3,1.56],[0.2,1.62]],leatherD,[1.08,1,0.82],0.012,Math.PI*0.28,Math.PI*1.44);
+      add(cyl(0.31,0.32,0.1),leatherD,[0,0.9,0],[0,0,0],[1.08,1,0.82],0.01); add(box(0.14,0.1,0.04),steel,[0,0.9,0.28],[0,0,0],[1,1,1],0.01);
+      for(let i=0;i<12;i++){ const t=i/11; add(new T.TorusGeometry(0.022,0.008,4,8),steel,[0.3-0.6*t,1.52-0.55*t,0.25+0.06*Math.sin(t*Math.PI)],[0,i%2?Math.PI/2:0,0.8],[1,1.4,1],0); }
+      tube([[-0.18,1.42,0.3],[-0.05,1.3,0.32],[0.1,1.18,0.31]],0.01,toon('#8E4A3A'));
+      each((X,s)=>{ k.limb([0,0,0],[0,-r.up,0],0.1,skinM,0.016,X.arm); add(sph(0.13),skinM,[0,0.04,0],[0,0,0],[1.1,0.9,1],0.014,X.arm); k.limb([0,0,0],[0,-r.fore,0],0.085,skinM,0.016,X.elbow);
+        for(const t of [0.6,0.75,0.9]) band(X.elbow,r.fore,t,0.087,0.014,tape); add(sph(0.1),tape,[0,-0.02,0.01],[0,0,0],[1,1.1,1],0.014,X.hand);
+        for(const [dx,dy,dz,rz,l] of [[0,0.14,0,0,0.12],[0.07,0.1,0.05,-0.6,0.1],[-0.05,0.12,-0.06,0.5,0.1],[0.1,0.04,-0.04,-1.1,0.08],[0.02,0.1,0.1,-0.2,0.08]]) add(new T.ConeGeometry(0.028,l,6),bone,[dx*s,dy,dz],[dz*3,0,rz*s],[1,1,1],0.01,X.arm);
+        for(let i=0;i<3;i++) tube([[-0.08*s,0.12-i*0.05,0.1],[0.02*s,0.08-i*0.05,0.14],[0.1*s,0.02-i*0.06,0.1]],0.012,toon('#D89C74'),X.arm); });
+      const h=k.head({sex:'m',skin:P.skin,r:0.18,eyes:'fierce',brow:'cocky',browColor:'#5a2a18',mouth:'grin'});
+      add(box(h.R*1.3,h.R*0.7,h.R*1.2),toon(P.skin),[0,-h.R*0.55,h.R*0.12],[0,0,0],[1,1,1],0.012,h); tube([[h.R*0.2,h.R*0.6,h.R*0.9],[h.R*0.32,h.R*0.25,h.R*0.99],[h.R*0.42,-h.R*0.1,h.R*0.95]],0.006,toon('#8E4A3A'),h);
+      const mo=toon(P.acc); for(let i=0;i<7;i++){ const a=-0.9+i*0.3; add(new T.ConeGeometry(h.R*0.2,h.R*(0.8-Math.abs(i-2.5)*0.08),5),mo,[0,Math.cos(a)*h.R*1.28,Math.sin(a)*h.R*1.28],[a,0,0],[0.5,1.3,1],0.01,h); }
+      add(new T.TorusGeometry(h.R*0.12,h.R*0.03,4,8),steel,[-h.R*0.95,-h.R*0.15,0],[0,Math.PI/2,0],[1,1,1],0,h); } };
+  // ---------------- PHASERS ----------------
+  CH.phaser={ // Nix: fitted violet-black suit with glowing seams, cropped jacket, swept violet crest, orbiting shard
+    rig:{}, pal:{skin:'#EFD3C0',hair:'#9A62F0',acc:'#5A4290'},
+    build(k,R,P){ const {T,add,cap,sph,cyl,box,toon,glow,each,legs,lathe,tube}=k; const r=R.r;
+      const suit=toon('#2A2238'), suitL=toon('#3E3354'), jk=toon(P.acc), glove=toon('#221b2e'), seam=glow('#D9C4FF',1.6), hair=toon(P.hair), hairD=toon('#5A34A0');
+      legs({pant:suit,boot:toon('#1f1a28'),sole:toon('#B58CF0'),rT:0.085,rS:0.062,knee:suitL}); each((X,s)=>{ tube([[-0.07*s,-0.02,0.06],[-0.08*s,-0.2,0.08],[-0.07*s,-r.thigh,0.07]],0.007,seam,X.leg); tube([[-0.05*s,0,0.06],[-0.06*s,-0.2,0.06],[-0.05*s,-r.shin+0.05,0.05]],0.007,seam,X.knee); });
+      lathe(k.PROF.f,suit,[1.05,1,0.78]); lathe([[0.19,1.22],[0.225,1.3],[0.235,1.38],[0.205,1.48],[0.13,1.54],[0.12,1.62]],jk,[1.08,1,0.82],0.014,Math.PI*0.08,Math.PI*1.84);
+      add(box(0.01,0.24,0.01),toon('#C8CCD6'),[0.1,1.37,0.17],[0.1,0,0],[1,1,1],0); add(cyl(0.205,0.215,0.04),toon('#1a1522'),[0,0.9,0],[0,0,0],[1.06,1,0.8],0.01); add(sph(0.1),suit,[0,1.29,0.1],[0,0,0],[1.55,0.75,0.62],0.012);
+      tube([[0.12,1.18,0.12],[0.06,1.05,0.12],[0.04,0.93,0.17]],0.008,seam);
+      each(X=>{ k.limb([0,0,0],[0,-r.up,0],0.054,jk,0.016,X.arm); add(sph(0.062),jk,[0,0,0],[0,0,0],[1,1,1],0.014,X.arm); k.limb([0,0,0],[0,-r.fore,0],0.047,suit,0.016,X.elbow); tube([[0.02,-0.02,0.04],[0.025,-r.fore*0.5,0.045],[0.02,-r.fore*0.9,0.04]],0.007,seam,X.elbow); add(sph(0.049),glove,[0,0,0.005],[0,0,0],[1,1.15,1],0.012,X.hand); });
+      add(new T.OctahedronGeometry(0.05,0),glow('#E2D2FF',2),[0,-0.02,0.14],[0.4,0.6,0.3],[0.7,1.3,0.7],0.01,R.handL); k.glowSprite([0,-0.02,0.14],'200,160,255',0.3,0.7,R.handL);
+      const h=k.head({sex:'f',skin:P.skin,eyes:'normal',brow:'soft',browColor:'#2a1a2a',mouth:'lips',lashes:true,blush:'#F3B9B0',rz:-0.06});
+      add(new T.SphereGeometry(0.18,18,10,0,Math.PI*2,0,Math.PI*0.5),hairD,[0,0.005,-0.005],[-0.1,0,0],[0.92,1.05,1.0],0.012,h);
+      for(const [y,z,rx,hh] of [[0.13,0.12,0.5,0.34],[0.18,0.04,0.95,0.42],[0.17,-0.06,1.3,0.44],[0.12,-0.14,1.65,0.38],[0.05,-0.18,2.0,0.28]]){ const f=add(new T.ConeGeometry(0.07,hh,4),hair,[0,y,z],[-rx,0,0],[0.42,1,1.5],0.012,h); f.translateY(hh*0.35); }
+      add(sph(0.1),hair,[-0.03,0.1,0.11],[0.35,0,0.45],[1.25,0.5,0.62],0.012,h);
+      for(const [x,y,z,rx,hh] of [[0,-0.02,-0.2,2.4,0.3],[0,-0.18,-0.24,2.9,0.28]]){ const f=add(new T.ConeGeometry(0.07,hh,5),hair,[x,y,z],[-rx,0,0],[0.7,1,1],0.012,h); f.translateY(hh*0.35); }
+      add(new T.TorusGeometry(0.018,0.004,4,10),glow('#D9C4FF'),[-0.16,-0.07,0.02],[0,1.3,0],[1,1,1],0,h); } };
+  CH.sable={ // Sable: long hooded cloak with a ragged hem, porcelain half-mask with a glowing crack, wrapped limbs, shadow dagger
+    rig:{shX:0.24}, pal:{acc:'#2E2856'},
+    build(k,R,P){ const {T,add,cap,sph,cyl,box,toon,glow,flat,each,legs,lathe,tube,band,ds}=k; const r=R.r;
+      const cloak=toon(P.acc), cloakD=toon('#1E1A3C'), cloakL=toon('#443C7A'), wrapM=toon('#2A2830'), wrapD=toon('#1C1B21'), mask=toon('#EDE8E0'), crack=glow('#B8A8FF',2);
+      legs({pant:wrapM,boot:wrapD,rT:0.078,rS:0.064}); each(X=>{ for(let i=0;i<3;i++) band(X.knee,r.shin,0.62+i*0.14,0.066,0.008,toon('#3a3842')); });
+      lathe(k.PROF.slim,wrapM); for(const y of [1.0,1.1,1.2,1.3]) add(new T.TorusGeometry(0.205+(y-1)*0.1,0.006,4,20),wrapD,[0,y,0],[Math.PI/2,0.25,0],[1.06,0.82,1],0); add(cyl(0.2,0.205,0.07),toon('#4a3f86'),[0,0.92,0],[0,0,0],[1.06,1,0.82],0.008);
+      const cp=[[0.34,0.1],[0.32,0.3],[0.29,0.6],[0.26,0.9],[0.25,1.1],[0.27,1.3],[0.28,1.42],[0.22,1.5],[0.14,1.56]];
+      lathe(cp,cloak,[1.1,1,0.9],0.016,Math.PI*0.16,Math.PI*1.68); lathe(cp.map(([x,y])=>[x-0.006,y]),cloakD,[1.08,0.998,0.88],0,Math.PI*0.16,Math.PI*1.68);
+      for(let i=0;i<12;i++){ const a=Math.PI*0.2+i*(Math.PI*1.6/11); add(new T.ConeGeometry(0.035,0.1,4),cloak,[Math.sin(a)*0.37,0.07,Math.cos(a)*0.3],[Math.PI,a,0],[1,1,0.5],0.008); }
+      each(X=>{ add(new T.CylinderGeometry(0.12,0.075,r.up+0.06,14,1,true),ds(cloak),[0,-r.up/2,0],[0,0,0],[1,1,1],0.014,X.arm); add(sph(0.08),cloak,[0,0,0],[0,0,0],[1,1,1],0.014,X.arm);
+        k.limb([0,0,0],[0,-r.fore,0],0.045,wrapM,0.016,X.elbow); for(let i=1;i<4;i++) band(X.elbow,r.fore,i/4,0.046,0.007,wrapD); add(sph(0.046),wrapM,[0,0,0.005],[0,0,0],[1,1.1,1],0.01,X.hand); });
+      const dg=new T.Group(); dg.position.set(0,-0.02,0.03); dg.rotation.set(Math.PI,0,0); R.handR.add(dg); add(new T.ConeGeometry(0.03,0.32,4),toon('#0e0c16'),[0,0.17,0],[0,Math.PI/4,0],[1,1,0.35],0.01,dg); tube([[0.022,0.02,0],[0.012,0.18,0],[0,0.33,0]],0.005,crack,dg); add(cyl(0.012,0.012,0.08,6),toon('#3a3842'),[0,-0.04,0],[0,0,0],[1,1,1],0.006,dg);
+      const h=new T.Group(); R.head.add(h); h.rotation.x=0.12; h.R=0.17; R.headR=0.17; R.headG=h;
+      add(sph(0.17),flat('#100d18'),[0,0,0],[0,0,0],[0.88,1.02,0.95],0,h);
+      add(new T.SphereGeometry(0.23,20,12,Math.PI*0.5+0.75,Math.PI*2-1.5,0,Math.PI*0.78),ds(cloak),[0,0.02,-0.02],[0.15,0,0],[0.95,1.08,1.12],0.014,h);
+      add(new T.TorusGeometry(0.2,0.025,6,18,Math.PI*1.1),cloakL,[0,0.02,0.1],[0.1,0,Math.PI*0.95],[0.85,1.1,1],0.008,h);
+      add(new T.ConeGeometry(0.1,0.22,10),cloak,[0,0.2,-0.14],[-1.0,0,0],[1,1,0.8],0.012,h); add(new T.ConeGeometry(0.14,0.3,10),cloak,[0,-0.08,-0.2],[Math.PI-0.35,0,0],[1.1,1,0.7],0.012,h);
+      add(new T.SphereGeometry(0.168,18,10,Math.PI*0.5-0.95,1.9,Math.PI*0.55,Math.PI*0.3),ds(mask),[0,0,0.014],[0,0,0],[0.9,1.02,1.0],0.01,h);
+      tube([[0.08,-0.02,0.162],[0.05,-0.05,0.17],[0.075,-0.09,0.16],[0.045,-0.13,0.135]],0.008,crack,h); tube([[0.05,-0.04,0.168],[0,-0.06,0.17],[-0.03,-0.05,0.165]],0.006,crack,h);
+      for(const x of [-0.055,0.06]) add(sph(0.02,8,6),glow('#CFC4FF',2.2),[x,0.035,0.155],[0,0,x>0?-0.3:0.3],[1.4,0.45,0.5],0,h); } };
+  CH.echo={ // Echo: white/cyan track jacket, cyan visor, spiky white hair, knee braces
+    rig:{}, pal:{skin:'#C99A78',hair:'#EEF4F8',acc:'#E8F0F4'},
+    build(k,R,P){ const {T,add,sph,cyl,toon,glow,each,legs,lathe,tube,band,PROF,shell}=k; const r=R.r;
+      const white=toon(P.acc), navy=toon('#1C2A3C'), navyD=toon('#131C28'), cyan=glow('#7FD4FF',2), steel=toon('#8A98A6'), skin=toon(P.skin);
+      legs({pant:navy,boot:toon('#E8F0F4'),sole:toon('#0e1418'),rT:0.076,rS:0.062}); each((X,s)=>{ add(cyl(0.075,0.07,0.1,12),steel,[0,0,0],[0,0,0],[1,1,1],0.01,X.knee); add(sph(0.04,8,6),cyan,[0,0,0.06],[0,0,0],[1,1,0.4],0,X.knee); tube([[0.07*s,-0.02,0],[0.075*s,-r.thigh,0]],0.01,white,X.leg); tube([[0.07*s,0,0],[0.065*s,-r.shin+0.06,0]],0.01,white,X.knee); });
+      lathe(PROF.slim,navy); lathe(shell('slim',0.02,0.86,1.52),white,[1.05,1,0.8],0.016,Math.PI*0.08,Math.PI*1.84); lathe([[0.2,1.44],[0.14,1.56],[0.12,1.6]],white,[1.05,1,0.85],0.014); lathe([[0.16,0.84],[0.215,0.86],[0.23,0.95]],white,[1.05,1,0.8],0.014,Math.PI*0.08,Math.PI*1.84);
+      tube([[0.02,0.88,0.19],[0.03,1.2,0.22],[0.02,1.5,0.17]],0.008,cyan); add(cyl(0.2,0.21,0.06),navyD,[0,0.88,0],[0,0,0],[1.05,1,0.8],0.008); add(sph(0.13),white,[0,1.5,-0.16],[0,0,0],[1.3,0.6,0.8],0.014);
+      each(X=>{ k.limb([0,0,0],[0,-r.up,0],0.058,white,0.016,X.arm); add(sph(0.066),white,[0,0,0],[0,0,0],[1,1,1],0.014,X.arm); k.limb([0,0,0],[0,-r.fore,0],0.048,white,0.016,X.elbow); band(X.elbow,r.fore,0.85,0.05,0.012,cyan); add(sph(0.045),skin,[0,0,0.005],[0,0,0],[1,1.15,1],0.012,X.hand); });
+      const h=k.head({sex:'m',skin:P.skin,eyes:'none',brow:'level',browColor:'#dfe8ee',mouth:'set'});
+      add(new T.TorusGeometry(h.R*1.0,h.R*0.16,6,24,Math.PI*1.1),toon('#2a3a4c'),[0,h.R*0.12,0],[Math.PI/2,0,-Math.PI*0.05+Math.PI],[1,1.05,0.55],0.008,h);
+      add(new T.SphereGeometry(h.R*1.02,20,6,Math.PI*0.5-0.9,1.8,Math.PI*0.4,Math.PI*0.14),cyan,[0,0,0.01],[0,0,0],[0.95,1.03,1.0],0.006,h);
+      const hair=toon(P.hair); k.hairCap(h,hair,{cover:0.44,tilt:-0.25});
+      k.spikes(h,hair,[[0,h.R*0.7,-0.02,-1.1,0,0.2],[-0.07,h.R*0.6,0.02,-1.0,0.35,0.17],[0.07,h.R*0.6,0.02,-1.0,-0.35,0.17],[0,h.R*0.55,0.08,-0.7,0,0.15],[-0.04,h.R*0.4,-0.12,-1.6,0.2,0.2],[0.05,h.R*0.4,-0.12,-1.6,-0.2,0.2],[-0.09,h.R*0.3,0.1,0.6,0.9,0.14],[0.1,h.R*0.3,0.1,0.6,-0.9,0.14]]); } };
+  // ---------------- MENDERS ----------------
+  CH.mender={ // Sol: long open field coat over scrubs, olive hair wrap, stethoscope, med pack, rolled sleeves with glowing green veins
+    rig:{}, pal:{skin:'#9C6A48',acc:'#ECE8DC',hair:'#4E5A2E'},
+    build(k,R,P){ const {T,add,cap,sph,cyl,box,toon,glow,each,legs,lathe,tube,band}=k; const r=R.r;
+      const skin=toon(P.skin), coat=toon(P.acc), coatD=toon('#C9C3B2'), scrub=toon('#8FB08A'), wrapM=toon(P.hair), pack=toon('#6B6A4E'), green=glow('#6FF0A0',1.8), dark=toon('#2a2a2e');
+      legs({pant:scrub,boot:toon('#2E2A26'),sole:toon('#1a1714'),rT:0.08,rS:0.066});
+      lathe(k.PROF.f,scrub); add(sph(0.1),scrub,[0,1.28,0.1],[0,0,0],[1.5,0.72,0.6],0.012);
+      lathe([[0.26,0.46],[0.25,0.6],[0.24,0.8],[0.22,0.95],[0.19,1.06],[0.21,1.2],[0.24,1.32],[0.24,1.4],[0.2,1.48],[0.13,1.54],[0.12,1.6]],coat,[1.1,1,0.86],0.016,Math.PI*0.12,Math.PI*1.76);
+      add(cyl(0.19,0.2,0.035),toon('#5a4a3a'),[0,1.0,0],[0,0,0],[1.1,1,0.84],0.008);
+      const cr=new T.Group(); cr.position.set(-0.22,1.38,0.12); cr.rotation.y=-0.9; R.torso.add(cr); add(box(0.07,0.022,0.01),toon('#3FB06A'),[0,0,0],[0,0,0],[1,1,1],0.004,cr); add(box(0.022,0.07,0.01),toon('#3FB06A'),[0,0,0.001],[0,0,0],[1,1,1],0.004,cr);
+      tube([[-0.1,1.52,0.06],[-0.13,1.42,0.15],[-0.1,1.3,0.19],[-0.06,1.24,0.2]],0.009,dark); tube([[0.1,1.52,0.05],[0.13,1.42,0.14],[0.09,1.32,0.19],[0.07,1.27,0.2]],0.009,dark); add(cyl(0.028,0.028,0.014,10),toon('#c8ccd6'),[-0.06,1.22,0.21],[Math.PI/2,0,0],[1,1,1],0.006);
+      add(box(0.34,0.36,0.16),pack,[0,1.26,-0.24],[0,0,0],[1,1,1],0.014); add(box(0.28,0.1,0.12),toon('#57563e'),[0,1.46,-0.24],[0,0,0],[1,1,1],0.012); for(let i=0;i<3;i++) add(cyl(0.02,0.02,0.1,8),green,[-0.19,1.2,-0.18-i*0.05],[0,0,0],[1,1,1],0.006);
+      for(const x of [-1,1]) tube([[0.13*x,1.52,-0.12],[0.16*x,1.5,0.06],[0.13*x,1.34,0.17],[0.12*x,1.14,0.18]],0.016,toon('#4a4a36'),R.torso,0.006);
+      each(X=>{ k.limb([0,0,0],[0,-r.up,0],0.062,coat,0.016,X.arm); add(sph(0.07),coat,[0,0,0],[0,0,0],[1,1,1],0.014,X.arm); add(new T.TorusGeometry(0.058,0.024,6,14),coatD,[0,0,0],[Math.PI/2,0,0],[1,1,1],0.008,X.elbow);
+        k.limb([0,0,0],[0,-r.fore,0],0.045,skin,0.016,X.elbow); zig(k,X.elbow,r.fore,0.1,0.85,0.04,green,0.008,0.012); add(sph(0.045),skin,[0,0,0.005],[0,0,0],[1,1.15,1],0.01,X.hand); });
+      add(cyl(0.022,0.022,0.11,8),green,[0,-0.06,0.06],[0.3,0,0],[1,1,1],0.008,R.handR); add(cyl(0.024,0.024,0.02,8),toon('#c8ccd6'),[0,-0.005,0.075],[0.3,0,0],[1,1,1],0.004,R.handR);
+      const h=k.head({sex:'f',skin:P.skin,eyes:'normal',brow:'soft',browColor:'#2a1a14',mouth:'smile',lashes:true,rx:0.06});
+      add(new T.SphereGeometry(0.19,18,10,0,Math.PI*2,0,Math.PI*0.56),wrapM,[0,0.02,-0.02],[-0.35,0,0],[0.95,1.08,1.02],0.012,h); add(sph(0.075),wrapM,[0,0.2,0.05],[0,0,0],[1.1,0.85,0.9],0.012,h); add(new T.TorusGeometry(0.05,0.022,6,12),toon('#5f6c38'),[0,0.2,0.06],[0.3,0.4,0],[1,1,1],0.008,h);
+      add(new T.TorusGeometry(0.165,0.018,6,20,Math.PI),toon('#3e4824'),[0,0.06,0.02],[-0.35,0,0],[0.92,1,1],0.006,h); for(const [x,y,z] of [[-0.14,-0.02,0.06],[-0.13,-0.06,0.03],[0.12,0,0.1]]) add(sph(0.022,6,5),toon('#1e1410'),[x,y,z],[0,0,0],[1,1,1],0.006,h);
+      add(sph(0.01,6,4),glow('#9FF5C0'),[-0.16,-0.06,0.02],[0,0,0],[1,1,1],0,h); } };
+  CH.iris={ // Iris: calm; long silver-blue hair, long teal coat with a gold trim and cream sash, a hex ward hovering off the palm
+    rig:{}, pal:{skin:'#F0D2BE',hair:'#C8D8E8',acc:'#2F8C84'},
+    build(k,R,P){ const {T,add,sph,cyl,toon,glow,each,legs,lathe,tube,ds}=k; const r=R.r;
+      const teal=toon(P.acc), tealD=toon('#1F625C'), tealL=toon('#5BB8A8'), cream=toon('#EDE6D6'), gold=toon('#D8B464'), ward=glow('#9BF2DC',2), skin=toon(P.skin);
+      legs({pant:toon('#2A3440'),boot:toon('#3A3026'),sole:toon('#16110c'),rT:0.07,rS:0.058});
+      lathe(k.PROF.f,cream); const cp=[[0.33,0.2],[0.3,0.4],[0.26,0.7],[0.23,0.9],[0.2,1.0],[0.19,1.08],[0.22,1.2],[0.24,1.32],[0.22,1.45],[0.13,1.54]];
+      lathe(cp,teal,[1.05,1,0.85],0.016,Math.PI*0.14,Math.PI*1.72); lathe(cp.map(([x,y])=>[x-0.006,y]),tealD,[1.04,0.999,0.84],0,Math.PI*0.14,Math.PI*1.72); lathe([[0.22,1.44],[0.16,1.55],[0.15,1.62]],tealL,[1.05,1,0.88],0.012,Math.PI*0.2,Math.PI*1.6);
+      for(const s of [-1,1]) tube([[0.2*s,0.24,0.2],[0.19*s,0.7,0.2],[0.17*s,1.0,0.19],[0.14*s,1.3,0.21]],0.012,gold);
+      add(cyl(0.2,0.205,0.09),cream,[0,1.0,0],[0,0,0],[1.06,1,0.86],0.01); k.ribbon([[0.1,1.0,0.19],[0.16,0.85,0.23],[0.14,0.6,0.25]],0.03,0.025,cream,0.3,true);
+      each(X=>{ k.limb([0,0,0],[0,-r.up,0],0.06,teal,0.016,X.arm); add(sph(0.068),teal,[0,0,0],[0,0,0],[1,1,1],0.012,X.arm); add(new T.CylinderGeometry(0.052,0.08,r.fore*0.85,14,1,true),ds(teal),[0,-r.fore*0.42,0],[0,0,0],[1,1,1],0.012,X.elbow); k.limb([0,0,0],[0,-r.fore,0],0.04,skin,0,X.elbow); add(sph(0.045),skin,[0,0,0.005],[0,0,0],[1,1.15,0.8],0.01,X.hand); });
+      const hg=new T.Group(); hg.position.set(0,-0.06,0.16); R.handR.add(hg); for(let i=0;i<6;i++){ const a=i*Math.PI/3+0.3; add(new T.RingGeometry(0.03,0.038,6),ward,[Math.cos(a)*0.08,Math.sin(a)*0.08,0],[0,0,a],[1,1,1],0,hg); } add(new T.TorusGeometry(0.13,0.004,4,32),ward,[0,0,0],[0,0,0],[1,1,1],0,hg); k.glowSprite([0,-0.06,0.16],'155,242,220',0.34,0.6,R.handR);
+      const h=k.head({sex:'f',skin:P.skin,eyes:'calm',brow:'soft',browColor:'#8FA6B8',mouth:'lips',lipColor:'#C07A84',lipColor2:'#D8929A',lashes:true,blush:'#F2A8A0',rx:0.05});
+      const hair=toon(P.hair), hairD=toon('#9CB0C8'); k.hairCap(h,hair,{cover:0.52,tilt:-0.3}); add(new T.SphereGeometry(h.R*1.1,18,10,Math.PI*0.9,Math.PI*1.2,Math.PI*0.25,Math.PI*0.5),ds(hair),[0,-0.01,-0.01],[0,0,0],[0.97,1.03,1.03],0.012,h);
+      add(new T.ConeGeometry(0.17,0.6,12,1,true),ds(hairD),[0,-0.3,-0.14],[-0.2,0,0],[1,1,0.6],0.012,h);
+      k.ribbon([[-0.14,-0.02,0.06],[-0.2,-0.17,0.12],[-0.19,-0.37,0.18],[-0.16,-0.57,0.18]],0.05,0.03,hair,0.6,false,h);
+      add(new T.TorusGeometry(h.R*1.02,h.R*0.05,4,24,Math.PI*0.9),gold,[0,h.R*0.3,0],[Math.PI/2-0.3,0,Math.PI*1.05],[0.93,1.02,1],0,h); add(new T.OctahedronGeometry(h.R*0.12),ward,[0,h.R*0.55,h.R*0.92],[0,0,0],[0.7,1,0.5],0,h); } };
+  CH.tobias={ // Tobias: older; grey beard, brass goggles up, olive many-pocket vest, lime vial bandolier, brass-and-steel injector gauntlet
+    rig:{}, pal:{skin:'#D9A884',hair:'#C8C4BC',acc:'#5E6B3A'},
+    build(k,R,P){ const {T,add,cap,sph,cyl,box,toon,glow,flat,each,legs,lathe,shell,tube,band}=k; const r=R.r;
+      const olive=toon(P.acc), oliveD=toon('#434C28'), shirt=toon('#C9C2AE'), steel=toon('#9098A0'), brass=toon('#C49A4A'), lime=glow('#B4F46A',1.8), grey=toon(P.hair), skin=toon(P.skin);
+      legs({pant:toon('#4A4238'),boot:toon('#3A2A1C'),sole:toon('#16100a'),rT:0.08,rS:0.064,bs:1.05});
+      lathe(k.PROF.m,shirt,[1.08,1,0.84]); lathe(shell('m',0.035,0.9,1.47),olive,[1.08,1,0.84],0.016,Math.PI*0.12,Math.PI*1.76);
+      for(const [x,y] of [[-0.13,1.28],[0.13,1.28],[-0.14,1.06],[0.14,1.06],[-0.2,0.96],[0.2,0.96]]){ add(box(0.09,0.09,0.05),oliveD,[x,y,0.22],[0,x*1.2,0],[1,1,1],0.01); add(box(0.09,0.02,0.052),olive,[x,y+0.045,0.225],[0,x*1.2,0],[1,1,1],0); }
+      add(cyl(0.21,0.22,0.08),toon('#2E2A22'),[0,0.87,0],[0,0,0],[1.08,1,0.84],0.01);
+      for(let i=0;i<8;i++){ const t=i/7; const p=[-0.24+0.44*t,1.46-0.5*t,0.26+0.04*Math.sin(t*Math.PI)]; add(cyl(0.022,0.022,0.07,8),lime,p,[0,0,0.85],[1,1,1],0.008); add(cyl(0.024,0.024,0.02,8),brass,[p[0]-0.02,p[1]+0.03,p[2]],[0,0,0.85],[1,1,1],0); }
+      tube([[-0.28,1.5,0.2],[0,1.25,0.28],[0.26,0.94,0.24]],0.018,toon('#3a3024'));
+      each((X,s,n)=>{ k.limb([0,0,0],[0,-r.up,0],0.06,shirt,0.016,X.arm); add(sph(0.068),shirt,[0,0,0],[0,0,0],[1,1,1],0.014,X.arm); k.limb([0,0,0],[0,-r.fore,0],0.048,skin,0.016,X.elbow); add(sph(0.05),skin,[0,0,0.005],[0,0,0],[1,1.15,1],0.012,X.hand); });
+      const E=k.S.R.elbow; add(cyl(0.075,0.065,r.fore*0.9,14),steel,[0,-r.fore*0.48,0],[0,0,0],[1,1,1],0.014,E); for(const t of [0.2,0.5,0.8]) band(E,r.fore,t,0.078,0.012,brass);
+      add(cyl(0.03,0.03,0.14,10),lime,[0,-r.fore*0.5,0.08],[0,0,0],[1,1,1],0.01,E); k.limb([0,0,0.02],[0,-0.1,0.07],0.006,steel,0.004,R.handR); add(cap(0.02,0.02,6),lime,[0,-0.12,0.08],[0,0,0],[1,1,1],0,R.handR); k.glowSprite([0,-0.12,0.08],'180,244,106',0.2,0.7,R.handR);
+      const h=k.head({sex:'m',skin:P.skin,eyes:'calm',brow:'soft',browColor:'#D8D4CC',mouth:'none',rx:0.06});
+      add(new T.SphereGeometry(h.R*1.07,18,10,Math.PI*0.95,Math.PI*1.1,Math.PI*0.35,Math.PI*0.35),k.ds(grey),[0,-0.01,-0.01],[0,0,0],[0.95,1.02,1.02],0.012,h);
+      add(sph(h.R*0.72),grey,[0,-h.R*0.62,h.R*0.42],[0.2,0,0],[1.05,0.95,0.8],0.012,h); add(cap(h.R*0.12,h.R*0.4,8),grey,[0,-h.R*0.28,h.R*0.93],[0,0,Math.PI/2],[1,1,0.7],0.008,h);
+      add(new T.TorusGeometry(h.R*0.12,h.R*0.025,4,10,Math.PI),flat('#3a1e18'),[0.02,-h.R*0.42,h.R*1.0],[0,0,Math.PI+0.2],[1,1,1],0,h);
+      add(new T.TorusGeometry(h.R*1.03,h.R*0.07,5,24),toon('#3a3024'),[0,h.R*0.52,0],[Math.PI/2-0.35,0,0],[0.95,1.02,1],0.006,h);
+      for(const x of [-0.055,0.06]){ add(cyl(h.R*0.26,h.R*0.28,h.R*0.2,12),brass,[x,h.R*0.68,h.R*0.78],[Math.PI/2-0.75,0,0],[1,1,1],0.008,h); add(sph(h.R*0.22,10,6),glow('#DFFFB8',1.4),[x,h.R*0.74,h.R*0.84],[Math.PI/2-0.75,0,0],[1,0.3,1],0,h); } } };
+  // ---------------- CAPTIVE ----------------
+  CH.vip={ // Wren: civilian; torn mustard hoodie, jeans, bruise, sample tag clipped to the ear, wrists locked in a red restraint
+    rig:{}, pal:{skin:'#E2B896',hair:'#8A4A24',acc:'#C99A3A'},
+    build(k,R,P){ const {T,add,cap,sph,cyl,box,toon,glow,flat,each,legs,lathe,tube,ds}=k; const r=R.r;
+      const hood=toon(P.acc), hoodD=toon('#9A7224'), skin=toon(P.skin), red=glow('#FF4A4A',2);
+      legs({pant:toon('#46597A'),boot:toon('#E8E4DA'),sole:toon('#555555'),rT:0.08,rS:0.065}); add(box(0.06,0.08,0.02),toon('#34445E'),[0,-0.02,0.065],[0,0,0],[1,1,1],0.008,k.S.R.knee);
+      lathe(k.PROF.slim,hood,[1.08,1,0.86]); lathe([[0.2,0.84],[0.22,0.88],[0.21,0.93]],hoodD,[1.08,1,0.86],0.01); add(box(0.24,0.12,0.04),hoodD,[0,1.0,0.19],[0,0,0],[1,1,1],0.01);
+      for(const x of [-0.05,0.05]) tube([[x,1.5,0.17],[x*1.2,1.38,0.2],[x*1.1,1.3,0.21]],0.007,toon('#EDE6D6'));
+      add(new T.SphereGeometry(0.2,16,10,0,Math.PI*2,0,Math.PI*0.6),ds(hood),[0,1.58,-0.14],[-1.1,0,0],[1,0.8,1],0.014);
+      for(const [x,y] of [[0.14,1.2],[-0.12,1.02],[0.05,1.33]]) add(new T.CircleGeometry(0.03,5),flat('#6a4a14'),[x,y,0.215],[0,0,0.4],[1.4,0.8,1],0);
+      k.arms({up:hood,fore:hood,hand:skin,rU:0.056,rF:0.05,rH:0.04}); each(X=>add(box(0.09,0.06,0.1),toon('#2A2C32'),[0,-r.fore+0.03,0],[0,0,0],[1,1,1],0.01,X.elbow)); each((X,s)=>add(box(0.04,0.025,0.01),red,[0,-r.fore+0.03,0.052],[0,0,0],[1,1,1],0,X.elbow));
+      const h=k.head({sex:'f',skin:P.skin,eyes:'normal',brow:'soft',browColor:'#6a3a1e',mouth:'set',lashes:true,rx:0.1});
+      add(sph(h.R*0.16,8,6),toon('#8E6A9A'),[h.R*0.42,-h.R*0.22,h.R*0.84],[0,0,0],[1.3,0.8,0.4],0,h);
+      const hair=toon(P.hair); k.hairCap(h,hair,{cover:0.48,tilt:-0.4}); k.spikes(h,hair,[[0.05,h.R*0.5,h.R*0.5,0.9,-0.3,0.12],[-0.06,h.R*0.55,h.R*0.45,0.8,0.4,0.12],[-0.1,h.R*0.2,-h.R*0.6,-1.8,0.6,0.14],[0.08,h.R*0.1,-h.R*0.7,-2.0,-0.5,0.14]]);
+      add(box(h.R*0.35,h.R*0.22,h.R*0.03),toon('#F0F0E8'),[-h.R*1.05,-h.R*0.45,h.R*0.05],[0,-Math.PI/2,0.1],[1,1,1],0.004,h); add(box(h.R*0.12,h.R*0.12,h.R*0.035),red,[-h.R*1.07,-h.R*0.45,h.R*0.05],[0,-Math.PI/2,0.1],[1,1,1],0,h); } };
+})();
+
+/* TOON characters — the Coalition. Shared kit: gunmetal plate, red accents, slit visors, grafts grown from mutant tissue. */
+(()=>{ const CH=TOON.CH;
+  CH.trooper={ rig:{}, build(k,R){ const C=k.coal(), M=C.M, {add,box}=k;
+    C.legs(); C.torso('m'); add(box(0.1,0.08,0.05),M.plateD,[-0.1,1.02,0.21],[0,0,0],[1,1,1],0.01); add(box(0.1,0.08,0.05),M.plateD,[0.02,1.02,0.22],[0,0,0],[1,1,1],0.01);
+    C.pauldron([-0.26,1.46,0]); C.pauldron([0.26,1.46,0]); C.stripe([-0.33,1.44,0.02],1,0.4); C.graft([-0.2,1.56,0.1],0.07);
+    C.arms(); C.rifle('rifle'); C.helmet({visor:'#FF3B30'}); } };
+  CH.marksman={ rig:{}, build(k,R){ const C=k.coal(), M=C.M, {T,add,toon,lathe,ds}=k; const cape=toon('#3A2E2E');
+    C.legs(); C.torso('slim',[1.06,1,0.84]);
+    lathe([[0.3,1.12],[0.3,1.25],[0.28,1.4],[0.22,1.5],[0.12,1.56]],cape,[1.08,1,0.9],0.016,Math.PI*0.35,Math.PI*1.3);
+    for(let i=0;i<7;i++){ const a=Math.PI*0.4+i*(Math.PI*1.2/6); add(new T.ConeGeometry(0.045,0.1,4),cape,[Math.sin(a)*0.32,1.08,Math.cos(a)*0.28],[Math.PI,a,0],[1,1,0.4],0.008); }
+    C.arms(); C.rifle('long'); const h=C.helmet({r:0.155,face:'lens',visor:'#FF3B30'}); C.graft([-h.R*0.3,h.R*0.6,h.R*0.6],0.05,h,2);
+    add(new T.SphereGeometry(h.R*1.25,16,10,Math.PI*1.1,Math.PI*0.8+0.4,0,Math.PI*0.62),ds(cape),[0,0.02,-0.03],[0.1,-0.4,0],[1,1.05,1.05],0.012,h); } };
+  CH.sprinter={ rig:{thigh:0.34,shin:0.4,hipY:0.9,scale:0.96}, build(k,R){ const C=k.coal(), M=C.M, {T,add,cyl,tube,toon,glow,each,limb}=k; const r=R.r; const carbon=toon('#22252C'), edge=glow('#FF6A3A',2);
+    each((X,s)=>{ limb([0,0,0],[0,-r.thigh,0],0.085,M.suit,0.016,X.leg); add(cyl(0.092,0.08,0.2,12),M.plate,[0,-r.thigh*0.45,0],[0,0,0],[1,1,1],0.012,X.leg); C.graft([0,-r.thigh+0.1,0.07],0.055,X.leg,1); add(cyl(0.07,0.07,0.06,12),M.plateL,[0,0,0],[0,0,0],[1,1,1],0.01,X.knee);
+      const bl=[[0,0,0],[0,-0.2,-0.12],[0,-0.45,-0.06],[0,-r.hipY+r.thigh+0.08,0.08],[0,-r.hipY+r.thigh+0.02,0.24]]; tube(bl,0.03,carbon,X.knee,0.012); tube(bl.map(p=>[p[0]+0.028,p[1],p[2]+0.01]),0.008,edge,X.knee); });
+    C.torso('slim',[1.04,1,0.84]); C.pauldron([0.24,1.46,0],0.85); C.pauldron([-0.24,1.46,0],0.85); C.arms(0.95);
+    each(X=>{ add(new T.ConeGeometry(0.03,0.46,4),M.gunL,[0,-r.fore-0.12,0.03],[Math.PI,0,0],[1,1,0.25],0.008,X.elbow); tube([[0,-r.fore*0.4,0.045],[0,-r.fore-0.34,0.035]],0.005,edge,X.elbow); });
+    C.helmet({r:0.15,visor:'#FFB030',crest:'#FF7A2A'}); } };
+  CH.juggernaut={ rig:{hipX:0.16,shX:0.42,shY:1.46,up:0.3,fore:0.28,headY:1.8,scale:1.08}, build(k,R){ const C=k.coal(), M=C.M, {T,add,box,cyl,lathe,shell,PROF,tube}=k;
+    C.legs(1.45); lathe(PROF.big,M.suit,[1.1,1,0.86]); lathe(shell('big',0.05,0.95,1.6),M.plate,[1.1,1,0.86]);
+    for(const y of [1.05,1.18]) lathe([[0.36,y],[0.38,y+0.03],[0.37,y+0.07]],M.plateD,[1.1,1,0.86],0.01);
+    add(cyl(0.34,0.35,0.14),M.plateD,[0,0.92,0],[0,0,0],[1.1,1,0.86],0.012); for(const s of [-1,1]) add(box(0.12,0.22,0.06),M.plateD,[0.2*s,0.78,0.26],[0.15,0,0],[1,1,1],0.012);
+    add(new T.ConeGeometry(0.08,0.1,3),M.red,[0,1.4,0.38],[Math.PI/2,Math.PI,0],[1.4,1,0.25],0.006); add(cyl(0.2,0.3,0.18,16),M.plateD,[0,1.64,0.02],[0,0,0],[1.1,1,1],0.014);
+    for(const s of [-1,1]){ C.pauldron([0.4*s,1.56,0],1.5); C.pauldron([0.44*s,1.46,0],1.35,M.plateD); } C.stripe([-0.58,1.46,0.02],1.4,0.5); C.graft([0.34,1.66,0.12],0.12,R.torso,4);
+    add(box(0.4,0.5,0.22),M.plateD,[0,1.3,-0.4],[0,0,0],[1,1,1],0.014); tube([[0.3,1.3,-0.3],[0.42,1.2,-0.1]],0.025,M.gunL,R.torso,0.01);
+    C.arms(1.5); C.rifle('heavy'); C.helmet({r:0.15,visor:'#FF3B30'}); } };
+  CH.spotter={ rig:{}, build(k,R){ const C=k.coal(), M=C.M, {T,add,sph,box,cyl,limb,glow,ds}=k; const orange=glow('#FF9A2A',2);
+    C.legs(); C.torso('slim'); C.pauldron([-0.24,1.45,0],0.85); C.pauldron([0.24,1.45,0],0.85);
+    add(box(0.26,0.34,0.14),M.plateD,[0,1.26,-0.24],[0,0,0],[1,1,1],0.012);
+    for(const [x,hh] of [[-0.08,0.7],[0.07,0.5]]){ limb([x,1.4,-0.28],[x,1.4+hh,-0.3],0.012,M.gunL,0.006); add(sph(0.022,8,6),orange,[x,1.4+hh,-0.3],[0,0,0],[1,1,1],0); }
+    add(new T.SphereGeometry(0.15,14,8,0,Math.PI*2,0,Math.PI*0.35),ds(M.plateL),[-0.22,1.72,-0.3],[-0.6,-0.9,0.4],[1,1,1],0.01);
+    C.arms(0.95); C.rifle('pistol');
+    const h=C.helmet({r:0.155,face:'lens',visor:'#FF9A2A',crest:'#FF8A2A'}); C.graft([h.R*0.25,h.R*0.12,h.R*0.85],0.075,h,0); add(sph(h.R*0.3,12,8),orange,[h.R*0.25,h.R*0.12,h.R*1.17],[0,0,0],[1,1,0.5],0,h); } };
+  CH.bulwark={ rig:{hipX:0.13,shX:0.36,shY:1.48,up:0.29,fore:0.27,headY:1.8,scale:1.05}, build(k,R){ const C=k.coal(), M=C.M, {T,add,sph,box,rocky,tube,glow,lathe,shell,PROF}=k;
+    C.legs(1.25); lathe(PROF.big,M.suit,[1,1,0.84]); lathe(shell('big',0.04,0.95,1.6),M.plateD,[1,1,0.84]); C.pauldron([-0.36,1.54,0],1.3); C.pauldron([0.36,1.54,0],1.3);
+    C.helmet({r:0.15,visor:'#FF3B30',crest:'#C24A5A'});
+    const sh=new T.Group(); sh.position.set(-0.06,1.06,0.48); sh.rotation.set(0,0.12,0); R.torso.add(sh);
+    add(rocky(new T.BoxGeometry(0.72,1.18,0.12,5,7,2),0.05),M.flesh,[0,0,0],[0,0,0],[1,1,1],0.018,sh); add(rocky(new T.BoxGeometry(0.62,1.06,0.06,4,6,1),0.04),M.fleshD,[0,0,-0.07],[0,0,0],[1,1,1],0,sh);
+    for(let i=0;i<6;i++){ const y=0.42-i*0.17; for(const s of [-1,1]) tube([[0.03*s,y,0.09],[0.14*s,y+0.03,0.12],[0.26*s,y-0.02,0.1],[0.32*s,y-0.08,0.07]],0.024,M.boneM,sh,0.01); }
+    for(let i=0;i<9;i++) add(rocky(sph(0.045,8,6),0.02),M.boneM,[0,0.5-i*0.12,0.1],[0,0,0],[1.1,0.8,0.8],0.01,sh);
+    for(let i=0;i<9;i++){ if(i===4) continue; const x=-0.3+0.075*i; tube([[x,0.55,0.07],[x+0.03,0.2,0.08],[x-0.02,-0.1,0.08],[x+0.02,-0.5,0.07]],0.006,M.vein,sh); }
+    for(const [x,y] of [[-0.34,0.4],[0.34,0.4],[-0.34,-0.4],[0.34,-0.4],[0,0.58],[0,-0.58]]) add(box(0.1,0.03,0.04),M.plateL,[x,y,0.07],[0,0,x?Math.PI/2:0],[1,1,1],0.006,sh);
+    add(box(0.5,0.05,0.06),M.plateD,[0,0.55,0.02],[0,0,0],[1,1,1],0.01,sh); add(sph(0.03,8,6),glow('#FF3B30',2),[0.26,0.5,0.1],[0,0,0],[1,1,1],0,sh);
+    C.arms(1.3); C.rifle('pistol'); } };
+  CH.jammer={ rig:{}, build(k,R){ const C=k.coal(), M=C.M, {T,add,sph,box,cyl,limb,glow,ds}=k; const vio=glow('#B07AFF',2);
+    C.legs(); C.torso('m'); C.pauldron([-0.26,1.46,0]); C.pauldron([0.26,1.46,0]);
+    add(box(0.36,0.44,0.2),M.plateD,[0,1.22,-0.28],[0,0,0],[1,1,1],0.014); for(const x of [-0.1,0,0.1]) add(box(0.05,0.3,0.02),vio,[x,1.22,-0.39],[0,0,0],[1,1,1],0);
+    limb([0.12,1.4,-0.3],[0.2,1.86,-0.3],0.02,M.gunL,0.008);
+    const dg=new T.Group(); dg.position.set(0.22,1.92,-0.28); dg.rotation.set(-0.3,0.4,0); R.torso.add(dg);
+    add(new T.SphereGeometry(0.2,16,8,0,Math.PI*2,0,Math.PI*0.3),ds(M.plate),[0,0,0],[-Math.PI/2,0,0],[1,1,1],0.012,dg); add(new T.SphereGeometry(0.17,16,6,0,Math.PI*2,0,Math.PI*0.28),ds(vio),[0,0,0.012],[-Math.PI/2,0,0],[1,1,1],0,dg);
+    add(cyl(0.012,0.012,0.18,6),M.gunL,[0,0,0.08],[Math.PI/2,0,0],[1,1,1],0,dg); add(sph(0.03,8,6),glow('#EBDCFF',2.4),[0,0,0.18],[0,0,0],[1,1,1],0,dg); k.glowSprite([0,0,0.12],'176,122,255',0.5,0.6,dg);
+    const ring=new T.Mesh(new T.TorusGeometry(0.3,0.007,4,40),new T.MeshBasicMaterial({color:0xB07AFF,transparent:true,opacity:0.5,blending:T.AdditiveBlending,depthWrite:false})); ring.position.set(0,0,0.22); ring.name='spin'; dg.add(ring);
+    C.arms(); C.rifle('rifle'); const h=C.helmet({visor:'#B07AFF'});
+    for(const [x,z,rz,rx] of [[0,-0.04,0,-0.3],[-0.07,0.02,0.4,-0.1],[0.07,0.02,-0.4,-0.1],[-0.05,-0.1,0.3,-0.6],[0.05,-0.1,-0.3,-0.6]]){ add(new T.ConeGeometry(0.018,0.16,5),M.gunL,[x,h.R*0.95,z],[rx,0,rz],[1,1,1],0.006,h); add(sph(0.012,6,4),vio,[x+Math.sin(-rz)*0.08,h.R*0.95+0.08,z+Math.sin(rx)*0.08],[0,0,0],[1,1,1],0,h); }
+    C.graft([-h.R*0.7,h.R*0.4,-h.R*0.4],0.05,h,0); } };
+  CH.siphon={ rig:{shY:1.36,headY:1.62,headZ:0.14}, build(k,R){ const C=k.coal(), M=C.M, {T,add,sph,box,cyl,limb,tube,glow,toon}=k; const r=R.r; const teal=glow('#4FE3CF',1.8), glass=new T.MeshBasicMaterial({color:0x9FF4E8,transparent:true,opacity:0.25,depthWrite:false});
+    R.armL.position.z=R.armR.position.z=0.1;
+    C.legs(); const tg=new T.Group(); tg.position.y=0.86; tg.rotation.x=0.35; R.torso.add(tg); const tor=new T.Group(); tor.position.y=-0.86; tg.add(tor);
+    k.lathe(k.PROF.m,M.suit,[1.08,1,0.84],0.016,0,Math.PI*2,tor); k.lathe(k.shell('m',0.035,1.0,1.52),M.plate,[1.08,1,0.84],0.016,-Math.PI*0.35,Math.PI*0.7,tor); k.lathe(k.shell('m',0.03,1.0,1.5),M.plateD,[1.08,1,0.84],0.014,Math.PI*0.65,Math.PI*0.7,tor); add(cyl(0.22,0.23,0.1),M.plateD,[0,0.9,0],[0,0,0],[1.08,1,0.84],0.01,tor);
+    add(cyl(0.13,0.13,0.62,16),teal,[0,1.42,-0.32],[0,0,0],[1,1,1],0,tor); add(cyl(0.15,0.15,0.64,16,true),glass,[0,1.42,-0.32],[0,0,0],[1,1,1],0,tor);
+    for(const y of [1.1,1.74]) add(cyl(0.16,0.16,0.05,16),M.plateD,[0,y,-0.32],[0,0,0],[1,1,1],0.01,tor); for(const x of [-0.12,0.12]) add(box(0.03,0.62,0.03),M.plateD,[x,1.42,-0.2],[0,0,0],[1,1,1],0.006,tor);
+    C.pauldron([-0.26,1.4,0.1],1,M.plateD); C.pauldron([0.26,1.4,0.1],1);
+    C.arms(1.05); const H=R.handR; for(const a of [-0.5,0,0.5]){ const t1=[Math.sin(a)*0.06,-0.1,0.06], t2=[Math.sin(a)*0.08,-0.18,0.1]; limb([0,-0.02,0],t1,0.016,M.gunL,0.008,H); limb(t1,t2,0.012,M.plateL,0.006,H); } add(sph(0.035,8,6),teal,[0,-0.1,0.07],[0,0,0],[1,1,1],0,H);
+    tube([[0.18,1.5,-0.25],[0.28,1.46,-0.05],[0.3,1.4,0.1]],0.016,teal); tube([[0.02,0.05,0.05],[0.03,-r.up*0.5,0.07],[0.02,-r.up,0.06]],0.013,teal,R.armR); tube([[0.02,0,0.06],[0.03,-r.fore*0.5,0.07],[0.02,-r.fore,0.05]],0.013,teal,R.elbowR);
+    const h=C.helmet({r:0.155,visor:'#4FE3CF'}); for(let i=0;i<4;i++) add(box(0.004,0.05,0.01),teal,[-0.03+i*0.02,-h.R*0.7,h.R*1.02],[0.3,0,0],[1,1,1],0,h); C.graft([h.R*0.7,-h.R*0.5,h.R*0.3],0.05,h,1); } };
+  CH.husk={ rig:{hipY:0.66,thigh:0.3,shin:0.33,hipX:0.1,shX:0.19,shY:1.18,up:0.34,fore:0.33,headY:1.32,headZ:0.3}, build(k,R){ const C=k.coal(), M=C.M, {T,add,sph,cyl,box,cap,limb,tube,lathe,glow,toon,flat,each}=k; const r=R.r;
+    const skin=toon('#9AA8B4'), skinD=toon('#6E7C8A'), cy=glow('#8FF0FF',2), cuff=toon('#3A3F48'), rag=toon('#5A5048');
+    R.armL.position.z=R.armR.position.z=0.24; R.legL.position.x=-0.12; R.legR.position.x=0.12;
+    each(X=>{ limb([0,0,0],[0,-r.thigh,0],0.06,skin,0.016,X.leg); limb([0,0,0],[0,-r.shin,0],0.048,skin,0.016,X.knee); add(sph(0.05),skinD,[0,0,0],[0,0,0],[1,1,1],0.012,X.knee);
+      add(cap(0.05,0.12),skin,[0,-r.shin+(0.06-(r.hipY-r.thigh-r.shin)),0.05],[Math.PI/2,0,0],[1,0.7,1],0.012,X.knee); tube([[0.02,-0.04,0.045],[0.02,-r.shin+0.12,0.05]],0.006,cy,X.knee); add(cyl(0.056,0.056,0.05,10),cuff,[0,-r.shin+0.06,0],[0,0,0],[1,1,1],0.01,X.knee); });
+    add(cyl(0.13,0.14,0.14,14),rag,[0,0.66,0],[0,0,0],[1.1,1,0.9],0.012); for(let i=0;i<5;i++){ const a=0.4+i*0.55; add(new T.ConeGeometry(0.05,0.18,4),rag,[Math.sin(a)*0.13,0.54,Math.cos(a)*0.12],[Math.PI,a,0],[1,1,0.4],0.008); }
+    const tg=new T.Group(); tg.position.y=0.66; tg.rotation.x=0.7; R.torso.add(tg); const tor=new T.Group(); tor.position.y=-0.66; tg.add(tor);
+    lathe([[0.001,0.64],[0.13,0.65],[0.12,0.78],[0.13,0.9],[0.17,1.02],[0.19,1.12],[0.15,1.2],[0.07,1.25],[0.001,1.26]],skin,[1.1,1,0.8],0.016,0,Math.PI*2,tor);
+    for(let i=0;i<4;i++){ const y=0.88+i*0.06; tube([[-0.15,y,0.05],[-0.08,y+0.02,0.14],[0,y+0.01,0.155],[0.08,y+0.02,0.14],[0.15,y,0.05]],0.008,skinD,tor); }
+    for(let i=0;i<6;i++) add(sph(0.025,8,6),skinD,[0,0.7+i*0.09,-0.12],[0,0,0],[1,1,1],0.008,tor); tube([[0.02,0.7,0.14],[0,0.9,0.16],[0.03,1.1,0.16],[0.08,1.2,0.1]],0.009,cy,tor);
+    for(let i=0;i<6;i++) add(box(0.04,0.006,0.01),cy,[0.01+(i%2?0.01:-0.01),0.74+i*0.075,0.16],[0,0,0.3],[1,1,1],0,tor); tube([[-0.16,1.1,0],[-0.12,1.0,-0.1],[-0.02,0.94,-0.14]],0.007,cy,tor);
+    each(X=>{ limb([0,0,0],[0,-r.up,0],0.045,skin,0.016,X.arm); add(sph(0.05),skinD,[0,0,0],[0,0,0],[1,1,1],0.012,X.arm); limb([0,0,0],[0,-r.fore,0],0.04,skin,0.016,X.elbow); tube([[0,-0.02,0.03],[0,-r.fore+0.03,0.035]],0.005,cy,X.elbow);
+      add(cyl(0.055,0.055,0.07,10),cuff,[0,-r.fore*0.75,0],[0,0,0],[1,1,1],0.01,X.elbow); for(let i=0;i<3;i++) add(new T.TorusGeometry(0.018,0.006,4,8),M.plateL,[0.02,-r.fore*0.75-0.05-i*0.035,-0.02],[0,i%2?Math.PI/2:0,0],[1,1.4,1],0,X.elbow);
+      add(sph(0.045),skin,[0,0,0],[0,0,0],[1,1.1,1],0.01,X.hand); for(const a of [-0.5,0,0.5]){ const t=[Math.sin(a)*0.05,-0.1,0.05]; limb([0,0,0],t,0.012,skinD,0.006,X.hand); add(new T.ConeGeometry(0.012,0.05,4),toon('#1C1E22'),[t[0],t[1]-0.02,t[2]+0.01],[Math.PI,0,0],[1,1,1],0.004,X.hand); } });
+    const h=k.head({sex:'m',skin:'#9AA8B4',r:0.14,eyes:'none',mouth:'none',nose:false,rx:0.25});
+    for(const x of [-h.R*0.36,h.R*0.36]){ add(sph(h.R*0.2,8,6),flat('#10141a'),[x,h.R*0.08,h.R*0.8],[0,0,0],[1.2,0.8,0.5],0,h); add(sph(h.R*0.11,8,6),cy,[x,h.R*0.08,h.R*0.9],[0,0,0],[1.3,0.7,0.5],0,h); }
+    tube([[0,h.R*1.0,h.R*0.2],[0.03,h.R*0.6,h.R*0.85],[0.02,h.R*0.2,h.R*0.98]],0.006,cy,h); for(let i=0;i<5;i++) add(box(0.02,0.004,0.006),cy,[-0.04+i*0.02,-h.R*0.5,h.R*0.95],[0,0,0],[1,1,1],0,h); } };
+  CH.grenadier={ rig:{hipX:0.12,shX:0.34,shY:1.46,up:0.28,fore:0.26,headY:1.78,scale:1.04}, build(k,R){ const C=k.coal(), M=C.M, {T,add,sph,box,cyl,limb,tube,glow,toon}=k; const r=R.r; const org=glow('#FF8A2A',2.2);
+    C.legs(1.15); C.torso('big',[1.0,1,0.84]); C.pauldron([-0.34,1.5,0],1.2); C.stripe([-0.44,1.46,0.02],1.2,0.45);
+    add(box(0.5,0.46,0.14),M.plateD,[0,1.28,-0.34],[0,0,0],[1,1,1],0.014);
+    for(let i=0;i<4;i++) for(let j=0;j<2;j++){ const x=-0.17+i*0.113, y=1.2+j*0.2; add(cyl(0.04,0.04,0.16,10),toon('#8C7A4A'),[x,y,-0.43],[Math.PI/2,0,0],[1,1,1],0.008); add(new T.ConeGeometry(0.04,0.07,10),toon('#C24A2A'),[x,y,-0.54],[-Math.PI/2,0,0],[1,1,1],0.008); }
+    // left arm normal with a pistol-less fist; right arm: grafted flesh upper arm into a mortar cannon along the forearm
+    const L=k.S.L, RR=k.S.R; limb([0,0,0],[0,-r.up,0],0.068,M.suit,0.016,L.arm); limb([0,0,0],[0,-r.fore,0],0.058,M.suit,0.016,L.elbow); add(cyl(0.07,0.06,r.fore*0.6,12),M.plate,[0,-r.fore*0.45,0],[0,0,0],[1,1,1],0.012,L.elbow); add(sph(0.06),M.suitD,[0,0,0],[0,0,0],[1,1.1,1],0.012,L.hand);
+    C.graft([0,0.02,0.02],0.12,RR.arm,3); limb([0,0,0],[0,-r.up,0],0.085,M.flesh,0.016,RR.arm); tube([[-0.04,0.06,0.08],[0.03,-r.up*0.5,0.09],[0.02,-r.up,0.06]],0.012,M.vein,RR.arm);
+    add(cyl(0.13,0.11,0.2,16),M.plate,[0,-0.04,0],[0,0,0],[1,1,1],0.016,RR.elbow); add(cyl(0.11,0.12,0.42,16,true),M.gun,[0,-0.32,0],[0,0,0],[1,1,1],0.016,RR.elbow);
+    for(const y of [0.18,0.36,0.5]) add(new T.TorusGeometry(0.12,0.018,5,16),M.plateL,[0,-y,0],[Math.PI/2,0,0],[1,1,1],0,RR.elbow); add(cyl(0.085,0.085,0.02,16),org,[0,-0.52,0],[0,0,0],[1,1,1],0,RR.elbow); add(box(0.05,0.18,0.08),M.red,[0.12,-0.2,0],[0,0,0],[1,1,1],0.008,RR.elbow);
+    k.glowSprite([0,-0.56,0],'255,138,42',0.4,0.7,RR.elbow); R.muzzleAt=[0,-0.56,0];
+    const h=C.helmet({r:0.155,visor:'#FF8A2A',crest:'#E0702A'}); add(cyl(0.03,0.03,0.12,8),M.gun,[h.R*0.95,h.R*0.3,h.R*0.3],[Math.PI/2,0,0],[1,1,1],0.006,h); add(sph(0.028,8,6),org,[h.R*0.95,h.R*0.3,h.R*0.3+0.06],[0,0,0],[1,1,0.5],0,h); } };
+  CH.surgeon={ rig:{hipY:0.9,thigh:0.39,shin:0.38,shY:1.44,up:0.3,fore:0.28,headY:1.8,scale:1.12}, build(k,R){ const C=k.coal(), M=C.M, {T,add,sph,box,cyl,limb,lathe,tube,glow,toon,each}=k; const r=R.r;
+    const coat=toon('#E8E4DE'), coatD=toon('#BDB6AC'), blood=toon('#8E1A24'), cape=toon('#8A1424'), capeD=toon('#5A0C18'), pink=glow('#FF4FA0',2.2), steel=toon('#C8D0DA'), dark=toon('#1E2128');
+    C.legs();
+    const cp=[[0.3,0.06],[0.3,0.3],[0.28,0.7],[0.27,1.0],[0.28,1.3],[0.3,1.44],[0.24,1.54]]; lathe(cp,cape,[1.15,1,0.95],0.016,Math.PI*0.62,Math.PI*0.76); lathe(cp.map(([x,y])=>[x-0.008,y]),capeD,[1.14,0.999,0.94],0,Math.PI*0.62,Math.PI*0.76);
+    lathe(k.PROF.slim,dark,[1.05,1,0.82]); const cprof=[[0.27,0.26],[0.25,0.5],[0.22,0.8],[0.2,1.0],[0.2,1.1],[0.23,1.3],[0.25,1.4],[0.21,1.5],[0.12,1.56]];
+    lathe(cprof,coat,[1.05,1,0.85],0.016,Math.PI*0.12,Math.PI*1.76); lathe(cprof.map(([x,y])=>[x-0.006,y]),coatD,[1.04,0.999,0.84],0,Math.PI*0.12,Math.PI*1.76); lathe([[0.22,1.46],[0.2,1.56],[0.22,1.66]],coat,[1.05,1,0.9],0.012,Math.PI*0.2,Math.PI*1.6);
+    for(let i=0;i<14;i++){ const a=Math.PI*0.2+i*0.37, y=0.3+((i*37)%9)*0.035; add(sph(0.013+0.007*(i%3),8,6),blood,[Math.sin(a)*0.265*1.05,y,Math.cos(a)*0.265*0.85],[0,a,0],[1,2.2,0.3],0); }
+    add(box(0.04,0.3,0.03),dark,[0,1.2,0.2],[0,0,0],[1,1,1],0.008); for(const y of [1.3,1.18,1.06]) add(box(0.12,0.03,0.03),M.plateL,[0,y,0.21],[0,0,0],[1,1,1],0.006);
+    add(sph(0.03,8,6),pink,[0,1.38,0.22],[0,0,0],[1,1,0.5],0); C.graft([-0.2,1.46,0.08],0.07,R.torso,3);
+    each(X=>{ limb([0,0,0],[0,-r.up,0],0.062,coat,0.016,X.arm); add(sph(0.07),coat,[0,0,0],[0,0,0],[1,1,1],0.012,X.arm); limb([0,0,0],[0,-r.fore,0],0.054,coat,0.016,X.elbow); add(cyl(0.064,0.07,0.07,12),blood,[0,-r.fore*0.8,0],[0,0,0],[1,1,1],0.008,X.elbow); add(sph(0.05),dark,[0,0,0],[0,0,0],[1,1,1],0.01,X.hand);
+      for(const a of [-0.35,-0.12,0.12,0.35]) add(new T.ConeGeometry(0.014,0.3,4),steel,[Math.sin(a)*0.07,-0.16,0.02],[Math.PI,0,-a*0.6],[1,1,0.3],0.006,X.hand); });
+    const h=k.head({sex:'f',skin:'#E6CFC2',r:0.16,eyes:'glow',eyeColor:'#FF6FB0',brow:'down',browColor:'#B8B4B0',mouth:'set'});
+    const hair=toon('#B8B8BC'); k.hairCap(h,hair,{cover:0.55,tilt:-0.55}); add(sph(h.R*0.6),hair,[0,h.R*0.1,-h.R*0.8],[0,0,0],[1,0.8,0.7],0.012,h); tube([[h.R*0.2,h.R*0.2,h.R*0.9],[h.R*0.35,-h.R*0.3,h.R*0.9],[h.R*0.3,-h.R*0.6,h.R*0.8]],0.004,toon('#A07E78'),h);
+    const halo=new T.Group(); halo.position.set(0,0.14,-0.18); halo.rotation.x=0.2; R.head.add(halo); const ring=new T.Mesh(new T.TorusGeometry(0.26,0.014,6,40),pink); ring.name='spin'; ring.userData.keep=true; halo.add(ring);
+    for(let i=0;i<8;i++){ const a=i*Math.PI/4; const b=new T.Mesh(new T.BoxGeometry(0.02,0.05,0.01),pink); b.position.set(Math.cos(a)*0.3,Math.sin(a)*0.3,0); b.rotation.z=a+Math.PI/2; ring.add(b); } } };
+})();
+
+
 const R3 = (()=>{
   if(!window.THREE) return null;
   const T3=window.THREE; const gl=$('gl'); const labels=$('labels');
@@ -3518,6 +4030,7 @@ const R3 = (()=>{
     if(kind==='heavy'){ rec.scale.set(0.09,0.1,len*0.6); bar.scale.set(0.024,len*0.5,0.024); const box=new T3.Mesh(geo.rbS,dm); box.scale.set(0.08,0.09,0.09); box.position.set(-0.06,-0.06,-len*0.2); g.add(box); const vent=new T3.Mesh(geo.cyl,glowM(accent||'#ff8a70',0.9)); vent.scale.set(0.03,len*0.3,0.03); vent.rotation.x=Math.PI/2; vent.position.set(0,0.06,-len*0.55); g.add(vent); }
     g.userData.muzzleZ=-len+0.02; return g; }
   function fig(u){
+    if(toonOn()){ const tg=tfig(u); if(tg) return tg; }
     const g=new T3.Group(); const rng=(()=>{ let x=Math.floor(u.seed*1e9)||1; return ()=>{ x^=x<<13; x^=x>>>17; x^=x<<5; return ((x>>>0)%10000)/10000; }; })();
     const col=new T3.Color(u.color); if(u.side==='enemy'){ col.offsetHSL((rng()-0.5)*0.03,(rng()-0.5)*0.15,(rng()-0.5)*0.12); }
     const isE=u.side==='enemy', d=u.def, isCap=u.side==='captive';
@@ -3592,6 +4105,27 @@ const R3 = (()=>{
     g.userData.rest=(!d.noAttack&&!d.melee&&isE)?{rx:-0.85,lx:-0.7,lz:0.55}:(!d.noAttack&&!d.melee)?{rx:-0.5,lx:-0.35,lz:0.25}:{rx:-0.15,lx:-0.15,lz:0.08};
     g.position.copy(W(u.x,u.y,0)); g.userData.tx=u.x; g.userData.ty=u.y; unitGroup.add(g); return g;
   }
+  /* Toon figures: TOON.build gives a rig with the same joints fig() makes, so pose() drives it unchanged (torso/shoulders are dummies
+     that absorb the breathing writes). Toon units are ~1.9 tall; the body scale maps them to the board. */
+  function tfig(u){ const d=u.def, isE=u.side==='enemy', isCap=u.side==='captive'; const id=d.decoy?'echo':(isCap||d.id==='vip')?'vip':d.id;
+    const e=u.cid?rosterEntry(u.cid):null; const Rg=TOON.build(id,{custom:e&&e.custom?e.custom:null,fallback:isE?'trooper':'blaster'}); if(!Rg) return null;
+    const g=new T3.Group(); const base=Rg.r.scale||1; const jit=0.97+(((u.seed||0.5)*9973)%1)*0.06;
+    const shadow=new T3.Mesh(geo.unit,basic({map:TEX.shadow,transparent:true,opacity:0.75,depthWrite:false})); shadow.rotation.x=-Math.PI/2; shadow.scale.setScalar(1.15*base); shadow.position.y=0.008; g.add(shadow);
+    const ring=new T3.Mesh(geo.ring,basic({map:TEX.ring,color:u.side==='player'?'#3FC1E3':isCap?'#8FD3C7':'#E0524B',transparent:true,opacity:0.9,depthWrite:false,side:T3.DoubleSide})); ring.rotation.x=-Math.PI/2; ring.position.y=0.02; ring.scale.setScalar(1.05*Math.max(1,base)); g.add(ring); g.userData.ring=ring;
+    const body=Rg.body; g.add(body); g.userData.body=body; body.scale.setScalar(0.75*base*jit);
+    const dT=new T3.Object3D(), dS=new T3.Object3D(); body.add(dT,dS); Rg.elbowL.rotation.x=-0.35; Rg.elbowR.rotation.x=-0.35;
+    g.userData.parts={legL:Rg.legL,legR:Rg.legR,kneeL:Rg.kneeL,kneeR:Rg.kneeR,armL:Rg.armL,armR:Rg.armR,elbowL:Rg.elbowL,elbowR:Rg.elbowR,torso:dT,head:Rg.head,shoulders:dS};
+    const mats=[], cm=new Map(); body.traverse(o=>{ if(!o.isMesh||o.userData.ink) return; let m=cm.get(o.material); if(!m){ m=o.material.clone(); cm.set(o.material,m); if(m.emissive){ m.userData.e0=m.emissive.clone(); m.userData.i0=m.emissiveIntensity; mats.push(m); } } o.material=m; });
+    if(d.decoy){ const hm=new T3.MeshBasicMaterial({color:'#7FD4FF',transparent:true,opacity:0.42,depthWrite:false,blending:T3.AdditiveBlending}); body.traverse(o=>{ if(o.isMesh){ if(o.userData.ink) o.visible=false; else o.material=hm; } }); mats.length=0; }
+    if(u.elite){ const cy=Rg.r.headY+0.34; const cr=new T3.Mesh(geo.torus,glowM('#FFD76E',1.8)); cr.scale.setScalar(0.62); cr.rotation.x=Math.PI/2; cr.position.y=cy; body.add(cr); for(let i=0;i<5;i++){ const sp=new T3.Mesh(geo.rbS,glowM('#FFD76E',1.6)); sp.scale.set(0.04,0.13,0.04); const a=i/5*Math.PI*2; sp.position.set(Math.cos(a)*0.26,cy+0.07,Math.sin(a)*0.26); body.add(sp); } }
+    if(!d.noAttack&&!d.melee&&!isE&&!isCap){ const ac=(d.attack&&d.attack.color)||u.color; const w=new T3.Group(); w.scale.setScalar(2); w.position.set(0,-0.06,0.08); Rg.handR.add(w);
+      const mz=new T3.Sprite(new T3.SpriteMaterial({map:TEX.flash,color:ac,transparent:true,blending:T3.AdditiveBlending,depthWrite:false,toneMapped:false})); mz.scale.setScalar(0.3); mz.visible=false; w.add(mz); g.userData.muzzle=mz; g.userData.kind=(d.attack&&d.attack.kind)||'bolt'; }
+    else if(!d.noAttack&&!d.melee&&Rg.muzzle){ const w=new T3.Group(); w.scale.setScalar(2); Rg.muzzle.add(w); const mz=new T3.Sprite(new T3.SpriteMaterial({map:TEX.flash,color:'#FFE9A8',transparent:true,blending:T3.AdditiveBlending,depthWrite:false,toneMapped:false})); mz.scale.setScalar(0.22); mz.visible=false; w.add(mz); g.userData.muzzle=mz;
+      g.userData.kind=d.id==='marksman'?'marksman':(d.id==='juggernaut'||d.boss||d.id==='grenadier')?'heavy':(d.id==='spotter'||d.id==='jammer'||d.id==='siphon'||d.id==='bulwark')?'pistol':'rifle'; }
+    if(Rg.spin) g.userData.spin=Rg.spin;
+    g.userData.mats=mats; g.userData.baseScaleY=body.scale.y; g.userData.legK=(Rg.r.thigh*body.scale.y)/0.24; g.userData.toon=true;
+    g.userData.rest=(!d.noAttack&&!d.melee&&isE)?{rx:-0.85,lx:-0.7,lz:0.55}:(!d.noAttack&&!d.melee)?{rx:-0.5,lx:-0.35,lz:0.25}:{rx:-0.15,lx:-0.15,lz:0.08};
+    g.position.copy(W(u.x,u.y,0)); g.userData.tx=u.x; g.userData.ty=u.y; unitGroup.add(g); return g; }
   const restoreE=g=>{ for(const m of g.userData.mats){ m.emissive.copy(m.userData.e0); m.emissiveIntensity=m.userData.i0; } };
   function drumMesh(u){ const g=new T3.Group(); const L=rigFor(); const TX=texSet(L); g.add(aoDecal(0,0,1.3,0.5)); g.children[0].position.set(0,0.006,0);
     const body=new T3.Mesh(geo.cyl,PM('#fff',{map:TX.crate,color:'#c9b58a',roughness:0.45,metalness:0.55,envMap:ENV})); body.scale.set(0.34,1.0,0.34); body.position.y=0.5; body.castShadow=body.receiveShadow=true; g.add(body);
@@ -3692,13 +4226,14 @@ const R3 = (()=>{
         case 'downed': { break; }
       }
     } else if(a){ u.anim=null; restoreE(g); if(a.k==='blinkIn'||a.k==='standUp'||a.k==='drop') body.scale.y=g.userData.baseScaleY; P.head.rotation.x=0; }
-    body.position.y=(u.side==='captive'?-0.02:0)+bobY;
+    body.position.y=(u.side==='captive'?-0.02:0)+bobY*(g.userData.legK||1);
   }
   /* ---- pixel-art sprites (Look: Pixel art) ----
      Each unit keeps its 3D group (ring, contact shadow, reticle, hidden body that still runs pose() and facing) and gains an upright
      billboard showing a PIX frame. View (front/back) and mirroring come from the body's facing against the drawing camera; the plane is
      stretched by 1/cos(camera elevation) so the sprite keeps its drawn proportions under the three-quarter ortho view. */
   const SPR={geo:null, H:1.8, lut:null, lutEx:0};
+  let FIG_LOOK='standard'; const toonOn=()=>FIG_LOOK==='toon'&&TOON.init(); const _inkV=new T3.Vector2();
   /* The composite tone-maps everything (ACES at the scene exposure). Pixel art should show its authored palette, so sprite colours go
      through the inverse of that curve first (a 1D LUT on grey — close enough per channel) before they are uploaded. */
   function sprLUT(){ const ex=renderer.toneMappingExposure; if(SPR.lut&&SPR.lutEx===ex) return SPR.lut; const rrt=v=>{ const a=v*(v+0.0245786)-0.000090537, b=v*(0.983729*v+0.4329510)+0.238081; return a/b; };
@@ -3789,8 +4324,8 @@ const R3 = (()=>{
       if(face!==null&&u.side!=='obj'&&!(u.anim&&(u.anim.k==='fire'||u.anim.k==='cast1'||u.anim.k==='slam'||u.anim.k==='lunge'||u.anim.k==='cast'))){ const cur=g.userData.body.rotation.y; let d=face-cur; while(d>Math.PI) d-=2*Math.PI; while(d<-Math.PI) d+=2*Math.PI; g.userData.body.rotation.y=cur+d*0.2; }
       if(u.side!=='obj') pose(u,g,t,Math.hypot(dx,dz)>0.02); if(u.side!=='obj') sprUpdate(u,g,t,Math.hypot(dx,dz)>0.02);
       if(g.userData.spin) g.userData.spin.rotation.z=t/500; if(g.userData.pulse&&g.userData.pulse.material.emissive) g.userData.pulse.material.emissiveIntensity=1.2+0.7*Math.sin(t/300);
-      if(u.side==='enemy'&&!u.alert){ g.traverse(o=>{ if(o.isMesh&&o.material.transparent!==true&&!o.userData.dimmed){ o.userData.dimmed=true; o.material=o.material.clone(); o.material.transparent=true; o.material.opacity=0.45; } }); }
-      else if(g.userData.dimState!==u.alert&&u.alert){ g.traverse(o=>{ if(o.isMesh&&o.userData.dimmed){ o.userData.dimmed=false; o.material.opacity=1; o.material.transparent=false; } }); }
+      if(u.side==='enemy'&&!u.alert){ g.traverse(o=>{ if(!o.isMesh||o.userData.dimmed) return; if(o.userData.ink){ o.userData.dimmed=true; o.visible=false; return; } if(o.material.transparent!==true){ o.userData.dimmed=true; o.userData.m0=o.material; o.material=o.material.clone(); o.material.transparent=true; o.material.opacity=0.45; } }); }
+      else if(g.userData.dimState!==u.alert&&u.alert){ g.traverse(o=>{ if(o.isMesh&&o.userData.dimmed){ o.userData.dimmed=false; if(o.userData.ink){ o.visible=true; return; } if(o.userData.m0){ o.material=o.userData.m0; o.userData.m0=null; } else { o.material.opacity=1; o.material.transparent=false; } } }); }
       g.userData.dimState=u.alert;
       // labels
       const p=project(g.position.x+COLS/2-0.5,g.position.z+ROWS/2-0.5,u.side==='obj'?1.2:sprOn()?(u.def.boss?2.35:(u.downed?1.0:1.95)):(u.def.boss?1.95:1.55)); const l=labFor(u.id);
@@ -3813,7 +4348,7 @@ const R3 = (()=>{
     }
     muzzleLight.intensity*=0.6;
     // dying animation: fall, then sink and fade
-    for(const [id,d] of dying){ const k=(tReal-d.t0)/900; if(k>=1){ unitGroup.remove(d.g); dying.delete(id); continue; } const fall=Math.min(1,k/0.4); if(d.g.userData.body){ d.g.userData.body.rotation.x=(d.kd&&d.kd.dx!=null?-1.45:1.45)*ease(fall); } if(d.g.userData.spr&&d.u) sprUpdate(d.u,d.g,tReal,false,[fall<1?'fall':'downed',fall<1?Math.min(3,Math.floor(fall*4)):0,{}]); if(d.kd&&d.kd.dx!=null){ const sl=0.4*(d.kd.mag||1)*ease(fall); d.g.position.x=d.x0+d.kd.dx*sl; d.g.position.z=d.z0+d.kd.dy*sl; if(fall>=1&&!d.dust){ d.dust=true; fxPuff(d.g.position.x+COLS/2-0.5,d.g.position.z+ROWS/2-0.5,'#8a8f96',0.6,500); } } d.g.position.y=-Math.max(0,k-0.4)*0.9; d.g.traverse(o=>{ if(o.isMesh){ if(!o.userData.dyingMat){ o.userData.dyingMat=true; o.material=o.material.clone(); o.material.transparent=true; } o.material.opacity=1-k; } }); }
+    for(const [id,d] of dying){ const k=(tReal-d.t0)/900; if(k>=1){ unitGroup.remove(d.g); dying.delete(id); continue; } const fall=Math.min(1,k/0.4); if(d.g.userData.body){ d.g.userData.body.rotation.x=(d.kd&&d.kd.dx!=null?-1.45:1.45)*ease(fall); } if(d.g.userData.spr&&d.u) sprUpdate(d.u,d.g,tReal,false,[fall<1?'fall':'downed',fall<1?Math.min(3,Math.floor(fall*4)):0,{}]); if(d.kd&&d.kd.dx!=null){ const sl=0.4*(d.kd.mag||1)*ease(fall); d.g.position.x=d.x0+d.kd.dx*sl; d.g.position.z=d.z0+d.kd.dy*sl; if(fall>=1&&!d.dust){ d.dust=true; fxPuff(d.g.position.x+COLS/2-0.5,d.g.position.z+ROWS/2-0.5,'#8a8f96',0.6,500); } } d.g.position.y=-Math.max(0,k-0.4)*0.9; d.g.traverse(o=>{ if(o.isMesh&&o.userData.ink){ o.visible=false; return; } if(o.isMesh){ if(!o.userData.dyingMat){ o.userData.dyingMat=true; o.material=o.material.clone(); o.material.transparent=true; } o.material.opacity=1-k; } }); }
     for(const l of labPool){ if(!l[1].used){ l[1].el.remove(); labPool.delete(l[0]); } } for(const l of pctPool){ if(!l[1].used){ l[1].el.remove(); pctPool.delete(l[0]); } } for(let i=shieldUsed;i<shieldPool.length;i++) shieldPool[i].style.display='none';
     // fallen decals
     while(fallen.length<G.fallen.length){ const f=G.fallen[fallen.length]; const m=new T3.Mesh(geo.unit,fallenMat); m.rotation.x=-Math.PI/2; m.rotation.z=0.4; m.scale.set(0.9,0.7,1); m.position.copy(W(f.x,f.y,0.012)); scene.add(m); fallen.push(m); } if(fallen.length>G.fallen.length){ for(const m of fallen) scene.remove(m); fallen.length=0; }
@@ -3870,10 +4405,11 @@ const R3 = (()=>{
     G.fx=G.fx.filter(f=>{ const k=(t-f.t0)/f.d; if(k>=1){ dropFx(f); return false; } ensureFx(f); updFx(f,k); return true; });
     // shake
     updateCameras(tReal); if(G.shake>0){ const sh=active===pcam?0.012:0.03; active.position.x+=(Math.random()-.5)*G.shake*sh; active.position.y+=(Math.random()-.5)*G.shake*sh; G.shake*=0.82; if(G.shake<0.4) G.shake=0; }
+    if(FIG_LOOK==='toon'){ renderer.getDrawingBufferSize(_inkV); TOON.INK.res.value.copy(_inkV); TOON.INK.px.value=(active===pcam?1.9:1.2)*Math.pow(renderer.getPixelRatio(),0.8); }
     if(BLOOM&&BLOOM.on) BLOOM.render(scene,active); else { renderer.setRenderTarget(null); renderer.render(scene,active); }
   }
   gl.hidden=false; $('board').hidden=true;
-  return { render, pick, canvas:gl, floatText, _scene:scene, _units:units, _camState:()=>({zoom:camera.zoom,off:camTarget.distanceTo(CENTER)}), bloom:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.glow=v; return BLOOM.glow; }, rtPath:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.on=v; return BLOOM.on; }, bloomTune:(o)=>BLOOM&&BLOOM.tune(o), style:(v)=>{ if(!BLOOM) return 'standard'; if(v!==undefined){ BLOOM.style=v; BLOOM.on=true; } return BLOOM.style; }, povState:()=>({blend:POV.blend,cam:active===pcam?'pov':'map',pos:pcam.position.toArray().map(v=>+v.toFixed(2))}) };
+  return { render, pick, canvas:gl, floatText, _scene:scene, _units:units, _camState:()=>({zoom:camera.zoom,off:camTarget.distanceTo(CENTER)}), bloom:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.glow=v; return BLOOM.glow; }, rtPath:(v)=>{ if(!BLOOM) return false; if(v!==undefined) BLOOM.on=v; return BLOOM.on; }, bloomTune:(o)=>BLOOM&&BLOOM.tune(o), style:(v)=>{ if(v!==undefined){ const wantToon=v==='toon'&&TOON.init(); if(wantToon!==(FIG_LOOK==='toon')){ FIG_LOOK=wantToon?'toon':'standard'; for(const g of units.values()) unitGroup.remove(g); units.clear(); } if(BLOOM){ BLOOM.style=wantToon?'standard':v; BLOOM.on=true; } } if(FIG_LOOK==='toon') return 'toon'; return BLOOM?BLOOM.style:'standard'; }, povState:()=>({blend:POV.blend,cam:active===pcam?'pov':'map',pos:pcam.position.toArray().map(v=>+v.toFixed(2))}) };
 })();
 
 /* ---------- One-screen layout: size the board to the box it has (desktop fit mode) ---------- */
@@ -4058,7 +4594,7 @@ $('nav-speed').textContent=SPEEDS[SETTINGS.speed].name;
 function toggleDetail(){ SETTINGS.detail=SETTINGS.detail==='full'?'lean':'full'; saveSettings(); $('detail-toggle').textContent=`Board detail: ${SETTINGS.detail==='full'?'Full':'Lean'}`; if(G.screen==='game') banner(`Board detail: ${SETTINGS.detail==='full'?'full':'lean'}`,'player'); Audio.select(); }
 $('detail-toggle').textContent=`Board detail: ${SETTINGS.detail==='full'?'Full':'Lean'}`; $('detail-toggle').onclick=toggleDetail;
 /* Look prototypes (R3.style). Per device, like speed. The 2D fallback and devices without WebGL2 stay Standard. */
-const LOOKS=[['standard','Standard'],['sprite','Pixel art'],['pixel','Pixel scene'],['comic','Comic']]; if(SETTINGS.look==='pixunit') SETTINGS.look='sprite';
+const LOOKS=[['toon','Toon'],['standard','Standard'],['sprite','Pixel art'],['pixel','Pixel scene'],['comic','Comic']]; if(SETTINGS.look==='pixunit') SETTINGS.look='sprite';
 function applyLook(){ const got=R3&&R3.style?R3.style(SETTINGS.look):'standard'; const L=LOOKS.find(l=>l[0]===got)||LOOKS[0]; $('look-toggle').textContent=`Look: ${L[1]}`; return L; }
 function cycleLook(){ const i=LOOKS.findIndex(l=>l[0]===SETTINGS.look); SETTINGS.look=LOOKS[(i+1)%LOOKS.length][0]; saveSettings(); const L=applyLook(); if(G.screen==='game') banner(`Look: ${L[1]}`,'player'); Audio.select(); }
 $('look-toggle').onclick=cycleLook; applyLook();

@@ -726,6 +726,10 @@ gradient, glow parts as MeshBasic with HDR colour (×1.8–2.4, so the bloom pas
 - **Unaware dimming** now keeps the original material (`userData.m0`) and restores it on alert (hit flashes used to land on a stale
   material); ink hulls hide while dimmed and while dying (a cloned ink material would lose its outline shader — `Material.copy` drops
   `onBeforeCompile`).
+- **Map scale.** Each toon body sits in a `g.userData.mapS` group scaled `TOON_MAP_S=1.14` on the map, easing to 1 as `POV.blend` goes to 1,
+  so figures read a size up in the zoomed-out view and stay true in over-the-shoulder shots; scaled about the ground, so feet stay put.
+  Toon labels project at 1.78 (boss 2.25) × the same factor. `tfig` drops a stored `custom.accent` equal to the kit colour (the sheet saves
+  it as "no change"), so an untouched mutant keeps the toon palette's accent.
 - `R3.style('toon')` sets `FIG_LOOK` (composite runs as Standard); switching to or from toon clears the unit meshes so they rebuild.
   `SETTINGS.lookV` 2 migrates everyone to Toon once. Scratch sources: the standalone lineup renders came first (`toon/chars/*.js`); the
   in-game module is `toon/game/toonmod.js` + `ch_mutants.js` + `ch_coalition.js` (inlined verbatim). `shottoon.mjs` (SET=enemies|mutantsA|

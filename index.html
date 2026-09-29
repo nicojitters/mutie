@@ -4108,11 +4108,12 @@ const R3 = (()=>{
   /* Toon figures: TOON.build gives a rig with the same joints fig() makes, so pose() drives it unchanged (torso/shoulders are dummies
      that absorb the breathing writes). Toon units are ~1.9 tall; the body scale maps them to the board. */
   function tfig(u){ const d=u.def, isE=u.side==='enemy', isCap=u.side==='captive'; const id=d.decoy?'echo':(isCap||d.id==='vip')?'vip':d.id;
-    const e=u.cid?rosterEntry(u.cid):null; const Rg=TOON.build(id,{custom:e&&e.custom?e.custom:null,fallback:isE?'trooper':'blaster'}); if(!Rg) return null;
+    const e=u.cid?rosterEntry(u.cid):null; const cu=e&&e.custom?Object.assign({},e.custom):null; if(cu&&cu.accent&&MUT[d.id]&&MUT[d.id].color&&cu.accent.toLowerCase()===MUT[d.id].color.toLowerCase()) delete cu.accent; /* the sheet stores the kit colour as an accent; that is "no change", so keep the toon palette's own accent */
+    const Rg=TOON.build(id,{custom:cu&&Object.keys(cu).length?cu:null,fallback:isE?'trooper':'blaster'}); if(!Rg) return null;
     const g=new T3.Group(); const base=Rg.r.scale||1; const jit=0.97+(((u.seed||0.5)*9973)%1)*0.06;
     const shadow=new T3.Mesh(geo.unit,basic({map:TEX.shadow,transparent:true,opacity:0.75,depthWrite:false})); shadow.rotation.x=-Math.PI/2; shadow.scale.setScalar(1.15*base); shadow.position.y=0.008; g.add(shadow);
     const ring=new T3.Mesh(geo.ring,basic({map:TEX.ring,color:u.side==='player'?'#3FC1E3':isCap?'#8FD3C7':'#E0524B',transparent:true,opacity:0.9,depthWrite:false,side:T3.DoubleSide})); ring.rotation.x=-Math.PI/2; ring.position.y=0.02; ring.scale.setScalar(1.05*Math.max(1,base)); g.add(ring); g.userData.ring=ring;
-    const body=Rg.body; g.add(body); g.userData.body=body; body.scale.setScalar(0.75*base*jit);
+    const body=Rg.body; const mapS=new T3.Group(); g.add(mapS); mapS.add(body); g.userData.mapS=mapS; g.userData.body=body; body.scale.setScalar(0.75*base*jit);
     const dT=new T3.Object3D(), dS=new T3.Object3D(); body.add(dT,dS); Rg.elbowL.rotation.x=-0.35; Rg.elbowR.rotation.x=-0.35;
     g.userData.parts={legL:Rg.legL,legR:Rg.legR,kneeL:Rg.kneeL,kneeR:Rg.kneeR,armL:Rg.armL,armR:Rg.armR,elbowL:Rg.elbowL,elbowR:Rg.elbowR,torso:dT,head:Rg.head,shoulders:dS};
     const mats=[], cm=new Map(); body.traverse(o=>{ if(!o.isMesh||o.userData.ink) return; let m=cm.get(o.material); if(!m){ m=o.material.clone(); cm.set(o.material,m); if(m.emissive){ m.userData.e0=m.emissive.clone(); m.userData.i0=m.emissiveIntensity; mats.push(m); } } o.material=m; });
@@ -4233,7 +4234,7 @@ const R3 = (()=>{
      billboard showing a PIX frame. View (front/back) and mirroring come from the body's facing against the drawing camera; the plane is
      stretched by 1/cos(camera elevation) so the sprite keeps its drawn proportions under the three-quarter ortho view. */
   const SPR={geo:null, H:1.8, lut:null, lutEx:0};
-  let FIG_LOOK='standard'; const toonOn=()=>FIG_LOOK==='toon'&&TOON.init(); const _inkV=new T3.Vector2();
+  const TOON_MAP_S=1.14; let FIG_LOOK='standard'; const toonOn=()=>FIG_LOOK==='toon'&&TOON.init(); const _inkV=new T3.Vector2();
   /* The composite tone-maps everything (ACES at the scene exposure). Pixel art should show its authored palette, so sprite colours go
      through the inverse of that curve first (a 1D LUT on grey — close enough per channel) before they are uploaded. */
   function sprLUT(){ const ex=renderer.toneMappingExposure; if(SPR.lut&&SPR.lutEx===ex) return SPR.lut; const rrt=v=>{ const a=v*(v+0.0245786)-0.000090537, b=v*(0.983729*v+0.4329510)+0.238081; return a/b; };
@@ -4322,13 +4323,13 @@ const R3 = (()=>{
       // facing
       const dx=target.x-g.position.x, dz=target.z-g.position.z; let face=null; if(Math.hypot(dx,dz)>0.02) face=Math.atan2(dx,dz); else { const f=(G.pov&&G.pov.unit===u&&G.povView==='pov'&&G.pov.target&&G.pov.target.alive)?G.pov.target:nearestFoe(u); if(f) face=Math.atan2((f.x-u.x),(f.y-u.y)); }
       if(face!==null&&u.side!=='obj'&&!(u.anim&&(u.anim.k==='fire'||u.anim.k==='cast1'||u.anim.k==='slam'||u.anim.k==='lunge'||u.anim.k==='cast'))){ const cur=g.userData.body.rotation.y; let d=face-cur; while(d>Math.PI) d-=2*Math.PI; while(d<-Math.PI) d+=2*Math.PI; g.userData.body.rotation.y=cur+d*0.2; }
-      if(u.side!=='obj') pose(u,g,t,Math.hypot(dx,dz)>0.02); if(u.side!=='obj') sprUpdate(u,g,t,Math.hypot(dx,dz)>0.02);
+      if(g.userData.mapS) g.userData.mapS.scale.setScalar(TOON_MAP_S+(1-TOON_MAP_S)*POV.blend); /* toon figures read a size up on the map, true size in POV */ if(u.side!=='obj') pose(u,g,t,Math.hypot(dx,dz)>0.02); if(u.side!=='obj') sprUpdate(u,g,t,Math.hypot(dx,dz)>0.02);
       if(g.userData.spin) g.userData.spin.rotation.z=t/500; if(g.userData.pulse&&g.userData.pulse.material.emissive) g.userData.pulse.material.emissiveIntensity=1.2+0.7*Math.sin(t/300);
       if(u.side==='enemy'&&!u.alert){ g.traverse(o=>{ if(!o.isMesh||o.userData.dimmed) return; if(o.userData.ink){ o.userData.dimmed=true; o.visible=false; return; } if(o.material.transparent!==true){ o.userData.dimmed=true; o.userData.m0=o.material; o.material=o.material.clone(); o.material.transparent=true; o.material.opacity=0.45; } }); }
       else if(g.userData.dimState!==u.alert&&u.alert){ g.traverse(o=>{ if(o.isMesh&&o.userData.dimmed){ o.userData.dimmed=false; if(o.userData.ink){ o.visible=true; return; } if(o.userData.m0){ o.material=o.userData.m0; o.userData.m0=null; } else { o.material.opacity=1; o.material.transparent=false; } } }); }
       g.userData.dimState=u.alert;
       // labels
-      const p=project(g.position.x+COLS/2-0.5,g.position.z+ROWS/2-0.5,u.side==='obj'?1.2:sprOn()?(u.def.boss?2.35:(u.downed?1.0:1.95)):(u.def.boss?1.95:1.55)); const l=labFor(u.id);
+      const p=project(g.position.x+COLS/2-0.5,g.position.z+ROWS/2-0.5,u.side==='obj'?1.2:sprOn()?(u.def.boss?2.35:(u.downed?1.0:1.95)):g.userData.toon?(u.downed?1.0:(u.def.boss?2.25:1.78)*(TOON_MAP_S+(1-TOON_MAP_S)*POV.blend)/TOON_MAP_S):(u.def.boss?1.95:1.55)); const l=labFor(u.id);
       const frac=u.hp/u.maxHp; const cls=frac>0.5?'':frac>0.25?'mid':'low';
       const B=[[0,u.downed?`<span class="badge mk">${u.stabilized?'Stable':'Bleeding '+u.bleed}</span>`:''],[1,(()=>{ const n=flankedBy(u); return n?`<span class="badge fl">Flanked${n>1?' ×'+n:''}</span>`:''; })()],[2,u.stunned?'<span class="badge sup">Stunned +30</span>':''],[3,u.exposed?'<span class="badge mk">Exposed</span>':''],[4,u.marked?'<span class="badge mk">Marked</span>':''],[5,u.elite?`<span class="badge el">Elite · ${ELITE_TRAITS[u.elite].name}</span>`:''],[6,u.ow?'<span class="badge ow eye">◉ OW</span>':''],[7,u.hunker?'<span class="badge sh">Hunkered</span>':''],[8,u.side==='player'&&jammed(u)?'<span class="badge jm">Jammed</span>':''],[9,(u.drained||u.drainedNow)?'<span class="badge dr">Drained</span>':''],[10,u.suppressed?`<span class="badge sup">${u.rooted?'Pinned':'Suppressed'}</span>`:''],[11,u.taunt?'<span class="badge sup">Taunted</span>':''],[12,u.carrying?`<span class="badge ow">Carrying ${u.carrying.name}</span>`:''],[13,u.shield>0?`<span class="badge sh">Shield ${u.shield}</span>`:''],[14,u.brace?'<span class="badge br">Braced</span>':''],[15,u.shredded?`<span class="badge sh">Shred −${u.shredded}</span>`:''],[16,u.blinkAim?`<span class="badge sh">+${u.blinkAim} aim</span>`:''],[90,u.side==='enemy'&&!u.alert?'<span class="badge un">Unaware</span>':''],[99,u.def.boss?'<span class="badge boss">The Surgeon</span>':'']].filter(b=>b[1]);
       const Bshow=lean?B.filter(b=>b[0]<90):B; const badges=lean&&Bshow.length>BADGE_CAP?Bshow.slice(0,BADGE_CAP).map(b=>b[1]).join('')+`<span class="badge more">+${Bshow.length-BADGE_CAP}</span>`:Bshow.map(b=>b[1]).join('');

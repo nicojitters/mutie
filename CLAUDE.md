@@ -730,6 +730,13 @@ gradient, glow parts as MeshBasic with HDR colour (×1.8–2.4, so the bloom pas
   so figures read a size up in the zoomed-out view and stay true in over-the-shoulder shots; scaled about the ground, so feet stay put.
   Toon labels project at 1.78 (boss 2.25) × the same factor. `tfig` drops a stored `custom.accent` equal to the kit colour (the sheet saves
   it as "no change"), so an untouched mutant keeps the toon palette's accent.
+- **Stances.** `TOON.CH[id].stance` (copied to `g.userData.stance` in `tfig`) is layered on in `pose()` after the walk/overwatch block
+  and before the cover crouch. Sprinter `{lean, thigh[L,R], knee[L,R], head, drop, bounce, armZ}` — hunched forward on bent, staggered knees
+  with a small idle bounce, 60% while moving, damped to 25% as `g.userData.cr` (the cover crouch) takes over. Marksman `{ow:'kneel'}` —
+  on overwatch it drops to one knee (front thigh level, rear knee down, `bobY −0.25`) with the rifle up. `shotstance.mjs` (side view).
+- **Skin.** `skinTone(c)` in `TOON` compresses lightness above 0.5 (`0.5+(l−0.5)×0.42`) and adds back saturation, applied to `P.skin`
+  (palette and customiser) before a build — pale skin read as white plastic under the lit toon band + ACES 1.42. Pixel art is untouched.
+  `shotskin.mjs` (SET=mutantsA|mutantsB) lines the squad up facing the camera.
 - `R3.style('toon')` sets `FIG_LOOK` (composite runs as Standard); switching to or from toon clears the unit meshes so they rebuild.
   `SETTINGS.lookV` 2 migrates everyone to Toon once. Scratch sources: the standalone lineup renders came first (`toon/chars/*.js`); the
   in-game module is `toon/game/toonmod.js` + `ch_mutants.js` + `ch_coalition.js` (inlined verbatim). `shottoon.mjs` (SET=enemies|mutantsA|

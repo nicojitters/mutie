@@ -3157,6 +3157,9 @@ const TOON=(()=>{
     INK.res.value=new T.Vector2(1040,700);
     const c=document.createElement('canvas'); c.width=c.height=64; const x=c.getContext('2d'); const g=x.createRadialGradient(32,32,0,32,32,32); g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(0.4,'rgba(255,255,255,0.35)'); g.addColorStop(1,'rgba(255,255,255,0)'); x.fillStyle=g; x.fillRect(0,0,64,64); DOT=new T.CanvasTexture(c);
     return true; }
+  /* Pale skin blows out under the lit toon band + ACES at exposure 1.42 (reads as white plastic). Compress the top of the lightness range
+     and give back a little saturation, so light skin stays warm and still reads lighter than medium tones. Dark tones pass untouched. */
+  const skinTone=(c)=>{ const col=new T.Color(c), h={}; col.getHSL(h); if(h.l<=0.5) return c; const l2=0.5+(h.l-0.5)*0.42; col.setHSL(h.h,Math.min(1,h.s+(h.l-l2)*1.1),l2); return '#'+col.getHexString(); };
   const toon=(c)=>{ const k='t'+c; let m=MC.get(k); if(!m){ m=new T.MeshToonMaterial({color:new T.Color(c),gradientMap:GRAD}); MC.set(k,m); } return m; };
   const glow=(c,s=1.8)=>{ const k='g'+c+s; let m=MC.get(k); if(!m){ m=new T.MeshBasicMaterial({color:new T.Color(c).multiplyScalar(s)}); m.userData.glow=true; MC.set(k,m); } return m; };
   const flat=(c)=>{ const k='f'+c; let m=MC.get(k); if(!m){ m=new T.MeshBasicMaterial({color:new T.Color(c)}); MC.set(k,m); } return m; };
@@ -3300,7 +3303,7 @@ const TOON=(()=>{
   const CH={};
   function build(id,o={}){ if(!init()) return null; if(!CH[id]) id=o.fallback&&CH[o.fallback]?o.fallback:'trooper'; const cu=o.custom||null; const key=id+'|'+(cu?JSON.stringify(cu):'');
     let proto=CACHE.get(key);
-    if(!proto){ const sp=CH[id]; const P=Object.assign({},sp.pal||{}); if(cu){ if(cu.skin) P.skin=cu.skin; if(cu.hair) P.hair=cu.hair; if(cu.accent) P.acc=cu.accent; }
+    if(!proto){ const sp=CH[id]; const P=Object.assign({},sp.pal||{}); if(cu){ if(cu.skin) P.skin=cu.skin; if(cu.hair) P.hair=cu.hair; if(cu.accent) P.acc=cu.accent; } if(P.skin) P.skin=skinTone(P.skin);
       seed=7; const R=rig(sp.rig); const k=kit(R); sp.build(k,R,P);
       if(cu&&(cu.head==='helmet'||cu.head==='hood')&&R.headG){ const h=R.headG, Rr=h.R; if(cu.head==='helmet'){ k.add(new T.SphereGeometry(Rr*1.18,18,10,0,Math.PI*2,0,Math.PI*0.55),toon('#3A424E'),[0,0.01,-0.01],[-0.2,0,0],[0.95,1.05,1.02],0.014,h); k.add(new T.SphereGeometry(Rr*1.2,18,4,Math.PI*0.5-0.8,1.6,Math.PI*0.42,Math.PI*0.08),glow(P.acc||'#7FD4FF',2.2),[0,0,0],[0,0,0],[0.95,1.05,1.02],0.006,h); }
         else { const hm=toon(P.acc?shadeCol(P.acc,0.6):'#3a3a48'); k.add(new T.SphereGeometry(Rr*1.3,18,12,Math.PI*0.5+0.8,Math.PI*2-1.6,0,Math.PI*0.72),ds(hm),[0,0.02,-0.02],[0.12,0,0],[1,1.08,1.1],0.014,h); } }
@@ -3551,13 +3554,13 @@ const TOON=(()=>{
     C.legs(); C.torso('m'); add(box(0.1,0.08,0.05),M.plateD,[-0.1,1.02,0.21],[0,0,0],[1,1,1],0.01); add(box(0.1,0.08,0.05),M.plateD,[0.02,1.02,0.22],[0,0,0],[1,1,1],0.01);
     C.pauldron([-0.26,1.46,0]); C.pauldron([0.26,1.46,0]); C.stripe([-0.33,1.44,0.02],1,0.4); C.graft([-0.2,1.56,0.1],0.07);
     C.arms(); C.rifle('rifle'); C.helmet({visor:'#FF3B30'}); } };
-  CH.marksman={ rig:{}, build(k,R){ const C=k.coal(), M=C.M, {T,add,toon,lathe,ds}=k; const cape=toon('#3A2E2E');
+  CH.marksman={ rig:{}, stance:{ow:'kneel'}, build(k,R){ const C=k.coal(), M=C.M, {T,add,toon,lathe,ds}=k; const cape=toon('#3A2E2E');
     C.legs(); C.torso('slim',[1.06,1,0.84]);
     lathe([[0.3,1.12],[0.3,1.25],[0.28,1.4],[0.22,1.5],[0.12,1.56]],cape,[1.08,1,0.9],0.016,Math.PI*0.35,Math.PI*1.3);
     for(let i=0;i<7;i++){ const a=Math.PI*0.4+i*(Math.PI*1.2/6); add(new T.ConeGeometry(0.045,0.1,4),cape,[Math.sin(a)*0.32,1.08,Math.cos(a)*0.28],[Math.PI,a,0],[1,1,0.4],0.008); }
     C.arms(); C.rifle('long'); const h=C.helmet({r:0.155,face:'lens',visor:'#FF3B30'}); C.graft([-h.R*0.3,h.R*0.6,h.R*0.6],0.05,h,2);
     add(new T.SphereGeometry(h.R*1.25,16,10,Math.PI*1.1,Math.PI*0.8+0.4,0,Math.PI*0.62),ds(cape),[0,0.02,-0.03],[0.1,-0.4,0],[1,1.05,1.05],0.012,h); } };
-  CH.sprinter={ rig:{thigh:0.34,shin:0.4,hipY:0.9,scale:0.96}, build(k,R){ const C=k.coal(), M=C.M, {T,add,cyl,tube,toon,glow,each,limb}=k; const r=R.r; const carbon=toon('#22252C'), edge=glow('#FF6A3A',2);
+  CH.sprinter={ rig:{thigh:0.34,shin:0.4,hipY:0.9,scale:0.96}, stance:{lean:0.3,thigh:[-0.42,-0.16],knee:[0.62,0.34],head:-0.28,drop:0.07,bounce:0.012,armZ:0.22}, build(k,R){ const C=k.coal(), M=C.M, {T,add,cyl,tube,toon,glow,each,limb}=k; const r=R.r; const carbon=toon('#22252C'), edge=glow('#FF6A3A',2);
     each((X,s)=>{ limb([0,0,0],[0,-r.thigh,0],0.085,M.suit,0.016,X.leg); add(cyl(0.092,0.08,0.2,12),M.plate,[0,-r.thigh*0.45,0],[0,0,0],[1,1,1],0.012,X.leg); C.graft([0,-r.thigh+0.1,0.07],0.055,X.leg,1); add(cyl(0.07,0.07,0.06,12),M.plateL,[0,0,0],[0,0,0],[1,1,1],0.01,X.knee);
       const bl=[[0,0,0],[0,-0.2,-0.12],[0,-0.45,-0.06],[0,-r.hipY+r.thigh+0.08,0.08],[0,-r.hipY+r.thigh+0.02,0.24]]; tube(bl,0.03,carbon,X.knee,0.012); tube(bl.map(p=>[p[0]+0.028,p[1],p[2]+0.01]),0.008,edge,X.knee); });
     C.torso('slim',[1.04,1,0.84]); C.pauldron([0.24,1.46,0],0.85); C.pauldron([-0.24,1.46,0],0.85); C.arms(0.95);
@@ -4124,7 +4127,7 @@ const R3 = (()=>{
     else if(!d.noAttack&&!d.melee&&Rg.muzzle){ const w=new T3.Group(); w.scale.setScalar(2); Rg.muzzle.add(w); const mz=new T3.Sprite(new T3.SpriteMaterial({map:TEX.flash,color:'#FFE9A8',transparent:true,blending:T3.AdditiveBlending,depthWrite:false,toneMapped:false})); mz.scale.setScalar(0.22); mz.visible=false; w.add(mz); g.userData.muzzle=mz;
       g.userData.kind=d.id==='marksman'?'marksman':(d.id==='juggernaut'||d.boss||d.id==='grenadier')?'heavy':(d.id==='spotter'||d.id==='jammer'||d.id==='siphon'||d.id==='bulwark')?'pistol':'rifle'; }
     if(Rg.spin) g.userData.spin=Rg.spin;
-    g.userData.mats=mats; g.userData.baseScaleY=body.scale.y; g.userData.legK=(Rg.r.thigh*body.scale.y)/0.24; g.userData.toon=true;
+    g.userData.stance=(TOON.CH[id]&&TOON.CH[id].stance)||null; g.userData.mats=mats; g.userData.baseScaleY=body.scale.y; g.userData.legK=(Rg.r.thigh*body.scale.y)/0.24; g.userData.toon=true;
     g.userData.rest=(!d.noAttack&&!d.melee&&isE)?{rx:-0.85,lx:-0.7,lz:0.55}:(!d.noAttack&&!d.melee)?{rx:-0.5,lx:-0.35,lz:0.25}:{rx:-0.15,lx:-0.15,lz:0.08};
     g.position.copy(W(u.x,u.y,0)); g.userData.tx=u.x; g.userData.ty=u.y; unitGroup.add(g); return g; }
   const restoreE=g=>{ for(const m of g.userData.mats){ m.emissive.copy(m.userData.e0); m.emissiveIntensity=m.userData.i0; } };
@@ -4204,6 +4207,10 @@ const R3 = (()=>{
     if(u.side==='captive'){ P.legL.rotation.x=-1.5; P.legR.rotation.x=-1.5; P.kneeL.rotation.x=1.6; P.kneeR.rotation.x=1.6; P.armL.rotation.x=0.55; P.armR.rotation.x=0.55; P.armL.rotation.z=0.25; P.armR.rotation.z=-0.25; bobY=-0.19; P.head.rotation.x=0.25; }
     if(moving){ const w=Math.sin(t/70); P.legL.rotation.x=w*0.75; P.legR.rotation.x=-w*0.75; P.kneeL.rotation.x=Math.max(0,-w)*0.9; P.kneeR.rotation.x=Math.max(0,w)*0.9; P.armL.rotation.x=rest.lx-w*0.25; P.armR.rotation.x=rest.rx+w*0.25; bobY=Math.abs(w)*0.05; body.rotation.x=0.08; }
     else if(u.ow){ P.armR.rotation.x=-1.35; P.armL.rotation.x=-1.1; P.armL.rotation.z=0.5; bobY=-0.04; P.head.rotation.y=0.35*Math.sin(t/600); }
+    // per-character stance (toon look): the Sprinter runs hunched forward on bent knees; the Marksman kneels to hold a lane
+    { const st=g.userData.stance; if(st&&u.side!=='captive'){
+      if(st.lean!=null){ const e=(moving?0.6:1)*(1-0.75*Math.min(1,g.userData.cr||0)); /* the cover crouch takes over beside cover */ body.rotation.x+=st.lean*e; P.legL.rotation.x+=st.thigh[0]*e; P.legR.rotation.x+=st.thigh[1]*e; P.kneeL.rotation.x+=st.knee[0]*e; P.kneeR.rotation.x+=st.knee[1]*e; P.head.rotation.x+=st.head*e; bobY-=st.drop*e; if(!moving) bobY+=st.bounce*Math.sin(t/190+u.x); P.armL.rotation.z+=st.armZ; P.armR.rotation.z-=st.armZ; }
+      if(st.ow==='kneel'&&u.ow&&!moving){ P.legL.rotation.x=-1.42; P.kneeL.rotation.x=1.42; P.legR.rotation.x=0.22; P.kneeR.rotation.x=1.78; bobY=-0.25; body.rotation.x=0.06; P.head.rotation.y*=0.3; } } }
     // cover crouch: standing beside cover, an idle unit hunkers behind it (deeper for full cover); eased in and out so stops don't snap
     { const wantCr=(!moving&&!u.ow&&u.side!=='captive'&&!u.def.noAttack&&!(a&&k<1&&(a.k==='fire'||a.k==='cast1'||a.k==='slam'||a.k==='lunge'||a.k==='cast'||a.k==='drop')))?(u.hunker?1.2:(()=>{ const cov=adjacentCover(u); if(!cov.length) return 0; const f=nearestFoe(u); const rel=f?cov.filter(c=>protects(u,c,f)):cov; const use=rel.length?rel:cov; return use.some(c=>c.val===2)?1:0.62; })()):0; const wantCrN=wantCr;
       const cr=g.userData.cr=(g.userData.cr||0)+(wantCrN-(g.userData.cr||0))*(frozen?0:0.12); if(cr>0.01){ const e=cr; P.legL.rotation.x-=0.62*e; P.legR.rotation.x-=0.78*e; P.kneeL.rotation.x+=1.0*e; P.kneeR.rotation.x+=1.15*e; bobY-=0.15*e; body.rotation.x+=0.16*e; P.armR.rotation.x+=0.18*e; P.armL.rotation.x+=0.1*e; P.head.rotation.x=-0.12*e; } }

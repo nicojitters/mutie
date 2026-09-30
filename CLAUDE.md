@@ -785,6 +785,18 @@ Switchable post styles on the RT path, nothing about the game changes: `R3.style
 - Known: the Blast FX itself is small at every style; pixunit figures get chunky in POV close-ups (fixed texel size, by design); pixel
   mode's dither on the textured floor reads noisy.
 
+## Start & restart clarity (2026-09-30, Cameron: clear restart warning, obvious way to continue, Vex self-damage, show attack range)
+- **New-campaign modal has an explicit commit.** Difficulty buttons in `#df-choices` are now a selection (`aria-pressed`, "✓ selected", default Veteran,
+  `diffId`); a sticky footer `.df-foot` holds a live summary `#df-sum` ("Squad: … · Veteran · N modifiers · Ascension · Doctrine", or "Pick 3 mutants (N/3…)" in amber),
+  **Cancel** `#df-cancel` and the primary **Start campaign →** `#df-go` (disabled until three valid mutants). `sum()` reruns on every pick.
+  **Harnesses must click `#df-go` after choosing a difficulty** (tests 16/23/40/44 and shotmobile updated). `test47.mjs`.
+- **Restart campaign.** Menu `#m-new` is now "Restart campaign" (danger style) and the Record tab has `#hub-restart`; both run the same `confirmBox(…,{danger,label,html})`
+  listing what is erased (missions, roster, upgrades/perks/grafts/samples, Index, any mission in progress), what is kept (memorial → Wall, medals, Ascension, Doctrine) and that
+  nothing is erased until Start on the next screen. `newCampaign()` now logs legacy and clears `mutie.mission` **inside** the start callback, so Cancel leaves the run intact.
+- **Blast never hurts its caster** (`v!==u` in the blast and `blastPreview` victim lists); allies in the area still take it.
+- **Attack range on the floor.** `atkRangeTiles(u)` (range + LOS, no walls/self; `edge` = outer tile ring) tints in Fire mode (enemy tiles red, else the attack colour); in Move mode only
+  the outer ring outside the move footprint. Also drawn in the 2D fallback (Fire mode). `test48.mjs` (self-damage), `shot48.mjs`.
+
 ## Share card & head tags
 `og.png` (1200×630) is the Open Graph / Twitter image, referenced absolutely as `https://mutie.lol/og.png`; the head carries
 description, canonical, an inline SVG favicon, `og:*` and `twitter:card=summary_large_image`. Regenerate the card with
